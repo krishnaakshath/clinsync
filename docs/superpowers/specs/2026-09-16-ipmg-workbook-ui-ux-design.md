@@ -27,7 +27,7 @@ Build the internal tool that lets IPMG's research team pre-screen depression-tri
 
 **Out of scope** (unchanged from the client proposal — do not build): writing to Tebra or IntakeQ, contacting patients, making eligibility decisions, clinical advice, phone/text ingestion, billing/insurance access.
 
-**Explicitly in scope for this iteration beyond the original pilot:** the data model and UI are generalized to a first-class **Trial/Protocol** concept from day one, so a second trial or site is a new configuration entry, not a rebuild. The pilot ships with exactly one trial configured (NCT06911112, Redlands site).
+**Explicitly in scope for this iteration beyond the original pilot:** the data model and UI are generalized to a first-class **Trial/Protocol** concept from day one, so a second trial or site is a new configuration entry, not a rebuild. The pilot ships with the Redlands MDD trial (NCT06911112) configured first, but **IPMG runs trials across multiple psychiatric conditions (depression, ADHD, anxiety, and others)** — nothing in the screening logic, rating scales, diagnosis codes, or medication rules may be hardcoded to depression. Every condition-specific detail (which rating scale applies, which ICD-10 codes count, which medication class and washout period matter) is a property of the Trial/Protocol configuration, not of the application code.
 
 ## 2. Users & Roles
 
@@ -49,7 +49,7 @@ Left navigation, present for all roles:
 4. **Audit Log** — access history
 5. **Settings** — connections, users, compliance status
 
-A persistent top banner (visible on every screen) shows: environment (Pilot / Production), the active Trial/Protocol, and IntakeQ/Tebra connection health (green/red dot each) — because "is this actually connected and read-only" is a recurring trust question the client proposal itself raises.
+A persistent top banner (visible on every screen) shows: environment (Pilot / Production), the currently-selected Trial/Protocol filter (or "All Trials"), and IntakeQ/Tebra connection health (green/red dot each) — because "is this actually connected and read-only" is a recurring trust question the client proposal itself raises.
 
 ## 4. Screens
 
@@ -57,6 +57,7 @@ A persistent top banner (visible on every screen) shows: environment (Pilot / Pr
 
 The home screen. A dense, spreadsheet-style table of all 30 columns:
 
+- **A Trial filter/switcher at the top of the table** — a patient may be referred to, and screened against, more than one trial (e.g. an ADHD trial and a depression trial), so the workbook is always scoped to "patients for Trial X," with an "All Trials" view for coordinators managing several at once. This replaces a single fixed "active trial" in the top banner with an actual selector.
 - Virtualized/scrollable for performance; column show/hide; saved views (e.g. "Needs Review," "All Green")
 - Leading column shows the 🟢/🟡/🔴 screening status **with icon + label**, never color alone
 - Each system/IntakeQ/Tebra-sourced cell shows a small source tag on hover and a "chart data as of [timestamp]" tooltip, per the column-ownership rule in the proposal (system never overwrites staff columns; staff columns are 12, 17–20, 23, 24, 28)
@@ -79,7 +80,15 @@ A worklist for referrals that didn't auto-match with confidence (the proposal's 
 
 ### 4.4 Trials & Protocols (Admin)
 
-A list of configured trials — one row for the Redlands MDD trial at pilot launch. Each trial's detail page holds its criteria as structured, editable rules (medication washout periods in days/weeks, included/excluded diagnosis codes, age range, site). This is what makes "designed to grow" real: adding trial #2 is filling out this form, not shipping new code.
+A list of configured trials across whatever conditions IPMG is actively recruiting for — the pilot launches with the Redlands MDD trial, but the screen and its data model make no assumption about condition type. Each trial's detail page holds its criteria as structured, editable rules:
+
+- **Condition / therapeutic area** (e.g. Major Depressive Disorder, ADHD, Generalized Anxiety) — drives which of the fields below are relevant, not a fixed set baked into the app
+- **Diagnosis codes** (ICD-10) that count toward eligibility for this trial specifically — not a single hardcoded depression code list
+- **Rating scale(s) used** for this trial (e.g. PHQ-9/GAD-7 for a depression trial, ASRS/Conners for an ADHD trial) — the workbook's "Rating Scales" column (field 5) reads whichever scale is configured for that patient's trial, not a fixed scale
+- **Medication class(es) of interest and washout/duration rules** (e.g. "on current antidepressant dose ≥ 8 weeks" for the MDD trial; a different class and duration for a stimulant trial)
+- Age range, site, study drug, NCT number
+
+This is what makes "designed to grow across conditions" real: adding a second trial for a different condition is filling out this form with that condition's own rules, never shipping new code or new hardcoded logic.
 
 ### 4.5 Audit Log
 
@@ -129,10 +138,11 @@ Persistence model: **isolated Postgres persistence** (per the architecture bluep
 | Table | Holds |
 |---|---|
 | `patients` | Anonymous ID ↔ encrypted IntakeQ client ID + Tebra patient ID mapping |
-| `trials` | Trial/protocol definitions: criteria rules, site, drug, NCT number — generalized so a second trial is a new row |
-| `medication_episodes` | Stitched active/inactive medication history with start/stop dates, built from `MedicationRequest` + note-derived dose changes |
+| `trials` | Trial/protocol definitions: condition/therapeutic area, site, drug, NCT number, and its own diagnosis-code set, rating scale(s), and medication-class/washout rules — generalized so a second trial for a *different condition* is a new row with its own rule set, not new code |
+| `patient_trial_screenings` | Join between a patient and a trial they've been referred to — a patient may be screened against more than one trial concurrently |
+| `medication_episodes` | Stitched active/inactive medication history with start/stop dates, built from `MedicationRequest` + note-derived dose changes; tagged by medication class so any trial's washout rule can query the relevant class |
 | `evidence` | Exact quote, source `DocumentReference` id, document date — the citation backing every automated statement |
-| `screening_results` | 🟢/🟡/🔴 verdict per patient per criterion, linked to its `evidence` row |
+| `screening_results` | 🟢/🟡/🔴 verdict per `patient_trial_screening` per criterion, linked to its `evidence` row |
 | `audit_log` | User, timestamp, patient (by anonymous ID), action — write-only, retained |
 
 Manual/staff-owned fields (12, 17–20, 23, 24, 28 in the original 30-column map) are stored keyed to the anonymous ID only, never alongside PHI.
@@ -154,10 +164,10 @@ VPC-isolated deployment, VPN or Zero-Trust proxy for all staff/developer access,
 
 To let Symbiosys show IPMG what the finished tool looks like before real API access exists, build a **standalone interactive prototype** (no real backend calls) covering:
 
-- Patients workbook table with ~15–20 realistic-but-fictional mock patients across a spread of 🟢/🟡/🔴 statuses
-- One fully fleshed-out Patient Detail page demonstrating the evidence panel and the dual-source comparison strip
+- Patients workbook table with ~15–20 realistic-but-fictional mock patients across a spread of 🟢/🟡/🔴 statuses, **split across at least two trials for two different conditions** (e.g. the Redlands MDD trial and a mock ADHD trial) so the Trial filter/switcher and per-trial rule differences are actually visible in the demo, not just described
+- One fully fleshed-out Patient Detail page demonstrating the evidence panel and the dual-source comparison strip, shown for a patient in each of the two demo trials so the differing rating scale/medication rule per trial is visible
 - The Identity Matching Queue with 2–3 example ambiguous-match cases
-- Trials & Protocols showing the one configured trial (NCT06911112)
+- Trials & Protocols showing both configured trials, each with its own diagnosis codes, rating scale, and medication/washout rule filled in
 - Audit Log with plausible sample entries
 - Settings showing both connections as "Connected" (mock) with the compliance banner
 
@@ -180,3 +190,4 @@ These come from the existing engineering notes and remain unresolved — they af
 - Storage model, UI form factor, and structural approach reflect explicit user decisions made during brainstorming (isolated Postgres, web app, single-app tab nav), not defaults.
 - Patient Detail section reflects the four explicit revisions requested (full page, evidence prominence, original field order, side-by-side source comparison).
 - Scope is deliberately scoped to one trial today, generalized via the `trials` table for future growth, per the user's "both — pilot now, designed to grow" answer.
+- Multi-condition support (depression, ADHD, anxiety, and others at IPMG) is treated as a day-one requirement, not a future nice-to-have: rating scales, diagnosis codes, and medication/washout rules are all per-trial configuration (§4.4, §7.3), and the demo prototype (§8) proves this by including two trials for two different conditions rather than one.
