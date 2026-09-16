@@ -13,6 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { id } = await params
   const [updated] = await getDb().update(identityMatches).set({ status: 'rejected' }).where(eq(identityMatches.id, Number(id))).returning()
+  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   await logAudit(session, `rejected identity match candidate ${id}`, null)
 
   // See the matching comment in confirm/route.ts: the queue submits this as

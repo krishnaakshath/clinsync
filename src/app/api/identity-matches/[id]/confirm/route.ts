@@ -11,6 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { id } = await params
   const [updated] = await getDb().update(identityMatches).set({ status: 'confirmed' }).where(eq(identityMatches.id, Number(id))).returning()
+  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   await logAudit(session, `confirmed identity match ${id}`, null)
 
   // The Identity Matching Queue submits this as a real HTML <form>, so a

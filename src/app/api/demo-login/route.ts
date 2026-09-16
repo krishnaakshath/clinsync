@@ -8,7 +8,14 @@ const demoLoginSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const parsed = demoLoginSchema.safeParse(await request.json())
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const parsed = demoLoginSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid login payload', details: parsed.error.flatten() }, { status: 400 })
   }
