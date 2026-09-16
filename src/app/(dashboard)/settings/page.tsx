@@ -1,7 +1,8 @@
-import { getSession } from '@/lib/auth'
+import { requireSessionOrRedirect } from '@/lib/auth'
 
 export default async function SettingsPage() {
-  const session = await getSession()
+  // Must be the first statement — see the comment in patients/page.tsx.
+  const session = await requireSessionOrRedirect()
   return (
     <div className="max-w-xl space-y-6">
       <h1 className="text-lg font-semibold">Settings</h1>
@@ -17,7 +18,7 @@ export default async function SettingsPage() {
       </section>
       <section className="rounded-lg border p-4">
         <h2 className="mb-2 text-sm font-semibold uppercase text-slate-500">Signed in as</h2>
-        <p className="text-sm">{session?.name} ({session?.role})</p>
+        <p className="text-sm">{session.name} ({session.role})</p>
       </section>
     </div>
   )

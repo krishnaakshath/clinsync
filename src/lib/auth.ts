@@ -1,9 +1,11 @@
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { NextResponse } from 'next/server'
 
 export type Role = 'crc' | 'pi' | 'admin'
 export interface Session { role: Role; name: string }
 
+const VALID_ROLES: readonly Role[] = ['crc', 'pi', 'admin']
 const COOKIE_NAME = 'clinsync_demo_session'
 
 export function buildSessionCookieValue(role: Role, name: string): string {
@@ -13,7 +15,13 @@ export function buildSessionCookieValue(role: Role, name: string): string {
 export function parseSessionCookie(value: string): Session | null {
   try {
     const parsed = JSON.parse(value)
-    if (parsed.role && parsed.name) return parsed as Session
+    // Validate `role` is one of the real enum values, not just "truthy" --
+    // an invalid role here previously reached the audit_log insert and
+    // crashed with a Postgres enum-constraint violation on every subsequent
+    // audited request for that session.
+    if (typeof parsed.name === 'string' && parsed.name.length > 0 && VALID_ROLES.includes(parsed.role)) {
+      return { role: parsed.role, name: parsed.name }
+    }
     return null
   } catch {
     return null
@@ -44,5 +52,24 @@ export const SESSION_COOKIE_NAME = COOKIE_NAME
 export async function requireSession(): Promise<Session | NextResponse> {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  return session
+}
+
+/**
+ * The page-component equivalent of `requireSession()` for API routes.
+ *
+ * A final security review proved that relying on `(dashboard)/layout.tsx`'s
+ * `redirect('/login')` alone is NOT sufficient: with an invalid or missing
+ * session, curl against a production build showed the page component's full
+ * PHI-shaped content still rendered and streamed into the 307 response body
+ * (31KB+ containing real patient names), even though the top-level status
+ * was a redirect. Every `(dashboard)` page must call this itself, as the
+ * first statement in its component body, and use ITS returned session
+ * (never a separate, unchecked `getSession()` call) for anything the page
+ * does afterward, including `logAudit`.
+ */
+export async function requireSessionOrRedirect(): Promise<Session> {
+  const session = await getSession()
+  if (!session) redirect('/login')
   return session
 }

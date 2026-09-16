@@ -1,13 +1,12 @@
-import { getSession } from '@/lib/auth'
+import { requireSessionOrRedirect } from '@/lib/auth'
 import { listPendingIdentityMatches } from '@/lib/queries/identity-matches'
 
 export default async function IdentityMatchingPage() {
-  // This page's own (dashboard) layout already redirects an unauthenticated
-  // visitor to /login before this component ever renders, so `session` here
-  // is always non-null in practice — matching the established convention in
-  // src/app/(dashboard)/patients/page.tsx. We don't use it beyond that today
-  // (no audit log entry is required for viewing this queue).
-  await getSession()
+  // Must be the first statement — see the comment in patients/page.tsx for
+  // why relying on the layout's redirect() alone isn't sufficient. No audit
+  // log entry is required for viewing this queue, so the session isn't used
+  // beyond this check.
+  await requireSessionOrRedirect()
   const matches = await listPendingIdentityMatches()
 
   return (

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
-import { getSession } from '@/lib/auth'
+import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
 
@@ -18,13 +18,10 @@ function ComparisonRow({ label, intakeq, tebra, merged }: { label: string; intak
 }
 
 export default async function PatientDetailPage({ params }: { params: Promise<{ anonId: string }> }) {
-  const { anonId } = await params
+  // Must be the first statement — see the comment in patients/page.tsx.
+  const session = await requireSessionOrRedirect()
 
-  // This page's own (dashboard) layout already redirects an unauthenticated
-  // visitor to /login before this component ever renders, so `session` here
-  // is always non-null in practice — but we still need it to attribute the
-  // audit-log entry, matching the same requirement the API route enforces.
-  const session = await getSession()
+  const { anonId } = await params
   const patient = await getPatientDetail(anonId)
   if (!patient) notFound()
   await logAudit(session, 'viewed patient detail', anonId)

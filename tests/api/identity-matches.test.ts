@@ -70,9 +70,24 @@ describe('POST /api/identity-matches/[id]/confirm', () => {
     const listResponse = await listMatches(new NextRequest('http://localhost/api/identity-matches'))
     const { matches } = await listResponse.json()
     const target = matches[0]
-    const response = await confirmMatch(new NextRequest('http://localhost/api/identity-matches/x/confirm', { method: 'POST' }), { params: Promise.resolve({ id: String(target.id) }) })
+    const response = await confirmMatch(
+      new NextRequest('http://localhost/api/identity-matches/x/confirm', { method: 'POST', headers: { accept: 'application/json' } }),
+      { params: Promise.resolve({ id: String(target.id) }) }
+    )
     const body = await response.json()
     expect(body.status).toBe('confirmed')
+  })
+
+  it('a real browser form submission (no Accept: application/json) is redirected back to the queue', async () => {
+    // Reuses the row the previous test already confirmed rather than pulling
+    // a fresh one from the pending list — the route sets status
+    // unconditionally regardless of its current value, and there are only 2
+    // seeded pending rows total, so consuming a second one here would starve
+    // the reject test below.
+    const target = allMatchIds[0]
+    const response = await confirmMatch(new NextRequest('http://localhost/api/identity-matches/x/confirm', { method: 'POST' }), { params: Promise.resolve({ id: String(target) }) })
+    expect(response.status).toBe(303)
+    expect(response.headers.get('location')).toMatch(/\/identity-matching$/)
   })
 })
 
@@ -87,7 +102,10 @@ describe('POST /api/identity-matches/[id]/reject', () => {
     const listResponse = await listMatches(new NextRequest('http://localhost/api/identity-matches'))
     const { matches } = await listResponse.json()
     const target = matches[matches.length - 1]
-    const response = await rejectMatch(new NextRequest('http://localhost/api/identity-matches/x/reject', { method: 'POST' }), { params: Promise.resolve({ id: String(target.id) }) })
+    const response = await rejectMatch(
+      new NextRequest('http://localhost/api/identity-matches/x/reject', { method: 'POST', headers: { accept: 'application/json' } }),
+      { params: Promise.resolve({ id: String(target.id) }) }
+    )
     const body = await response.json()
     expect(body.status).toBe('rejected')
   })

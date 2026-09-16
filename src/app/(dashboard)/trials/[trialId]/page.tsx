@@ -1,7 +1,11 @@
 import { notFound } from 'next/navigation'
+import { requireSessionOrRedirect } from '@/lib/auth'
 import { listAllTrials } from '@/lib/queries/trials'
 
 export default async function TrialDetailPage({ params }: { params: Promise<{ trialId: string }> }) {
+  // Must be the first statement — see the comment in patients/page.tsx.
+  await requireSessionOrRedirect()
+
   const { trialId } = await params
   const trials = await listAllTrials()
   const trial = trials.find((t) => t.id === trialId)
