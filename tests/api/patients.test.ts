@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import * as auth from '@/lib/auth'
+
+const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 import { GET as listPatients } from '@/app/api/patients/route'
 import { GET as getPatient } from '@/app/api/patients/[anonId]/route'
 import { POST as refreshPatient } from '@/app/api/patients/[anonId]/refresh/route'
@@ -8,18 +10,23 @@ import { POST as refreshPatient } from '@/app/api/patients/[anonId]/refresh/rout
 // The global setup mock (vitest.setup.ts) stubs `next/headers` so `getSession()`
 // resolves to "no session" — that's correct for testing the 401 paths below, but
 // these routes are PHI-shaped and require an authenticated session for their
-// success paths too. Override `getSession` here to simulate a signed-in CRC by
-// default, and restore "no session" per-test where we're specifically checking
-// the 401 behavior. (Vitest hoists `vi.mock` above all imports in this file,
-// including the ones written above it, so this applies regardless of order.)
+// success paths too. The routes call `requireSession()` (not `getSession()`
+// directly), so that's what must be mocked here — mocking `getSession` alone
+// wouldn't work, since `requireSession`'s own implementation calls its
+// module-internal `getSession` reference, not the re-exported one this file
+// could override. Override `requireSession` to return a real session object by
+// default, and to return a real 401 NextResponse per-test where we're
+// specifically checking the 401 behavior. (Vitest hoists `vi.mock` above all
+// imports in this file, including the ones written above it, so this applies
+// regardless of order.)
 vi.mock('@/lib/auth', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth')>('@/lib/auth')
-  return { ...actual, getSession: vi.fn(async () => ({ role: 'crc' as const, name: 'Test CRC' })) }
+  return { ...actual, requireSession: vi.fn(async () => ({ role: 'crc' as const, name: 'Test CRC' })) }
 })
 
 describe('GET /api/patients', () => {
   it('returns 401 when there is no authenticated session', async () => {
-    vi.mocked(auth.getSession).mockResolvedValueOnce(null)
+    vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
     const response = await listPatients(new NextRequest('http://localhost/api/patients'))
     expect(response.status).toBe(401)
   })
@@ -40,7 +47,7 @@ describe('GET /api/patients', () => {
 
 describe('GET /api/patients/[anonId]', () => {
   it('returns 401 when there is no authenticated session', async () => {
-    vi.mocked(auth.getSession).mockResolvedValueOnce(null)
+    vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
     const response = await getPatient(new NextRequest('http://localhost/api/patients/RD-0001'), { params: Promise.resolve({ anonId: 'RD-0001' }) })
     expect(response.status).toBe(401)
   })
@@ -60,7 +67,7 @@ describe('GET /api/patients/[anonId]', () => {
 
 describe('POST /api/patients/[anonId]/refresh', () => {
   it('returns 401 when there is no authenticated session', async () => {
-    vi.mocked(auth.getSession).mockResolvedValueOnce(null)
+    vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
     const response = await refreshPatient(new NextRequest('http://localhost/api/patients/RD-0001/refresh', { method: 'POST' }), { params: Promise.resolve({ anonId: 'RD-0001' }) })
     expect(response.status).toBe(401)
   })

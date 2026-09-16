@@ -4,15 +4,15 @@ import { patients, patientTrialScreenings, screeningCriteriaResults } from '@/db
 import { eq } from 'drizzle-orm'
 import { evaluateCriteria } from '@/lib/rule-engine'
 import { logAudit } from '@/lib/audit'
-import { getSession } from '@/lib/auth'
+import { requireSession } from '@/lib/auth'
 import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/lib/cache'
 
 // Re-runs the rule engine against currently stored evidence and updates
 // `chartDataAsOf`. In Plan B this also re-fetches from the real
 // IntakeQ/Tebra connectors before re-evaluating.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ anonId: string }> }) {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const session = await requireSession()
+  if (session instanceof NextResponse) return session
 
   const { anonId } = await params
   const [screening] = await getDb().select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))

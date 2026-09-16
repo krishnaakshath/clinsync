@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
 
 export type Role = 'crc' | 'pi' | 'admin'
 export interface Session { role: Role; name: string }
@@ -31,3 +32,17 @@ export async function setSessionCookie(role: Role, name: string) {
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME
+
+/**
+ * Every API route that touches PHI-shaped data must call this before doing
+ * any cache/DB work, not just for audit-log attribution. Returns the session
+ * on success, or a ready-to-return 401 NextResponse on failure — callers do
+ * `const result = await requireSession(); if (result instanceof NextResponse) return result`.
+ * Centralized here after a review found 3 of 3 patient routes independently
+ * "forgot" this check when each called getSession() only for logging.
+ */
+export async function requireSession(): Promise<Session | NextResponse> {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  return session
+}
