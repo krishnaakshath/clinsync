@@ -26,6 +26,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
           {trials.map((t) => (
             <Link key={t.id} href={`/patients?trialId=${t.id}`} className={`rounded-md border px-3 py-1 ${trialId === t.id ? 'bg-slate-900 text-white' : ''}`}>{t.condition}</Link>
           ))}
+          <a href="/api/workbook/export" className="rounded-md border px-3 py-1 text-sm">Export to Excel</a>
         </div>
       </div>
       <table className="w-full border-collapse text-sm">
