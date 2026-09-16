@@ -7,6 +7,9 @@ import { getSession } from '@/lib/auth'
 import { getOrSetCache, patientListCacheKey } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const trialId = request.nextUrl.searchParams.get('trialId')
 
   const patientsWithStatus = await getOrSetCache(patientListCacheKey(trialId), 30, async () => {
@@ -19,7 +22,6 @@ export async function GET(request: NextRequest) {
     return rows.map((r) => ({ ...r.patient, trialId: r.screening?.trialId, overallStatus: r.screening?.overallStatus }))
   })
 
-  const session = await getSession()
   await logAudit(session, 'viewed patient list', null)
 
   return NextResponse.json({ patients: patientsWithStatus })

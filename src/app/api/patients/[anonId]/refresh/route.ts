@@ -11,6 +11,9 @@ import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/l
 // `chartDataAsOf`. In Plan B this also re-fetches from the real
 // IntakeQ/Tebra connectors before re-evaluating.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ anonId: string }> }) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { anonId } = await params
   const [screening] = await getDb().select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
   if (!screening) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -24,7 +27,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   await invalidateCache(patientListCacheKey(screening.trialId))
   await invalidateCache(patientListCacheKey(null))
 
-  const session = await getSession()
   await logAudit(session, 'refreshed patient from source systems', anonId)
 
   return NextResponse.json({ overallStatus })

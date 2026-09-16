@@ -7,6 +7,9 @@ import { getSession } from '@/lib/auth'
 import { getOrSetCache, patientDetailCacheKey } from '@/lib/cache'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ anonId: string }> }) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { anonId } = await params
 
   const detail = await getOrSetCache(patientDetailCacheKey(anonId), 30, async () => {
@@ -23,7 +26,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   if (!detail) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const session = await getSession()
   await logAudit(session, 'viewed patient detail', anonId)
 
   return NextResponse.json(detail)
