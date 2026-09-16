@@ -194,9 +194,9 @@ git commit -m "chore: scaffold Next.js app with Vitest, redirect root to /patien
 **Interfaces:**
 - Produces: exported Drizzle table objects `trials`, `patients`, `diagnoses`, `medicationEpisodes`, `patientTrialScreenings`, `screeningCriteriaResults`, `identityMatches`, `auditLog`, `users` — every later task imports from `@/db/schema`.
 
-- [ ] **Step 1: Provision Postgres via Vercel Marketplace**
+- [ ] **Step 1: Postgres already provisioned**
 
-Run: `vercel integration add neon` (or via the Vercel dashboard → Storage → Marketplace → Neon). Confirm `POSTGRES_URL` appears in `vercel env pull .env.local`.
+Neon Postgres has already been provisioned via `vercel integration add neon` and linked to this project — `DATABASE_URL` (and related `PG*`/`POSTGRES_*` vars) are already in `.env.local`. Nothing to do here except confirm: run `cat .env.local | grep DATABASE_URL` and verify it's non-empty before continuing.
 
 - [ ] **Step 2: Write the schema**
 
@@ -334,16 +334,27 @@ export const users = pgTable('users', {
 })
 ```
 
-Create `src/db/client.ts`:
+Create `src/db/client.ts` — uses the Neon serverless HTTP driver (not `pg`/node-postgres, which doesn't suit Vercel's serverless functions) with **lazy initialization** so `next build` doesn't crash if `DATABASE_URL` isn't set yet at build time, and a plain `getDb()` function rather than a `Proxy` wrapper (a `Proxy` around the client is known to break libraries that introspect the client object):
 
 ```typescript
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { Pool } from 'pg'
+import { neon } from '@neondatabase/serverless'
+import { drizzle } from 'drizzle-orm/neon-http'
 import * as schema from './schema'
 
-const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
-export const db = drizzle(pool, { schema })
+function createDb() {
+  const sql = neon(process.env.DATABASE_URL!)
+  return drizzle(sql, { schema })
+}
+
+let _db: ReturnType<typeof createDb> | null = null
+
+export function getDb() {
+  if (!_db) _db = createDb()
+  return _db
+}
 ```
+
+Every later task that wrote `import { db } from '@/db/client'` followed by `db.select()...` should instead write `import { getDb } from '@/db/client'` and call `getDb().select()...` — treat this substitution as implicit everywhere `db.` appears in a later task's code (schema/table names are unaffected).
 
 Create `drizzle.config.ts`:
 
@@ -354,9 +365,11 @@ export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
   dialect: 'postgresql',
-  dbCredentials: { url: process.env.POSTGRES_URL! },
+  dbCredentials: { url: process.env.DATABASE_URL! },
 })
 ```
+
+`drizzle-kit` does not auto-load `.env.local` — the `db:generate`/`db:push`/`db:seed` npm scripts already run through `dotenv-cli` (`dotenv -e .env.local -- ...`) to source it.
 
 - [ ] **Step 3: Write the failing test**
 
@@ -1242,17 +1255,127 @@ git commit -m "feat: add demo role-switcher auth and route guard middleware"
 
 ---
 
-### Task 8: API — patients list, detail, refresh
+### Task 8: API — patients list, detail, refresh, and the Redis cache layer
 
 **Files:**
-- Create: `src/app/api/patients/route.ts`, `src/app/api/patients/[anonId]/route.ts`, `src/app/api/patients/[anonId]/refresh/route.ts`
-- Test: `tests/api/patients.test.ts`
+- Create: `src/lib/cache.ts`, `src/app/api/patients/route.ts`, `src/app/api/patients/[anonId]/route.ts`, `src/app/api/patients/[anonId]/refresh/route.ts`
+- Test: `tests/lib/cache.test.ts`, `tests/api/patients.test.ts`
 
 **Interfaces:**
-- Consumes: `db`, schema tables, `evaluateCriteria`, `getSession`.
-- Produces: `GET /api/patients?trialId=`, `GET /api/patients/[anonId]`, `POST /api/patients/[anonId]/refresh` — Task 11/12 UI fetches these.
+- Consumes: `getDb`, schema tables, `evaluateCriteria`, `getSession`.
+- Produces: `getOrSetCache<T>(key, ttlSeconds, fn): Promise<T>`, `invalidateCache(key): Promise<void>` (used by every later cached route too); `GET /api/patients?trialId=`, `GET /api/patients/[anonId]`, `POST /api/patients/[anonId]/refresh` — Task 11/12 UI fetches these.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing cache test**
+
+Create `tests/lib/cache.test.ts`:
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const store = new Map<string, unknown>()
+
+vi.mock('@upstash/redis', () => ({
+  Redis: class {
+    async get(key: string) { return store.get(key) ?? null }
+    async set(key: string, value: unknown) { store.set(key, value) }
+    async del(key: string) { store.delete(key) }
+  },
+}))
+
+import { getOrSetCache, invalidateCache } from '@/lib/cache'
+
+describe('getOrSetCache', () => {
+  beforeEach(() => store.clear())
+
+  it('calls the loader and caches the result on a miss', async () => {
+    const loader = vi.fn().mockResolvedValue({ hello: 'world' })
+    const result = await getOrSetCache('key-1', 60, loader)
+    expect(result).toEqual({ hello: 'world' })
+    expect(loader).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns the cached value without calling the loader again on a hit', async () => {
+    const loader = vi.fn().mockResolvedValue({ hello: 'world' })
+    await getOrSetCache('key-2', 60, loader)
+    await getOrSetCache('key-2', 60, loader)
+    expect(loader).toHaveBeenCalledTimes(1)
+  })
+
+  it('invalidateCache forces the next call to hit the loader again', async () => {
+    const loader = vi.fn().mockResolvedValue({ v: 1 })
+    await getOrSetCache('key-3', 60, loader)
+    await invalidateCache('key-3')
+    await getOrSetCache('key-3', 60, loader)
+    expect(loader).toHaveBeenCalledTimes(2)
+  })
+})
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run tests/lib/cache.test.ts`
+Expected: FAIL — `src/lib/cache.ts` doesn't exist.
+
+- [ ] **Step 3: Implement the cache helper**
+
+Create `src/lib/cache.ts`. Vercel's Upstash Redis integration provisions `KV_REST_API_URL` / `KV_REST_API_TOKEN` (not `UPSTASH_REDIS_REST_URL`/`TOKEN`, which is what `Redis.fromEnv()` looks for) — construct the client explicitly with those names:
+
+```typescript
+import { Redis } from '@upstash/redis'
+
+function createRedis() {
+  return new Redis({
+    url: process.env.KV_REST_API_URL!,
+    token: process.env.KV_REST_API_TOKEN!,
+  })
+}
+
+let _redis: Redis | null = null
+function getRedis() {
+  if (!_redis) _redis = createRedis()
+  return _redis
+}
+
+/**
+ * Read-through cache: returns the cached value if present, otherwise
+ * calls `loader`, caches its result for `ttlSeconds`, and returns it.
+ * Used to keep the Patients workbook and Patient Detail screens fast
+ * without re-querying Postgres on every request.
+ */
+export async function getOrSetCache<T>(key: string, ttlSeconds: number, loader: () => Promise<T>): Promise<T> {
+  const cached = await getRedis().get<T>(key)
+  if (cached !== null && cached !== undefined) return cached
+  const fresh = await loader()
+  await getRedis().set(key, fresh, { ex: ttlSeconds })
+  return fresh
+}
+
+export async function invalidateCache(key: string): Promise<void> {
+  await getRedis().del(key)
+}
+
+export function patientListCacheKey(trialId: string | null): string {
+  return `patients:list:${trialId ?? 'all'}`
+}
+
+export function patientDetailCacheKey(anonId: string): string {
+  return `patients:detail:${anonId}`
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx vitest run tests/lib/cache.test.ts`
+Expected: PASS
+
+- [ ] **Step 5: Commit the cache layer**
+
+```bash
+git add -A
+git commit -m "feat: add Redis read-through cache helper (Upstash, KV_REST_API_* env vars)"
+```
+
+- [ ] **Step 6: Write the failing API test**
 
 Create `tests/api/patients.test.ts`:
 
@@ -1292,90 +1415,107 @@ describe('GET /api/patients/[anonId]', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 7: Run test to verify it fails**
 
 Run: `npx vitest run tests/api/patients.test.ts`
 Expected: FAIL — routes don't exist.
 
-- [ ] **Step 3: Implement**
+- [ ] **Step 8: Implement**
 
-Create `src/app/api/patients/route.ts`:
+Create `src/app/api/patients/route.ts` — list results are cached for 30s per trial filter, since the workbook is read far more often than it changes:
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/db/client'
+import { getDb } from '@/db/client'
 import { patients, patientTrialScreenings } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { logAudit } from '@/lib/audit'
 import { getSession } from '@/lib/auth'
+import { getOrSetCache, patientListCacheKey } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
   const trialId = request.nextUrl.searchParams.get('trialId')
-  const rows = await db
-    .select({ patient: patients, screening: patientTrialScreenings })
-    .from(patients)
-    .leftJoin(patientTrialScreenings, eq(patientTrialScreenings.patientId, patients.id))
-    .where(trialId ? eq(patientTrialScreenings.trialId, trialId) : undefined)
+
+  const patientsWithStatus = await getOrSetCache(patientListCacheKey(trialId), 30, async () => {
+    const rows = await getDb()
+      .select({ patient: patients, screening: patientTrialScreenings })
+      .from(patients)
+      .leftJoin(patientTrialScreenings, eq(patientTrialScreenings.patientId, patients.id))
+      .where(trialId ? eq(patientTrialScreenings.trialId, trialId) : undefined)
+
+    return rows.map((r) => ({ ...r.patient, trialId: r.screening?.trialId, overallStatus: r.screening?.overallStatus }))
+  })
 
   const session = await getSession()
   await logAudit(session, 'viewed patient list', null)
 
-  return NextResponse.json({
-    patients: rows.map((r) => ({ ...r.patient, trialId: r.screening?.trialId, overallStatus: r.screening?.overallStatus })),
-  })
+  return NextResponse.json({ patients: patientsWithStatus })
 }
 ```
 
-Create `src/app/api/patients/[anonId]/route.ts`:
+Create `src/app/api/patients/[anonId]/route.ts` — detail is cached for 30s per patient, invalidated explicitly on refresh (Step below):
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/db/client'
+import { getDb } from '@/db/client'
 import { patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { logAudit } from '@/lib/audit'
 import { getSession } from '@/lib/auth'
+import { getOrSetCache, patientDetailCacheKey } from '@/lib/cache'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ anonId: string }> }) {
   const { anonId } = await params
-  const [patient] = await db.select().from(patients).where(eq(patients.id, anonId))
-  if (!patient) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const [screening] = await db.select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
-  const criteria = screening ? await db.select().from(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, screening.id)) : []
-  const dx = await db.select().from(diagnoses).where(eq(diagnoses.patientId, anonId))
-  const meds = await db.select().from(medicationEpisodes).where(eq(medicationEpisodes.patientId, anonId))
+  const detail = await getOrSetCache(patientDetailCacheKey(anonId), 30, async () => {
+    const [patient] = await getDb().select().from(patients).where(eq(patients.id, anonId))
+    if (!patient) return null
+
+    const [screening] = await getDb().select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
+    const criteria = screening ? await getDb().select().from(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, screening.id)) : []
+    const dx = await getDb().select().from(diagnoses).where(eq(diagnoses.patientId, anonId))
+    const meds = await getDb().select().from(medicationEpisodes).where(eq(medicationEpisodes.patientId, anonId))
+
+    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds }
+  })
+
+  if (!detail) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const session = await getSession()
   await logAudit(session, 'viewed patient detail', anonId)
 
-  return NextResponse.json({ ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds })
+  return NextResponse.json(detail)
 }
 ```
 
-Create `src/app/api/patients/[anonId]/refresh/route.ts`:
+Create `src/app/api/patients/[anonId]/refresh/route.ts` — invalidates both the patient's detail cache and every list-cache entry that could include them, since a status change can move a row between filtered views:
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/db/client'
+import { getDb } from '@/db/client'
 import { patients, patientTrialScreenings, screeningCriteriaResults } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { evaluateCriteria } from '@/lib/rule-engine'
 import { logAudit } from '@/lib/audit'
 import { getSession } from '@/lib/auth'
+import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/lib/cache'
 
 // Re-runs the rule engine against currently stored evidence and updates
 // `chartDataAsOf`. In Plan B this also re-fetches from the real
 // IntakeQ/Tebra connectors before re-evaluating.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ anonId: string }> }) {
   const { anonId } = await params
-  const [screening] = await db.select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
+  const [screening] = await getDb().select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
   if (!screening) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const criteria = await db.select().from(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, screening.id))
+  const criteria = await getDb().select().from(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, screening.id))
   const overallStatus = evaluateCriteria(criteria)
-  await db.update(patientTrialScreenings).set({ overallStatus }).where(eq(patientTrialScreenings.id, screening.id))
-  await db.update(patients).set({ chartDataAsOf: new Date() }).where(eq(patients.id, anonId))
+  await getDb().update(patientTrialScreenings).set({ overallStatus }).where(eq(patientTrialScreenings.id, screening.id))
+  await getDb().update(patients).set({ chartDataAsOf: new Date() }).where(eq(patients.id, anonId))
+
+  await invalidateCache(patientDetailCacheKey(anonId))
+  await invalidateCache(patientListCacheKey(screening.trialId))
+  await invalidateCache(patientListCacheKey(null))
 
   const session = await getSession()
   await logAudit(session, 'refreshed patient from source systems', anonId)
@@ -1387,12 +1527,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 Create `src/lib/audit.ts` (small shared helper used by every route above and by Task 9's routes):
 
 ```typescript
-import { db } from '@/db/client'
+import { getDb } from '@/db/client'
 import { auditLog } from '@/db/schema'
 import type { Session } from './auth'
 
 export async function logAudit(session: Session | null, action: string, patientId: string | null) {
-  await db.insert(auditLog).values({
+  await getDb().insert(auditLog).values({
     userName: session?.name ?? 'unknown',
     role: session?.role ?? 'crc',
     action,
@@ -1401,16 +1541,16 @@ export async function logAudit(session: Session | null, action: string, patientI
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 9: Run test to verify it passes**
 
 Run: `npx vitest run tests/api/patients.test.ts`
-Expected: PASS
+Expected: PASS — the cache module is real (not mocked) in this test file, so these calls exercise the actual Upstash-backed cache; this is acceptable here because the test only asserts response shape, not cache timing.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add -A
-git commit -m "feat: add patients list/detail/refresh API routes with audit logging"
+git commit -m "feat: add patients list/detail/refresh API routes, cached via Redis"
 ```
 
 ---
