@@ -770,12 +770,6 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
 ]
 
-function toScreeningStatus(verdicts: ('green' | 'yellow' | 'red')[]): 'green' | 'yellow' | 'red' {
-  if (verdicts.includes('red')) return 'red'
-  if (verdicts.includes('yellow')) return 'yellow'
-  return 'green'
-}
-
 const FILLER_NAMES = [
   'Robert Nguyen', 'Angela Ferraro', 'Devon Okafor', 'Sana Patel', 'Wesley Turner', 'Isabel Marquez',
   'Owen Fitzgerald', 'Grace Kim', 'Tobias Reyes', 'Nadia Suleiman', 'Colin Brantley', 'Fatima Rashid',
@@ -1008,7 +1002,7 @@ git commit -m "feat: add deterministic rule engine and StatusChip (icon+label, n
 - Test: `tests/lib/matcher.test.ts`
 
 **Interfaces:**
-- Produces: `matchConfidence(a: {name: string; dob: string}, b: {name: string; dob: string}): number` (0-100) and `classifyMatch(confidence: number): 'auto'|'needs-review'|'no-match'` — used by Task 9's identity-matches API and Task 13's UI.
+- Produces: `matchConfidence(a: {name: string; dob: string}, b: {name: string; dob: string}): number` (0-100) and `classifyMatch(confidence: number): 'auto'|'needs-review'|'no-match'`. **Not wired into any Plan A route or UI** — Task 4's seed data hardcodes pending `identityMatches` rows with a fixed `confidence` value, and Task 9/13 only read/display that pre-seeded value. This task exists as a tested, ready-to-use pure-function unit for Plan B, where real-time Tebra search results will need actual confidence scoring. Do not treat "not consumed elsewhere in Plan A" as a defect in Task 9 or Task 13's review.
 
 - [ ] **Step 1: Write the failing test**
 
