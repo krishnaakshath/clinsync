@@ -1,19 +1,21 @@
 import Link from 'next/link'
 import { StatusChip } from '@/components/StatusChip'
 import { SourceTag } from '@/components/SourceTag'
-import { getSession } from '@/lib/auth'
+import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listAllTrials } from '@/lib/queries/trials'
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ trialId?: string }> }) {
-  const { trialId } = await searchParams
+  // Must be the first statement: a final security review proved that relying
+  // on the (dashboard) layout's redirect() alone lets this page's full PHI
+  // content render and stream into the response body even on an
+  // unauthenticated request (the top-level status becomes a redirect, but
+  // the body isn't discarded server-side). Checking here, before any data
+  // fetch, is what actually stops that.
+  const session = await requireSessionOrRedirect()
 
-  // This page's own (dashboard) layout already redirects an unauthenticated
-  // visitor to /login before this component ever renders, so `session` here
-  // is always non-null in practice — but we still need it to attribute the
-  // audit-log entry, matching the same requirement the API route enforces.
-  const session = await getSession()
+  const { trialId } = await searchParams
   const [patients, trials] = await Promise.all([listPatientsWithStatus(trialId ?? null), listAllTrials()])
   await logAudit(session, 'viewed patient list', null)
 

@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { setSessionCookie, type Role } from '@/lib/auth'
+import { z } from 'zod'
+import { setSessionCookie } from '@/lib/auth'
+
+const demoLoginSchema = z.object({
+  role: z.enum(['crc', 'pi', 'admin']),
+  name: z.string().trim().min(1).max(100),
+})
 
 export async function POST(request: NextRequest) {
-  const { role, name } = await request.json()
-  await setSessionCookie(role as Role, name)
+  const parsed = demoLoginSchema.safeParse(await request.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid login payload', details: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const { role, name } = parsed.data
+  await setSessionCookie(role, name)
   return NextResponse.json({ ok: true })
 }

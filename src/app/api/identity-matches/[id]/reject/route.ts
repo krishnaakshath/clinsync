@@ -14,5 +14,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params
   const [updated] = await getDb().update(identityMatches).set({ status: 'rejected' }).where(eq(identityMatches.id, Number(id))).returning()
   await logAudit(session, `rejected identity match candidate ${id}`, null)
-  return NextResponse.json({ status: updated.status })
+
+  // See the matching comment in confirm/route.ts: the queue submits this as
+  // a real HTML <form>, so it must return a redirect the browser can follow
+  // back to the queue, not a bare JSON blob.
+  if (request.headers.get('accept')?.includes('application/json')) {
+    return NextResponse.json({ status: updated.status })
+  }
+  return NextResponse.redirect(new URL('/identity-matching', request.url), 303)
 }

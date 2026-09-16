@@ -12,5 +12,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params
   const [updated] = await getDb().update(identityMatches).set({ status: 'confirmed' }).where(eq(identityMatches.id, Number(id))).returning()
   await logAudit(session, `confirmed identity match ${id}`, null)
-  return NextResponse.json({ status: updated.status })
+
+  // The Identity Matching Queue submits this as a real HTML <form>, so a
+  // browser navigates to whatever this returns — a bare JSON response left
+  // the coordinator stranded on a raw JSON blob instead of back at the
+  // queue. A caller that explicitly wants JSON (e.g. a test, or a future
+  // fetch()-based UI) can ask for it via the Accept header.
+  if (request.headers.get('accept')?.includes('application/json')) {
+    return NextResponse.json({ status: updated.status })
+  }
+  return NextResponse.redirect(new URL('/identity-matching', request.url), 303)
 }

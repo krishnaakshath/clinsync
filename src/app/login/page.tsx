@@ -11,12 +11,20 @@ export default function LoginPage() {
   const router = useRouter()
 
   async function signIn(role: string, name: string) {
-    await fetch('/api/demo-login', { method: 'POST', body: JSON.stringify({ role, name }) })
+    const res = await fetch('/api/demo-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, name }),
+    })
+    if (!res.ok) return
     router.push('/patients')
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50">
+      <div className="mb-4 w-full max-w-sm rounded-md bg-amber-50 px-4 py-1 text-center text-xs font-semibold text-amber-800">
+        PILOT / DEMO — NO REAL PATIENT DATA
+      </div>
       <div className="w-full max-w-sm rounded-lg border bg-white p-8 shadow-sm">
         <h1 className="mb-1 text-lg font-semibold">Clinsync — Demo Sign In</h1>
         <p className="mb-6 text-sm text-slate-500">Pilot demo only. Choose a role to explore the prototype.</p>
