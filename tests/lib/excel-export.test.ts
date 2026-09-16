@@ -34,6 +34,22 @@ describe('buildWorkbookXlsx', () => {
     expect(row.getCell(2).value).toBe("'=cmd|\"/c calc\"!A1")
     expect(typeof row.getCell(4).value).toBe('string')
     expect(row.getCell(4).value).toBe("'+SUM(A1:A9)")
+    expect(typeof row.getCell(5).value).toBe('string')
+    expect(row.getCell(5).value).toBe("'@import(evil)")
+  })
+
+  it('neutralizes a leading minus sign (the fourth dangerous character)', async () => {
+    const buffer = await buildWorkbookXlsx([
+      { id: 'RD-0004', nameTebra: '-2+3+cmd|"/c calc"!A0', dobTebra: '1990-01-01', currentProvider: 'Dr. R. Kunam', referralType: 'Self-referral' },
+    ])
+
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer)
+    const sheet = workbook.getWorksheet('Screening Workbook')!
+    const cell = sheet.getRow(2).getCell(2)
+
+    expect(typeof cell.value).toBe('string')
+    expect(cell.value).toBe('\'-2+3+cmd|"/c calc"!A0')
   })
 
   it('leaves ordinary values untouched', async () => {
