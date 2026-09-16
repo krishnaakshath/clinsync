@@ -1,5 +1,12 @@
 import '@testing-library/jest-dom/vitest'
-import { vi } from 'vitest'
+import { afterEach, vi } from 'vitest'
+import { cleanup } from '@testing-library/react'
+
+// @testing-library/react doesn't auto-register DOM cleanup for Vitest the way
+// it does for Jest — without this, multiple `it()` blocks in the same
+// component test file accumulate renders in the same jsdom document, causing
+// spurious "multiple elements found" failures in later tests.
+afterEach(() => cleanup())
 
 // Route handler modules are invoked directly in tests (not through an actual
 // Next.js HTTP request), so `next/headers`'s `cookies()` has no request-scoped

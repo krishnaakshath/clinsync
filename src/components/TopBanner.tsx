@@ -1,10 +1,8 @@
 function ConnectionDot({ label, connected }: { label: string; connected: boolean }) {
-  const status = connected ? 'Connected' : 'Disconnected'
-  const fullText = `${label} ${status}`
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-slate-600">
       <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} aria-hidden="true" />
-      {fullText}
+      <span>{label}</span> {connected ? 'Connected' : 'Disconnected'}
     </span>
   )
 }
