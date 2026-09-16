@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local, per-developer Claude Code settings
 .claude/settings.local.json
+
+# subagent-driven-development isolated worktrees
+.worktrees/
