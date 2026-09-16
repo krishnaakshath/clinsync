@@ -70,4 +70,17 @@ describe('PUT /api/trials/[trialId]/criteria', () => {
     const other = trials.find((t: any) => t.id === 'nct06911112')
     expect(other.medicationClasses).not.toEqual([{ className: 'Stimulant', washoutDays: 21, rule: 'Updated rule' }])
   })
+
+  it('rejects a payload containing a field outside the criteria allowlist (mass-assignment attempt)', async () => {
+    const response = await updateCriteria(
+      new NextRequest('http://localhost/api/trials/nct-adhd-demo-01/criteria', { method: 'PUT', body: JSON.stringify({ id: 'hijacked-id', createdAt: '2000-01-01' }) }),
+      { params: Promise.resolve({ trialId: 'nct-adhd-demo-01' }) }
+    )
+    expect(response.status).toBe(400)
+
+    const listResponse = await listTrials(new NextRequest('http://localhost/api/trials'))
+    const { trials } = await listResponse.json()
+    expect(trials.find((t: any) => t.id === TRIAL_ID)).toBeDefined()
+    expect(trials.find((t: any) => t.id === 'hijacked-id')).toBeUndefined()
+  })
 })
