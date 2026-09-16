@@ -3,12 +3,12 @@ import { getDb } from '@/db/client'
 import { patients, patientTrialScreenings } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { logAudit } from '@/lib/audit'
-import { getSession } from '@/lib/auth'
+import { requireSession } from '@/lib/auth'
 import { getOrSetCache, patientListCacheKey } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const session = await requireSession()
+  if (session instanceof NextResponse) return session
 
   const trialId = request.nextUrl.searchParams.get('trialId')
 
