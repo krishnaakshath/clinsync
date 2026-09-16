@@ -40,8 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local, per-developer Claude Code settings
+# local, per-developer Claude Code settings/runtime state
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # subagent-driven-development isolated worktrees
 .worktrees/
