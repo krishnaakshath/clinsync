@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client'
-import { patients, patientTrialScreenings } from '@/db/schema'
+import { patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes } from '@/db/schema'
 import { eq } from 'drizzle-orm'
-import { getOrSetCache, patientListCacheKey } from '@/lib/cache'
+import { getOrSetCache, patientListCacheKey, patientDetailCacheKey } from '@/lib/cache'
 import type { Verdict } from '@/lib/rule-engine'
 
 export type PatientWithStatus = typeof patients.$inferSelect & { trialId?: string; overallStatus?: Verdict }
@@ -26,5 +26,25 @@ export async function listPatientsWithStatus(trialId: string | null): Promise<Pa
       .where(trialId ? eq(patientTrialScreenings.trialId, trialId) : undefined)
 
     return rows.map((r) => ({ ...r.patient, trialId: r.screening?.trialId, overallStatus: r.screening?.overallStatus }))
+  })
+}
+
+/**
+ * Shared by the /api/patients/[anonId] route handler and the Patient Detail
+ * Server Component page — see the comment on `listPatientsWithStatus` above
+ * for why Server Components must call this directly rather than fetching
+ * the app's own API route.
+ */
+export async function getPatientDetail(anonId: string) {
+  return getOrSetCache(patientDetailCacheKey(anonId), 30, async () => {
+    const [patient] = await getDb().select().from(patients).where(eq(patients.id, anonId))
+    if (!patient) return null
+
+    const [screening] = await getDb().select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
+    const criteria = screening ? await getDb().select().from(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, screening.id)) : []
+    const dx = await getDb().select().from(diagnoses).where(eq(diagnoses.patientId, anonId))
+    const meds = await getDb().select().from(medicationEpisodes).where(eq(medicationEpisodes.patientId, anonId))
+
+    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds }
   })
 }
