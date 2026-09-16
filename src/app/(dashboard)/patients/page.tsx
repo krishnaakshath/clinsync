@@ -1,43 +1,21 @@
 import Link from 'next/link'
-import { cookies, headers } from 'next/headers'
 import { StatusChip } from '@/components/StatusChip'
 import { SourceTag } from '@/components/SourceTag'
-import type { trials as trialsTable, patients as patientsTable } from '@/db/schema'
-import type { Verdict } from '@/lib/rule-engine'
-
-type Trial = typeof trialsTable.$inferSelect
-type PatientRow = typeof patientsTable.$inferSelect & { trialId?: string; overallStatus?: Verdict }
-
-// Server Components run on the server and can't rely on the browser to
-// attach the session cookie for us, so internal API calls need it forwarded
-// explicitly — otherwise requireSession() in the route handlers rejects the
-// request with 401 even though the visiting user is signed in.
-async function internalFetch(path: string) {
-  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()])
-  const host = headerStore.get('host') ?? 'localhost:3000'
-  const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https'
-
-  const res = await fetch(`${protocol}://${host}${path}`, {
-    cache: 'no-store',
-    headers: { Cookie: cookieStore.toString() },
-  })
-  return res.json()
-}
-
-async function getPatients(trialId?: string): Promise<{ patients: PatientRow[] }> {
-  const params = new URLSearchParams()
-  if (trialId) params.set('trialId', trialId)
-  const query = params.toString()
-  return internalFetch(`/api/patients${query ? `?${query}` : ''}`)
-}
-
-async function getTrials(): Promise<{ trials: Trial[] }> {
-  return internalFetch('/api/trials')
-}
+import { getSession } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
+import { listPatientsWithStatus } from '@/lib/queries/patients'
+import { listAllTrials } from '@/lib/queries/trials'
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ trialId?: string }> }) {
   const { trialId } = await searchParams
-  const [{ patients }, { trials }] = await Promise.all([getPatients(trialId), getTrials()])
+
+  // This page's own (dashboard) layout already redirects an unauthenticated
+  // visitor to /login before this component ever renders, so `session` here
+  // is always non-null in practice — but we still need it to attribute the
+  // audit-log entry, matching the same requirement the API route enforces.
+  const session = await getSession()
+  const [patients, trials] = await Promise.all([listPatientsWithStatus(trialId ?? null), listAllTrials()])
+  await logAudit(session, 'viewed patient list', null)
 
   return (
     <div>
@@ -45,7 +23,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
         <h1 className="text-lg font-semibold">Patients</h1>
         <div className="flex gap-2 text-sm">
           <Link href="/patients" className={`rounded-md border px-3 py-1 ${!trialId ? 'bg-slate-900 text-white' : ''}`}>All Trials</Link>
-          {trials.map((t: Trial) => (
+          {trials.map((t) => (
             <Link key={t.id} href={`/patients?trialId=${t.id}`} className={`rounded-md border px-3 py-1 ${trialId === t.id ? 'bg-slate-900 text-white' : ''}`}>{t.condition}</Link>
           ))}
         </div>
@@ -63,7 +41,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
           </tr>
         </thead>
         <tbody>
-          {patients.map((p: PatientRow) => (
+          {patients.map((p) => (
             <tr key={p.id} className="border-b hover:bg-slate-50">
               <td className="p-2"><StatusChip status={p.overallStatus ?? 'yellow'} /></td>
               <td className="p-2"><Link href={`/patients/${p.id}`} className="text-blue-700 underline">{p.id}</Link></td>
