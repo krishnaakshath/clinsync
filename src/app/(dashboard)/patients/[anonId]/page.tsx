@@ -44,7 +44,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dual-Sourced Fields</h2>
         <div className="grid grid-cols-4 gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Field</span><span>IntakeQ</span><span>Tebra</span><span>Merged (used)</span>
+          <span>Field</span><span>Intake Form</span><span>Clinical Record</span><span>Merged (used)</span>
         </div>
         <ComparisonRow label="Name" intakeq={patient.nameIntakeq} tebra={patient.nameTebra} merged={patient.nameTebra ?? patient.nameIntakeq} />
         <ComparisonRow label="DOB" intakeq={patient.dobIntakeq} tebra={patient.dobTebra} merged={patient.dobTebra ?? patient.dobIntakeq} />
