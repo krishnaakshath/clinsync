@@ -17,7 +17,7 @@ export default function LoginPage() {
       body: JSON.stringify({ role, name }),
     })
     if (!res.ok) return
-    router.push('/patients')
+    router.push('/')
   }
 
   return (
