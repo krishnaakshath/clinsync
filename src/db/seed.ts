@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import { getDb } from './client'
 import { encryptSensitive } from '../lib/crypto'
 import {
@@ -195,6 +196,18 @@ async function clearExistingData() {
 
 export async function seed() {
   const db = getDb()
+
+  // Guard against re-seeding a shared dev database that already has data --
+  // sibling feature branches now have tables with FK references into
+  // `patients`/`formSubmissions` that this branch's schema doesn't know
+  // about, so a full clear-and-reinsert can no longer safely delete those
+  // two tables without aborting partway through. Skip entirely if seeded.
+  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(patients)
+  if (count > 0) {
+    console.log(`Seed skipped: patients table already has ${count} row(s).`)
+    return
+  }
+
   await clearExistingData()
 
   await db.insert(trials).values([MDD_TRIAL, ADHD_TRIAL])
@@ -252,8 +265,8 @@ export async function seed() {
     category: 'Trial Intake',
     diagnosisTag: 'Major Depressive Disorder',
     questions: [
-      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true },
-      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true },
+      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true, autofillField: 'name' },
+      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true, autofillField: 'dob' },
       { id: 'q3', label: 'Current mood symptoms (describe)', type: 'textarea', hipaaSensitive: true, required: true },
       { id: 'q4', label: 'Currently taking antidepressants?', type: 'select', options: ['Yes', 'No'], hipaaSensitive: true, required: true },
       { id: 'q5', label: 'Consent to share records with study team', type: 'checkbox', hipaaSensitive: false, required: true },
@@ -265,8 +278,8 @@ export async function seed() {
     category: 'Trial Intake',
     diagnosisTag: 'ADHD',
     questions: [
-      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true },
-      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true },
+      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true, autofillField: 'name' },
+      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true, autofillField: 'dob' },
       { id: 'q3', label: 'Current stimulant medication (if any)', type: 'text', hipaaSensitive: true, required: false },
       { id: 'q4', label: 'Consent to share records with study team', type: 'checkbox', hipaaSensitive: false, required: true },
     ],
