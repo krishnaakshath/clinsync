@@ -14,6 +14,8 @@ import {
   allergies,
   identityVerifications,
   appSettings,
+  providers,
+  appointments,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -46,6 +48,18 @@ const ADHD_TRIAL = {
   ratingScales: [{ name: 'ASRS-v1.1', description: 'Adult ADHD Self-Report Scale' }],
   medicationClasses: [{ className: 'Stimulant', washoutDays: 14, rule: 'No stimulant medication within the last 14 days' }],
 }
+
+// Independent provider roster — see the Design Decision section in this
+// phase's plan for why this is not backfilled from patients.currentProvider.
+// colorTag cycles through the design system's grayscale chart tokens so the
+// calendar can color-code providers without ever using a hardcoded color.
+const PROVIDER_ROSTER = [
+  { name: 'Dr. Rajiv Kunam', credentials: 'MD', specialty: 'Psychiatry', colorTag: 'chart-1' },
+  { name: 'Dr. Elena Bosch', credentials: 'MD', specialty: 'Psychiatry', colorTag: 'chart-2' },
+  { name: 'Priya Sundaram', credentials: 'PMHNP', specialty: 'Psychiatric Nurse Practitioner', colorTag: 'chart-3' },
+  { name: 'Dr. Michael Farr', credentials: 'DO', specialty: 'Psychiatry', colorTag: 'chart-4' },
+  { name: 'Dana Whitfield', credentials: 'PMHNP', specialty: 'Psychiatric Nurse Practitioner', colorTag: 'chart-5' },
+]
 
 type HeroPatient = {
   id: string; trialId: string; overallStatus: 'green' | 'yellow' | 'red'
@@ -174,6 +188,30 @@ async function seedFillerPatients() {
   }
 }
 
+async function seedProvidersAndAppointments() {
+  const db = getDb()
+  const insertedProviders = await db.insert(providers).values(PROVIDER_ROSTER).returning()
+  const [kunam, bosch, sundaram, farr, whitfield] = insertedProviders
+
+  // Appointments spread across past (completed/no-show/cancelled), today
+  // (2026-09-17), and upcoming dates so Day/Week/Month views and the Home
+  // Dashboard's Upcoming Appointments widget all have real demo data.
+  await db.insert(appointments).values([
+    { patientId: 'RD-0001', providerId: kunam.id, startsAt: new Date('2026-09-10T09:00:00'), endsAt: new Date('2026-09-10T09:30:00'), visitReason: 'Pre-screening follow-up', status: 'completed' },
+    { patientId: 'RD-0006', providerId: kunam.id, startsAt: new Date('2026-09-12T14:00:00'), endsAt: new Date('2026-09-12T14:30:00'), visitReason: 'Medication review', status: 'no_show' },
+    { patientId: 'RD-0005', providerId: whitfield.id, startsAt: new Date('2026-09-16T11:00:00'), endsAt: new Date('2026-09-16T11:30:00'), visitReason: 'Intake consult', status: 'cancelled' },
+    { patientId: 'RD-0002', providerId: bosch.id, startsAt: new Date('2026-09-17T09:00:00'), endsAt: new Date('2026-09-17T09:30:00'), visitReason: 'PHQ-9 rescreen', status: 'scheduled' },
+    { patientId: 'RD-0004', providerId: sundaram.id, startsAt: new Date('2026-09-17T10:30:00'), endsAt: new Date('2026-09-17T11:00:00'), visitReason: 'ASRS follow-up', status: 'scheduled' },
+    { patientId: 'RD-0003', providerId: farr.id, startsAt: new Date('2026-09-18T13:00:00'), endsAt: new Date('2026-09-18T13:30:00'), visitReason: 'Identity verification appointment', status: 'scheduled' },
+    { patientId: 'RD-0007', providerId: kunam.id, startsAt: new Date('2026-09-19T09:00:00'), endsAt: new Date('2026-09-19T09:30:00'), visitReason: 'New patient intake', status: 'scheduled' },
+    { patientId: 'RD-0008', providerId: bosch.id, startsAt: new Date('2026-09-22T15:00:00'), endsAt: new Date('2026-09-22T15:30:00'), visitReason: 'Screening visit', status: 'scheduled' },
+    { patientId: 'RD-0009', providerId: whitfield.id, startsAt: new Date('2026-09-24T10:00:00'), endsAt: new Date('2026-09-24T10:30:00'), visitReason: 'Consent review', status: 'scheduled' },
+    { patientId: 'RD-0010', providerId: sundaram.id, startsAt: new Date('2026-09-25T09:30:00'), endsAt: new Date('2026-09-25T10:00:00'), visitReason: 'Baseline rating scale', status: 'scheduled' },
+    { patientId: 'RD-0011', providerId: farr.id, startsAt: new Date('2026-09-29T13:30:00'), endsAt: new Date('2026-09-29T14:00:00'), visitReason: 'Follow-up visit', status: 'scheduled' },
+    { patientId: 'RD-0012', providerId: kunam.id, startsAt: new Date('2026-09-30T11:00:00'), endsAt: new Date('2026-09-30T11:30:00'), visitReason: 'Randomization visit', status: 'scheduled' },
+  ])
+}
+
 async function clearExistingData() {
   const db = getDb()
   // Delete in FK-safe order (children before parents) so seed() is safely re-runnable
@@ -188,7 +226,9 @@ async function clearExistingData() {
   await db.delete(identityVerifications)
   await db.delete(appSettings)
   await db.delete(formTemplates)
+  await db.delete(appointments)
   await db.delete(patients)
+  await db.delete(providers)
   await db.delete(users)
   await db.delete(trials)
 }
@@ -239,6 +279,7 @@ export async function seed() {
   }
 
   await seedFillerPatients()
+  await seedProvidersAndAppointments()
 
   await db.insert(identityMatches).values([
     { intakeqClientIdEncrypted: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdEncrypted: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
