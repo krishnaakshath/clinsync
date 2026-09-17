@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { formSubmissions, formTemplates, patients } from '@/db/schema'
-import { eq, and, gte, lte, SQL } from 'drizzle-orm'
+import { eq, and, gte, lte, desc, SQL } from 'drizzle-orm'
 
 export interface FormSubmissionFilters {
   diagnosisTag?: string
@@ -22,6 +22,7 @@ export async function listFormSubmissions(filters: FormSubmissionFilters) {
     .innerJoin(formTemplates, eq(formSubmissions.templateId, formTemplates.id))
     .innerJoin(patients, eq(formSubmissions.patientId, patients.id))
     .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(formSubmissions.sentDate))
 
   return rows.map((r) => ({
     ...r.submission,
