@@ -88,7 +88,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
               <div className="flex gap-1">
                 <button onClick={() => moveQuestion(i, -1)} disabled={i === 0} aria-label="Move up" className="rounded px-2 py-0.5 hover:bg-secondary disabled:opacity-30">↑</button>
                 <button onClick={() => moveQuestion(i, 1)} disabled={i === questions.length - 1} aria-label="Move down" className="rounded px-2 py-0.5 hover:bg-secondary disabled:opacity-30">↓</button>
-                <button onClick={() => removeQuestion(q.id)} aria-label="Remove question" className="rounded px-2 py-0.5 text-red-700 hover:bg-secondary">Remove</button>
+                <button onClick={() => removeQuestion(q.id)} aria-label="Remove question" className="rounded px-2 py-0.5 text-destructive hover:bg-secondary">Remove</button>
               </div>
             </div>
           </div>
