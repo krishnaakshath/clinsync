@@ -24,7 +24,7 @@ export function LeftNav() {
                 aria-current={active ? 'page' : undefined}
                 className={`block rounded-md border-l-2 py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? 'border-accent bg-sidebar-accent text-sidebar-accent-foreground'
+                    ? 'border-sidebar-ring bg-sidebar-accent text-sidebar-accent-foreground'
                     : 'border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 }`}
               >
