@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex min-h-screen flex-col">
       <SessionTimeoutWarning />
-      <TopBanner environment="pilot" userName={session.name} />
+      <TopBanner userName={session.name} />
       <div className="flex flex-1">
         <LeftNav />
         <main className="flex-1 overflow-auto p-6">{children}</main>
