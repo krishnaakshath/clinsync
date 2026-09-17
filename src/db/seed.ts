@@ -307,12 +307,6 @@ async function clearExistingData() {
   await db.delete(identityVerifications)
   await db.delete(appSettings)
   await db.delete(formTemplates)
-  // Delete from appointments table if it exists (may exist in some environments)
-  try {
-    await db.execute(sql`DELETE FROM "appointments"`)
-  } catch {
-    // appointments table may not exist, ignore
-  }
   await db.delete(patients)
   await db.delete(users)
   await db.delete(trials)
