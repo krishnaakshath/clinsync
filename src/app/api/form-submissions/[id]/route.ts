@@ -39,6 +39,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (parsed.data.status === 'completed') {
     await logAudit(session, 'completed intake form', existing.patientId)
     await maybeAutoClassify(existing.patientId, session)
+  } else {
+    await logAudit(session, `updated intake form status to ${parsed.data.status}`, existing.patientId)
   }
 
   return NextResponse.json({ ok: true })
