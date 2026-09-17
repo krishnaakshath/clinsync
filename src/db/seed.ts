@@ -1,6 +1,6 @@
 import { getDb } from './client'
 import { encryptSensitive } from '../lib/crypto'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import {
   trials,
   patients,
@@ -200,6 +200,18 @@ async function clearExistingData() {
 
 export async function seed() {
   const db = getDb()
+
+  // Guard against re-seeding a shared dev database that already has data --
+  // sibling feature branches now have tables with FK references into
+  // `patients`/`formSubmissions` that this branch's schema doesn't know
+  // about, so a full clear-and-reinsert can no longer safely delete those
+  // two tables without aborting partway through. Skip entirely if seeded.
+  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(patients)
+  if (count > 0) {
+    console.log(`Seed skipped: patients table already has ${count} row(s).`)
+    return
+  }
+
   await clearExistingData()
 
   await db.insert(trials).values([MDD_TRIAL, ADHD_TRIAL])
