@@ -1,4 +1,6 @@
+'use client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 const ITEMS = [
   { href: '/patients', label: 'Patients' },
@@ -9,16 +11,27 @@ const ITEMS = [
 ]
 
 export function LeftNav() {
+  const pathname = usePathname()
   return (
-    <nav className="w-56 shrink-0 border-r bg-slate-50 p-4">
+    <nav className="w-56 shrink-0 bg-sidebar p-4">
       <ul className="space-y-1">
-        {ITEMS.map((item) => (
-          <li key={item.href}>
-            <Link href={item.href} className="block rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-200">
-              {item.label}
-            </Link>
-          </li>
-        ))}
+        {ITEMS.map((item) => {
+          const active = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={`block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                }`}
+              >
+                {item.label}
+              </Link>
+            </li>
+          )
+        })}
       </ul>
     </nav>
   )
