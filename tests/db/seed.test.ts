@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { trials, patients, identityMatches } from '@/db/schema'
+import { trials, patients, identityMatches, broadcasts, reviews } from '@/db/schema'
 import { seed } from '@/db/seed'
 
 describe('seed', () => {
@@ -23,5 +23,18 @@ describe('seed', () => {
   it('creates at least 2 pending identity matches', async () => {
     const rows = await getDb().select().from(identityMatches)
     expect(rows.filter((r) => r.status === 'pending').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('creates the seeded broadcasts with recipient snapshots', async () => {
+    const rows = await getDb().select().from(broadcasts)
+    expect(rows.length).toBeGreaterThanOrEqual(4)
+    expect(rows.every((r) => Array.isArray(r.recipients) && r.recipients.length === r.recipientCount)).toBe(true)
+  })
+
+  it('creates the seeded pre-screening experience surveys, including at least one still-sent response', async () => {
+    const rows = await getDb().select().from(reviews)
+    expect(rows.length).toBeGreaterThanOrEqual(3)
+    expect(rows.some((r) => r.status === 'sent')).toBe(true)
+    expect(rows.some((r) => r.status === 'completed' && r.ratingOverall !== null)).toBe(true)
   })
 })

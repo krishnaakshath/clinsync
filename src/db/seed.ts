@@ -1,5 +1,6 @@
 import { getDb } from './client'
 import { encryptSensitive } from '../lib/crypto'
+import { eq, and } from 'drizzle-orm'
 import {
   trials,
   patients,
@@ -14,6 +15,8 @@ import {
   allergies,
   identityVerifications,
   appSettings,
+  broadcasts,
+  reviews,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -178,6 +181,8 @@ async function clearExistingData() {
   const db = getDb()
   // Delete in FK-safe order (children before parents) so seed() is safely re-runnable
   // against the live database without unique-constraint violations.
+  await db.delete(reviews)
+  await db.delete(broadcasts)
   await db.delete(screeningCriteriaResults)
   await db.delete(patientTrialScreenings)
   await db.delete(medicationEpisodes)
@@ -340,6 +345,125 @@ export async function seed() {
 
   // Default settings row (auto-classify off by default).
   await db.insert(appSettings).values({ autoClassifyOnComplete: false })
+
+  // Phase 5: stagger dateAdded/chartDataAsOf for a handful of patients so the
+  // Pipeline Performance Dashboard's date-range filters and "average days
+  // referral -> classification" KPI have real spread to show, instead of
+  // every patient landing at the exact instant this script ran. This only
+  // updates data values on the pre-existing `patients` table (not its
+  // schema), for the same reason Phase 1's seed script freely inserts into
+  // pre-existing tables like `diagnoses` — no phase "owns" `patients`
+  // exclusively, and no column definition is changed here.
+  const now = new Date()
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000)
+  await db.update(patients).set({ dateAdded: daysAgo(35), chartDataAsOf: daysAgo(28) }).where(eq(patients.id, 'RD-0001'))
+  await db.update(patients).set({ dateAdded: daysAgo(20), chartDataAsOf: daysAgo(15) }).where(eq(patients.id, 'RD-0002'))
+  await db.update(patients).set({ dateAdded: daysAgo(12), chartDataAsOf: daysAgo(9) }).where(eq(patients.id, 'RD-0003'))
+  await db.update(patients).set({ dateAdded: daysAgo(8), chartDataAsOf: daysAgo(6) }).where(eq(patients.id, 'RD-0004'))
+  await db.update(patients).set({ dateAdded: daysAgo(3), chartDataAsOf: daysAgo(1) }).where(eq(patients.id, 'RD-0005'))
+  await db.update(patients).set({ dateAdded: daysAgo(2) }).where(eq(patients.id, 'RD-0006')) // not yet (re)classified
+
+  // Broadcasts: a spread of channels, filters, and simulated delivery outcomes.
+  await db.insert(broadcasts).values([
+    {
+      message: 'Reminder: your MDD trial intake packet is still open. Please finish it before your next visit.',
+      channel: 'sms',
+      filterTrialId: 'nct06911112',
+      filterOverallStatus: 'yellow',
+      filterFormStatus: null,
+      recipients: [
+        { patientId: 'RD-0003', patientName: 'Linda Cho', deliveryStatus: 'delivered' },
+        { patientId: 'RD-0006', patientName: 'Kathryn Voss', deliveryStatus: 'delivered' },
+      ],
+      recipientCount: 2,
+      sentBy: 'Jamie Ruiz',
+      sentAt: daysAgo(10),
+    },
+    {
+      subject: 'Your ADHD study forms are complete — next steps',
+      message: 'Thank you for completing your intake packet. The study coordinator will call you within 2 business days to schedule your screening visit.',
+      channel: 'email',
+      filterTrialId: 'nct-adhd-demo-01',
+      filterOverallStatus: null,
+      filterFormStatus: 'completed',
+      recipients: [
+        { patientId: 'RD-0004', patientName: 'Priya Natarajan', deliveryStatus: 'delivered' },
+      ],
+      recipientCount: 1,
+      sentBy: 'Jamie Ruiz',
+      sentAt: daysAgo(6),
+    },
+    {
+      subject: 'Please complete your intake forms',
+      message: "We noticed your intake packet hasn't been started yet. Please complete it as soon as possible so we can continue your pre-screening.",
+      channel: 'both',
+      filterTrialId: null,
+      filterOverallStatus: null,
+      filterFormStatus: 'sent',
+      recipients: [
+        { patientId: 'RD-0003', patientName: 'Linda Cho', deliveryStatus: 'delivered' },
+        { patientId: 'RD-0005', patientName: 'Marcus Webb', deliveryStatus: 'failed' },
+      ],
+      recipientCount: 2,
+      sentBy: 'Sam Patel',
+      sentAt: daysAgo(4),
+    },
+    {
+      message: 'This is a routine check-in from the study team — reply if you have questions about your upcoming visit.',
+      channel: 'sms',
+      filterTrialId: null,
+      filterOverallStatus: null,
+      filterFormStatus: null,
+      recipients: [
+        { patientId: 'RD-0001', patientName: 'Maria Alvarez', deliveryStatus: 'delivered' },
+        { patientId: 'RD-0002', patientName: 'James Thornton', deliveryStatus: 'delivered' },
+        { patientId: 'RD-0007', patientName: 'Robert Nguyen', deliveryStatus: 'failed' },
+      ],
+      recipientCount: 3,
+      sentBy: 'Jamie Ruiz',
+      sentAt: daysAgo(1),
+    },
+  ])
+
+  // Reviews: Pre-Screening Experience Survey responses tied to Phase 1's
+  // completed form submissions for RD-0001, RD-0002, and RD-0004.
+  const [rd0001Submission] = await db.select().from(formSubmissions).where(and(eq(formSubmissions.patientId, 'RD-0001'), eq(formSubmissions.status, 'completed')))
+  const [rd0002Submission] = await db.select().from(formSubmissions).where(and(eq(formSubmissions.patientId, 'RD-0002'), eq(formSubmissions.status, 'completed')))
+  const [rd0004Submission] = await db.select().from(formSubmissions).where(and(eq(formSubmissions.patientId, 'RD-0004'), eq(formSubmissions.status, 'completed')))
+
+  await db.insert(reviews).values([
+    {
+      patientId: 'RD-0001',
+      formSubmissionId: rd0001Submission.id,
+      status: 'completed',
+      sentAt: daysAgo(27),
+      respondedAt: daysAgo(25),
+      ratingOverall: 5,
+      ratingFormsClarity: 5,
+      ratingCommunication: 4,
+      comments: 'The intake process was clear and the coordinator was very responsive.',
+      sentBy: 'Jamie Ruiz',
+    },
+    {
+      patientId: 'RD-0002',
+      formSubmissionId: rd0002Submission.id,
+      status: 'sent',
+      sentAt: daysAgo(14),
+      sentBy: 'Jamie Ruiz',
+    },
+    {
+      patientId: 'RD-0004',
+      formSubmissionId: rd0004Submission.id,
+      status: 'completed',
+      sentAt: daysAgo(8),
+      respondedAt: daysAgo(7),
+      ratingOverall: 3,
+      ratingFormsClarity: 3,
+      ratingCommunication: 4,
+      comments: 'Forms were a bit long but staff followed up quickly.',
+      sentBy: 'Jamie Ruiz',
+    },
+  ])
 }
 
 if (require.main === module) {
