@@ -53,8 +53,8 @@ export async function buildWorkbookXlsx(patients: ExportablePatient[]): Promise<
   sheet.addRow(COLUMNS)
 
   for (const p of patients) {
-    const nameMatch = p.nameTebra && p.nameTebra !== p.nameIntakeq ? 'MISMATCH' : 'Match'
-    const dobMatch = p.dobTebra && p.dobTebra !== p.dobIntakeq ? 'MISMATCH' : 'Match'
+    const nameMatch = p.nameTebra == null ? 'No Tebra Record' : (p.nameTebra !== p.nameIntakeq ? 'MISMATCH' : 'Match')
+    const dobMatch = p.dobTebra == null ? 'No Tebra Record' : (p.dobTebra !== p.dobIntakeq ? 'MISMATCH' : 'Match')
     const diagnosesStr = p.diagnoses.map((d) => `${d.code}: ${d.description}`).join('; ')
     const medsStr = p.medications.map((m) => `${m.name}${m.dose ? ` ${m.dose}` : ''} (since ${m.startDate})`).join('; ')
     const allergiesStr = p.allergies.map((a) => `${a.allergen} (${a.severity})`).join('; ')
