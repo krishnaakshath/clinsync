@@ -1,4 +1,5 @@
 import { getDb } from './client'
+import { encryptSensitive } from '../lib/crypto'
 import {
   trials,
   patients,
@@ -332,9 +333,9 @@ export async function seed() {
 
   // Identity verification: a mix of verified and pending.
   await db.insert(identityVerifications).values([
-    { patientId: 'RD-0001', idType: 'drivers_license', idNumberEncrypted: 'ENC[D1234567]', verified: true, verifiedBy: 'Jamie Ruiz', verifiedAt: new Date('2026-08-16') },
-    { patientId: 'RD-0002', idType: 'state_id', idNumberEncrypted: 'ENC[S7654321]', verified: true, verifiedBy: 'Jamie Ruiz', verifiedAt: new Date('2026-08-21') },
-    { patientId: 'RD-0003', idType: 'passport', idNumberEncrypted: 'ENC[P9988776]', verified: false },
+    { patientId: 'RD-0001', idType: 'drivers_license', idNumberEncrypted: encryptSensitive('D1234567'), verified: true, verifiedBy: 'Jamie Ruiz', verifiedAt: new Date('2026-08-16') },
+    { patientId: 'RD-0002', idType: 'state_id', idNumberEncrypted: encryptSensitive('S7654321'), verified: true, verifiedBy: 'Jamie Ruiz', verifiedAt: new Date('2026-08-21') },
+    { patientId: 'RD-0003', idType: 'passport', idNumberEncrypted: encryptSensitive('P9988776'), verified: false },
   ])
 
   // Default settings row (auto-classify off by default).
