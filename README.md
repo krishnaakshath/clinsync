@@ -1,11 +1,9 @@
-# Clinsync — IPMG Research Pre-Screening Workbook (Pilot Demo)
+# Clinsync — IPMG Research Pre-Screening Workbook
 
-**⚠️ PILOT / DEMO — no real patient data.** This is a clickable prototype for
-a client engagement (Symbiosys Technologies → Inland Psychiatric Medical
-Group), built to demonstrate the product before real IntakeQ/Tebra API
-credentials exist. All patient data is fictional, seeded from
-`src/db/seed.ts`. Every screen carries a persistent "PILOT / DEMO" banner so
-it can never be mistaken for production.
+A pilot build for a client engagement (Symbiosys Technologies → Inland
+Psychiatric Medical Group), built to demonstrate the product before real
+IntakeQ/Tebra API credentials exist. All patient data is fictional, seeded
+from `src/db/seed.ts` — no real patient data is used anywhere in this build.
 
 ## What it does
 
@@ -36,16 +34,23 @@ should only ever require a new row, never a new code path.
 
 ## Screens
 
+- **Home** — the landing dashboard: recent forms sent/received, patients
+  ready for classification, and recent account activity.
 - **Patients** — the main workbook: every patient, their overall status,
   and a trial filter.
-- **Patient Detail** — per-criterion evidence cards with citations, plus a
-  dual-source comparison (IntakeQ vs. Tebra) for identity-critical fields.
+- **Patient Detail** — per-criterion evidence cards with citations, a
+  dual-source comparison (IntakeQ vs. Tebra) for identity-critical fields,
+  allergies, medications, and identity-verification status.
+- **Form Templates** — customizable, folder-organized intake form
+  templates with a built-in question editor.
+- **Client Forms** — every intake form sent to a patient and its
+  completion status.
 - **Identity Matching** — a queue for reconciling referrals that couldn't
   be automatically matched to a Tebra chart.
 - **Trials & Protocols** — the criteria configuration for each active trial.
 - **Audit Log** — every read/action taken in the system, attributed to a
   user and role.
-- **Settings** — connection status and BAA/compliance placeholders.
+- **Settings** — compliance status and the auto-classification toggle.
 
 ## Run & operate
 
