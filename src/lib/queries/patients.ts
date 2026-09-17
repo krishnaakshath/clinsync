@@ -24,6 +24,7 @@ export async function listPatientsWithStatus(trialId: string | null): Promise<Pa
       .from(patients)
       .leftJoin(patientTrialScreenings, eq(patientTrialScreenings.patientId, patients.id))
       .where(trialId ? eq(patientTrialScreenings.trialId, trialId) : undefined)
+      .orderBy(patients.id)
 
     return rows.map((r) => ({ ...r.patient, trialId: r.screening?.trialId, overallStatus: r.screening?.overallStatus }))
   })
