@@ -1,5 +1,5 @@
 const COLORS: Record<string, string> = {
-  system: 'text-slate-500',
+  system: 'text-muted-foreground',
   intakeq: 'text-sky-700',
   tebra: 'text-teal-700',
   staff: 'text-emerald-700',
