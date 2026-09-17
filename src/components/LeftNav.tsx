@@ -3,9 +3,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const ITEMS = [
+  { href: '/', label: 'Home' },
   { href: '/patients', label: 'Patients' },
   { href: '/identity-matching', label: 'Identity Matching' },
   { href: '/trials', label: 'Trials & Protocols' },
+  { href: '/forms', label: 'Form Templates' },
+  { href: '/client-forms', label: 'Client Forms' },
   { href: '/audit-log', label: 'Audit Log' },
   { href: '/settings', label: 'Settings' },
 ]
