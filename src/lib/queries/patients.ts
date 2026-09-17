@@ -45,7 +45,20 @@ export async function getPatientDetail(anonId: string) {
     const dx = await getDb().select().from(diagnoses).where(eq(diagnoses.patientId, anonId))
     const meds = await getDb().select().from(medicationEpisodes).where(eq(medicationEpisodes.patientId, anonId))
     const patientAllergies = await getDb().select().from(allergies).where(eq(allergies.patientId, anonId))
-    const [identity] = await getDb().select().from(identityVerifications).where(eq(identityVerifications.patientId, anonId))
+    // Project down to only what callers need. The full row includes
+    // `idNumberEncrypted` (encrypted ciphertext of the ID number) and the
+    // internal `id`/`patientId` keys -- never decrypted here, but there's no
+    // reason to put ciphertext on the wire, in the Redis cache, or into the
+    // Excel-export code path's intermediate objects when it's unused.
+    const [identity] = await getDb()
+      .select({
+        idType: identityVerifications.idType,
+        verified: identityVerifications.verified,
+        verifiedBy: identityVerifications.verifiedBy,
+        verifiedAt: identityVerifications.verifiedAt,
+      })
+      .from(identityVerifications)
+      .where(eq(identityVerifications.patientId, anonId))
 
     return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null }
   })
