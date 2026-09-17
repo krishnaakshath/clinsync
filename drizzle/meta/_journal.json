@@ -15,6 +15,13 @@
       "when": 1789655525211,
       "tag": "0001_flowery_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789665148270,
+      "tag": "0002_dazzling_nextwave",
+      "breakpoints": true
     }
   ]
 }
