@@ -21,42 +21,45 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Patients</h1>
-        <div className="flex gap-2 text-sm">
-          <Link href="/patients" className={`rounded-md border px-3 py-1 ${!trialId ? 'bg-slate-900 text-white' : ''}`}>All Trials</Link>
-          {trials.map((t) => (
-            <Link key={t.id} href={`/patients?trialId=${t.id}`} className={`rounded-md border px-3 py-1 ${trialId === t.id ? 'bg-slate-900 text-white' : ''}`}>{t.condition}</Link>
-          ))}
-          <a href="/api/workbook/export" className="rounded-md border px-3 py-1 text-sm">Export to Excel</a>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">Patients</h1>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-1 rounded-lg bg-secondary p-1 text-sm">
+            <Link href="/patients" className={`rounded-md px-3 py-1.5 font-medium transition-colors ${!trialId ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>All Trials</Link>
+            {trials.map((t) => (
+              <Link key={t.id} href={`/patients?trialId=${t.id}`} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${trialId === t.id ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{t.condition}</Link>
+            ))}
+          </div>
+          <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Export to Excel</a>
         </div>
       </div>
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b bg-slate-50 text-left">
-            <th className="p-2">Status</th>
-            <th className="p-2">Anon #</th>
-            <th className="p-2">Name <SourceTag source="tebra" /></th>
-            <th className="p-2">DOB <SourceTag source="tebra" /></th>
-            <th className="p-2">Provider <SourceTag source="tebra" /></th>
-            <th className="p-2">Referral Type <SourceTag source="intakeq" /></th>
-            <th className="p-2">Last Communication <SourceTag source="staff" /></th>
+          <tr className="border-b border-border text-left">
+            <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+            <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Anon #</th>
+            <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name <SourceTag source="tebra" /></th>
+            <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">DOB <SourceTag source="tebra" /></th>
+            <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Provider <SourceTag source="tebra" /></th>
+            <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Referral Type <SourceTag source="intakeq" /></th>
+            <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Last Communication <SourceTag source="staff" /></th>
           </tr>
         </thead>
         <tbody>
-          {patients.map((p) => (
-            <tr key={p.id} className="border-b hover:bg-slate-50">
-              <td className="p-2"><StatusChip status={p.overallStatus ?? 'yellow'} /></td>
-              <td className="p-2"><Link href={`/patients/${p.id}`} className="text-blue-700 underline">{p.id}</Link></td>
-              <td className="p-2">{p.nameTebra ?? p.nameIntakeq}</td>
-              <td className="p-2">{p.dobTebra ?? p.dobIntakeq}</td>
-              <td className="p-2">{p.currentProvider}</td>
-              <td className="p-2">{p.referralType}</td>
-              <td className="p-2">{p.lastCommunication ?? '—'}</td>
+          {patients.map((p, i) => (
+            <tr key={p.id} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''} hover:bg-secondary`}>
+              <td className="p-3"><StatusChip status={p.overallStatus ?? 'yellow'} /></td>
+              <td className="p-3"><Link href={`/patients/${p.id}`} className="font-medium text-primary hover:underline">{p.id}</Link></td>
+              <td className="p-3 text-foreground">{p.nameTebra ?? p.nameIntakeq}</td>
+              <td className="p-3 text-foreground">{p.dobTebra ?? p.dobIntakeq}</td>
+              <td className="p-3 text-foreground">{p.currentProvider}</td>
+              <td className="p-3 text-foreground">{p.referralType}</td>
+              <td className="p-3 text-muted-foreground">{p.lastCommunication ?? '—'}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      <p className="mt-3 text-xs text-muted-foreground">{patients.length} total record{patients.length === 1 ? '' : 's'}</p>
     </div>
   )
 }

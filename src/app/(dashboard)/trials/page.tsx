@@ -9,12 +9,12 @@ export default async function TrialsPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-lg font-semibold">Trials & Protocols</h1>
+      <h1 className="mb-6 text-2xl font-bold text-foreground">Trials & Protocols</h1>
       <div className="space-y-2">
         {trials.map((t) => (
-          <Link key={t.id} href={`/trials/${t.id}`} className="block rounded-lg border p-4 hover:bg-slate-50">
-            <p className="font-medium">{t.name}</p>
-            <p className="text-sm text-slate-500">{t.nctNumber} · {t.condition} · {t.site}</p>
+          <Link key={t.id} href={`/trials/${t.id}`} className="block rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary">
+            <p className="text-base font-semibold text-foreground">{t.name}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t.nctNumber} · {t.condition} · {t.site}</p>
           </Link>
         ))}
       </div>
