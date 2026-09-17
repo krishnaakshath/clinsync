@@ -46,3 +46,8 @@ next-env.d.ts
 
 # subagent-driven-development isolated worktrees
 .worktrees/
+
+# Real IntakeQ/Tebra reference screenshots (contain real patient PHI --
+# design reference only, must never be committed or embedded anywhere)
+Clinsync-20260917T042827Z-1-001/
+Clinsync-20260917T042827Z-1-001 - Copy/
