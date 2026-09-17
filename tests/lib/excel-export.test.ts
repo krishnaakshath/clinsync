@@ -96,6 +96,21 @@ describe('buildWorkbookXlsx', () => {
     expect(sheet.getRow(2).getCell(3).value).toBe('Maria Alvarez') // "Name (Tebra)"
   })
 
+  it('reports "No Tebra Record" (not "Match") when there is no Tebra chart at all', async () => {
+    const buffer = await buildWorkbookXlsx([
+      { ...baseExportablePatient, id: 'RD-0003', nameTebra: null, dobTebra: null },
+    ])
+
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer)
+    const sheet = workbook.getWorksheet('Screening Workbook')!
+    const row = sheet.getRow(2)
+
+    // Column 4 = "Name Match", 7 = "DOB Match".
+    expect(row.getCell(4).value).toBe('No Tebra Record')
+    expect(row.getCell(7).value).toBe('No Tebra Record')
+  })
+
   it('includes identity, allergy, and needs-verification columns', async () => {
     const buffer = await buildWorkbookXlsx([{
       id: 'RD-9999', nameIntakeq: 'Test Patient', nameTebra: 'Test Patient',
