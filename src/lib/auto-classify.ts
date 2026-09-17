@@ -4,6 +4,8 @@ import { eq } from 'drizzle-orm'
 import { evaluateCriteria } from '@/lib/rule-engine'
 import { getAppSettings } from '@/lib/queries/settings'
 import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/lib/cache'
+import { logAudit } from '@/lib/audit'
+import type { Session } from '@/lib/auth'
 
 // Called after a form submission is marked 'completed'. If the
 // autoClassifyOnComplete setting is on, and this patient now has both
@@ -12,7 +14,14 @@ import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/l
 // "Run Classification" action uses — never a separate, divergent scoring
 // path. If the setting is off, or the patient has no screening row yet
 // (nothing to re-evaluate against), this is a no-op.
-export async function maybeAutoClassify(patientId: string): Promise<void> {
+//
+// Takes the caller's session so a real, attributable audit-log entry can be
+// written when a classification actually runs -- a safety-critical,
+// unattended verdict change is exactly the kind of event this product's
+// audit trail exists to record, matching the manual "Run Classification"
+// endpoint's own logAudit call rather than leaving auto-classification as
+// the one write path with no audit record.
+export async function maybeAutoClassify(patientId: string, session: Session): Promise<void> {
   const settings = await getAppSettings()
   if (!settings.autoClassifyOnComplete) return
 
@@ -31,4 +40,6 @@ export async function maybeAutoClassify(patientId: string): Promise<void> {
   await invalidateCache(patientDetailCacheKey(patientId))
   await invalidateCache(patientListCacheKey(screening.trialId))
   await invalidateCache(patientListCacheKey(null))
+
+  await logAudit(session, `auto-classified patient (status: ${overallStatus})`, patientId)
 }
