@@ -8,6 +8,11 @@ import {
   screeningCriteriaResults,
   identityMatches,
   users,
+  formTemplates,
+  formSubmissions,
+  allergies,
+  identityVerifications,
+  appSettings,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -177,6 +182,11 @@ async function clearExistingData() {
   await db.delete(medicationEpisodes)
   await db.delete(diagnoses)
   await db.delete(identityMatches)
+  await db.delete(formSubmissions)
+  await db.delete(allergies)
+  await db.delete(identityVerifications)
+  await db.delete(appSettings)
+  await db.delete(formTemplates)
   await db.delete(patients)
   await db.delete(users)
   await db.delete(trials)
@@ -233,6 +243,102 @@ export async function seed() {
     { intakeqClientIdEncrypted: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdEncrypted: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
     { intakeqClientIdEncrypted: 'enc-iq-pending-02', referralName: 'Katherine Voss', referralDob: '1982-12-05', candidateTebraPatientIdEncrypted: 'enc-tb-cand-02', candidateName: 'Kathryn Voss', candidateDob: '1982-12-05', confidence: 88, status: 'pending' },
   ])
+
+  // Form templates: one per trial condition, each with a handful of
+  // realistic intake questions including at least one hipaaSensitive field.
+  const [mddTemplate] = await db.insert(formTemplates).values({
+    name: 'MDD Intake Packet',
+    category: 'Trial Intake',
+    diagnosisTag: 'Major Depressive Disorder',
+    questions: [
+      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true },
+      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true },
+      { id: 'q3', label: 'Current mood symptoms (describe)', type: 'textarea', hipaaSensitive: true, required: true },
+      { id: 'q4', label: 'Currently taking antidepressants?', type: 'select', options: ['Yes', 'No'], hipaaSensitive: true, required: true },
+      { id: 'q5', label: 'Consent to share records with study team', type: 'checkbox', hipaaSensitive: false, required: true },
+    ],
+  }).returning()
+
+  const [adhdTemplate] = await db.insert(formTemplates).values({
+    name: 'ADHD Intake Packet',
+    category: 'Trial Intake',
+    diagnosisTag: 'ADHD',
+    questions: [
+      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true },
+      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true },
+      { id: 'q3', label: 'Current stimulant medication (if any)', type: 'text', hipaaSensitive: true, required: false },
+      { id: 'q4', label: 'Consent to share records with study team', type: 'checkbox', hipaaSensitive: false, required: true },
+    ],
+  }).returning()
+
+  // Non-trial-specific templates, matching IntakeQ's Consent Forms / Screening
+  // Questionnaires / Note Templates folders (adapted to what a trial
+  // pre-screening pilot actually needs, not a full outpatient-practice clone).
+  await db.insert(formTemplates).values([
+    {
+      name: 'General Research Consent',
+      category: 'Consent Forms',
+      diagnosisTag: 'General',
+      questions: [
+        { id: 'q1', label: 'I consent to my de-identified data being used for research purposes', type: 'checkbox', hipaaSensitive: false, required: true },
+        { id: 'q2', label: 'Signature (typed full name)', type: 'text', hipaaSensitive: true, required: true },
+        { id: 'q3', label: 'Date', type: 'date', hipaaSensitive: false, required: true },
+      ],
+    },
+    {
+      name: 'Telehealth Consent',
+      category: 'Consent Forms',
+      diagnosisTag: 'General',
+      questions: [
+        { id: 'q1', label: 'I consent to receiving care via telehealth', type: 'checkbox', hipaaSensitive: false, required: true },
+        { id: 'q2', label: 'Signature (typed full name)', type: 'text', hipaaSensitive: true, required: true },
+      ],
+    },
+    {
+      name: 'PHQ-9 (Depression Screening)',
+      category: 'Screening Questionnaires',
+      diagnosisTag: 'Major Depressive Disorder',
+      questions: [
+        { id: 'q1', label: 'Little interest or pleasure in doing things', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], hipaaSensitive: true, required: true },
+        { id: 'q2', label: 'Feeling down, depressed, or hopeless', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], hipaaSensitive: true, required: true },
+      ],
+    },
+    {
+      name: 'ASRS-v1.1 (ADHD Screening)',
+      category: 'Screening Questionnaires',
+      diagnosisTag: 'ADHD',
+      questions: [
+        { id: 'q1', label: 'How often do you have trouble wrapping up the final details of a project?', type: 'select', options: ['Never', 'Rarely', 'Sometimes', 'Often', 'Very Often'], hipaaSensitive: true, required: true },
+      ],
+    },
+  ])
+
+  // Form submissions: a spread of sent/partial/completed across seeded patients.
+  await db.insert(formSubmissions).values([
+    { templateId: mddTemplate.id, patientId: 'RD-0001', status: 'completed', completedDate: new Date('2026-08-15'), answers: { q1: 'Maria Alvarez', q4: 'Yes' } },
+    { templateId: mddTemplate.id, patientId: 'RD-0002', status: 'completed', completedDate: new Date('2026-08-20'), answers: { q1: 'James Thornton', q4: 'Yes' } },
+    { templateId: mddTemplate.id, patientId: 'RD-0003', status: 'sent' },
+    { templateId: mddTemplate.id, patientId: 'RD-0006', status: 'partial', answers: { q1: 'Kathryn Voss' } },
+    { templateId: adhdTemplate.id, patientId: 'RD-0004', status: 'completed', completedDate: new Date('2026-08-22'), answers: { q1: 'Priya Natarajan' } },
+    { templateId: adhdTemplate.id, patientId: 'RD-0005', status: 'sent' },
+  ])
+
+  // Allergies for a subset of patients.
+  await db.insert(allergies).values([
+    { patientId: 'RD-0001', allergen: 'Penicillin', reaction: 'Rash', severity: 'moderate' },
+    { patientId: 'RD-0002', allergen: 'Sulfa drugs', reaction: 'Hives', severity: 'severe' },
+    { patientId: 'RD-0006', allergen: 'Latex', reaction: 'Contact dermatitis', severity: 'mild' },
+  ])
+
+  // Identity verification: a mix of verified and pending.
+  await db.insert(identityVerifications).values([
+    { patientId: 'RD-0001', idType: 'drivers_license', idNumberEncrypted: 'ENC[D1234567]', verified: true, verifiedBy: 'Jamie Ruiz', verifiedAt: new Date('2026-08-16') },
+    { patientId: 'RD-0002', idType: 'state_id', idNumberEncrypted: 'ENC[S7654321]', verified: true, verifiedBy: 'Jamie Ruiz', verifiedAt: new Date('2026-08-21') },
+    { patientId: 'RD-0003', idType: 'passport', idNumberEncrypted: 'ENC[P9988776]', verified: false },
+  ])
+
+  // Default settings row (auto-classify off by default).
+  await db.insert(appSettings).values({ autoClassifyOnComplete: false })
 }
 
 if (require.main === module) {
