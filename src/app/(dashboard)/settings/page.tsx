@@ -7,11 +7,6 @@ export default async function SettingsPage() {
     <div className="max-w-xl space-y-6">
       <h1 className="mb-6 text-2xl font-bold text-foreground">Settings</h1>
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Connections</h2>
-        <p className="text-sm">IntakeQ: <span className="font-medium text-emerald-800">Connected (mock)</span></p>
-        <p className="text-sm">Tebra FHIR: <span className="font-medium text-emerald-800">Connected (mock)</span></p>
-      </section>
-      <section className="rounded-lg border border-border bg-card p-5">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Compliance</h2>
         <p className="text-sm">BAA status: <span className="font-medium text-amber-800">Pending signature (demo placeholder)</span></p>
         <p className="text-sm">Environment: Pilot / Demo</p>

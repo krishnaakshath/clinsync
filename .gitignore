@@ -51,3 +51,6 @@ next-env.d.ts
 # design reference only, must never be committed or embedded anywhere)
 Clinsync-20260917T042827Z-1-001/
 Clinsync-20260917T042827Z-1-001 - Copy/
+
+.vercel
+.env*
