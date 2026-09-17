@@ -1,17 +1,20 @@
-import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import type { Verdict } from '@/lib/rule-engine'
 
-const CONFIG: Record<Verdict, { label: string; icon: typeof CheckCircle2; className: string }> = {
-  green: { label: 'Meets', icon: CheckCircle2, className: 'bg-green-100 text-green-800 border-green-300' },
-  yellow: { label: 'Needs Verification', icon: AlertTriangle, className: 'bg-amber-100 text-amber-800 border-amber-300' },
-  red: { label: 'Potential Exclusion', icon: XCircle, className: 'bg-red-100 text-red-800 border-red-300' },
+// Matches the real Tebra/IntakeQ convention observed directly in the
+// product: status is a colored dot + plain text label, never an icon
+// glyph. The dot is decorative (aria-hidden) -- the text label alone
+// satisfies "never color alone" on its own.
+const CONFIG: Record<Verdict, { label: string; dotClassName: string; textClassName: string }> = {
+  green: { label: 'Meets', dotClassName: 'bg-emerald-600', textClassName: 'text-emerald-800' },
+  yellow: { label: 'Needs Verification', dotClassName: 'bg-amber-500', textClassName: 'text-amber-800' },
+  red: { label: 'Potential Exclusion', dotClassName: 'bg-red-600', textClassName: 'text-red-800' },
 }
 
 export function StatusChip({ status }: { status: Verdict }) {
-  const { label, icon: Icon, className } = CONFIG[status]
+  const { label, dotClassName, textClassName } = CONFIG[status]
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${className}`}>
-      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+    <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${textClassName}`}>
+      <span className={`h-2 w-2 rounded-full ${dotClassName}`} aria-hidden="true" />
       {label}
     </span>
   )
