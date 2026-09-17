@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
+import { encryptSensitive } from '@/lib/crypto'
 
 const verifySchema = z.object({
   idType: z.enum(['drivers_license', 'state_id', 'passport']),
@@ -21,7 +22,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!parsed.success) return NextResponse.json({ error: 'Invalid identity verification payload', details: parsed.error.flatten() }, { status: 400 })
 
   const [existing] = await getDb().select().from(identityVerifications).where(eq(identityVerifications.patientId, anonId))
-  const idNumberEncrypted = `ENC[${parsed.data.idNumber}]`  // matches the existing ENC[...] convention used for intakeqClientIdEncrypted/tebraPatientIdEncrypted in seed data
+  const idNumberEncrypted = encryptSensitive(parsed.data.idNumber)
 
   if (existing) {
     await getDb().update(identityVerifications).set({ idType: parsed.data.idType, idNumberEncrypted, verified: true, verifiedBy: session.name, verifiedAt: new Date() }).where(eq(identityVerifications.patientId, anonId))
