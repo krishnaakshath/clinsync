@@ -128,6 +128,74 @@ export const users = pgTable('users', {
   role: roleEnum('role').notNull(),
 })
 
+export const chargeStatusEnum = pgEnum('charge_status', ['draft', 'pending_approval', 'approved', 'submitted'])
+export const insuranceClaimStatusEnum = pgEnum('insurance_claim_status', [
+  'rejected', 'denied', 'waiting_adjudication', 'needs_investigation', 'paid',
+])
+export const statementDeliveryMethodEnum = pgEnum('statement_delivery_method', ['email', 'sms', 'paper'])
+export const statementTypeEnum = pgEnum('statement_type', ['initial', 'reminder', 'final_notice'])
+export const statementDeliveryStatusEnum = pgEnum('statement_delivery_status', ['delivered', 'failed'])
+export const mockPaymentResultEnum = pgEnum('mock_payment_result', ['success', 'failed'])
+
+export const charges = pgTable('charges', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  // Free-text clinician name, matching the existing patients.currentProvider
+  // convention -- Phase 2 owns a real `providers` table and hasn't built it
+  // yet as of this plan; Phase 3 must not create a dependency on another
+  // phase's not-yet-existing schema.
+  providerName: text('provider_name').notNull(),
+  dateOfService: date('date_of_service').notNull(),
+  diagnosisCodes: jsonb('diagnosis_codes').$type<{ code: string; description: string }[]>().notNull(),
+  procedureCodes: jsonb('procedure_codes').$type<
+    { code: string; description: string; units: number; chargeCents: number }[]
+  >().notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  status: chargeStatusEnum('status').default('draft').notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const insuranceClaims = pgTable('insurance_claims', {
+  id: serial('id').primaryKey(),
+  chargeId: integer('charge_id').notNull().references(() => charges.id),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  payerName: text('payer_name').notNull(),
+  billedAmountCents: integer('billed_amount_cents').notNull(),
+  paidAmountCents: integer('paid_amount_cents'),
+  status: insuranceClaimStatusEnum('status').notNull(),
+  submittedDate: date('submitted_date').notNull(),
+  notes: text('notes'),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const patientStatements = pgTable('patient_statements', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  amountCents: integer('amount_cents').notNull(),
+  deliveryMethod: statementDeliveryMethodEnum('delivery_method').notNull(),
+  type: statementTypeEnum('type').notNull(),
+  deliveryStatus: statementDeliveryStatusEnum('delivery_status').notNull(),
+  sentDate: timestamp('sent_date').defaultNow().notNull(),
+})
+
+// SAFETY (see Global Constraints "Mock-payment safety rule"): this table
+// stores only the last 4 digits of a card number and never a full PAN or a
+// CVC -- there is no column here capable of holding either. `result` is
+// decided purely by a fake Luhn-checksum pass/fail, never a real payment
+// processor response.
+export const mockPayments = pgTable('mock_payments', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  chargeId: integer('charge_id').references(() => charges.id),
+  amountCents: integer('amount_cents').notNull(),
+  cardLast4: text('card_last4').notNull(),
+  expMonth: integer('exp_month').notNull(),
+  expYear: integer('exp_year').notNull(),
+  result: mockPaymentResultEnum('result').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 export const formSubmissionStatusEnum = pgEnum('form_submission_status', ['sent', 'partial', 'completed'])
 export const idTypeEnum = pgEnum('id_type', ['drivers_license', 'state_id', 'passport'])
 export const severityEnum = pgEnum('severity', ['mild', 'moderate', 'severe'])

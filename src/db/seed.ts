@@ -1,4 +1,5 @@
 import { getDb } from './client'
+import { sql } from 'drizzle-orm'
 import { encryptSensitive } from '../lib/crypto'
 import {
   trials,
@@ -9,6 +10,10 @@ import {
   screeningCriteriaResults,
   identityMatches,
   users,
+  charges,
+  insuranceClaims,
+  patientStatements,
+  mockPayments,
   formTemplates,
   formSubmissions,
   allergies,
@@ -174,10 +179,124 @@ async function seedFillerPatients() {
   }
 }
 
+async function seedBilling() {
+  const db = getDb()
+
+  const chargeRows = await db.insert(charges).values([
+    // Workflow-state charges (not yet submitted -- excluded from A/R).
+    {
+      patientId: 'RD-0001', providerName: 'Dr. R. Kunam', dateOfService: '2026-09-14', status: 'draft',
+      diagnosisCodes: [{ code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' }],
+      procedureCodes: [{ code: '90837', description: 'Psychotherapy, 60 minutes', units: 1, chargeCents: 15000 }],
+      amountCents: 15000,
+    },
+    {
+      patientId: 'RD-0002', providerName: 'Dr. R. Kunam', dateOfService: '2026-09-12', status: 'pending_approval',
+      diagnosisCodes: [{ code: 'F32.1', description: 'Major depressive disorder, single episode, moderate' }],
+      procedureCodes: [{ code: '99214', description: 'Office visit, established patient, moderate complexity', units: 1, chargeCents: 20000 }],
+      amountCents: 20000,
+    },
+    {
+      patientId: 'RD-0003', providerName: 'Dr. R. Kunam', dateOfService: '2026-09-10', status: 'pending_approval',
+      diagnosisCodes: [{ code: 'F32.1', description: 'Major depressive disorder, single episode, moderate' }],
+      procedureCodes: [{ code: '99213', description: 'Office visit, established patient, low complexity', units: 1, chargeCents: 12000 }],
+      amountCents: 12000,
+    },
+    {
+      patientId: 'RD-0004', providerName: 'Dr. R. Kunam', dateOfService: '2026-09-08', status: 'approved',
+      diagnosisCodes: [{ code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' }],
+      procedureCodes: [{ code: '99214', description: 'Office visit, established patient, moderate complexity', units: 1, chargeCents: 18000 }],
+      amountCents: 18000,
+    },
+    {
+      patientId: 'RD-0005', providerName: 'Dr. R. Kunam', dateOfService: '2026-09-06', status: 'approved',
+      diagnosisCodes: [{ code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' }],
+      procedureCodes: [{ code: '99215', description: 'Office visit, established patient, high complexity', units: 1, chargeCents: 22000 }],
+      amountCents: 22000,
+    },
+    // Submitted charges -- these are what the A/R Dashboard and Patient
+    // Collections aggregate over. One per aging bucket, plus a second
+    // 0-30 charge (RD-0005) used to demonstrate an overpayment/unapplied
+    // amount via a mock payment in the block below.
+    {
+      patientId: 'RD-0001', providerName: 'Dr. R. Kunam', dateOfService: '2026-09-05', status: 'submitted', // 12 days -> 0-30
+      diagnosisCodes: [{ code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' }],
+      procedureCodes: [{ code: '90837', description: 'Psychotherapy, 60 minutes', units: 1, chargeCents: 15000 }],
+      amountCents: 15000,
+    },
+    {
+      patientId: 'RD-0002', providerName: 'Dr. R. Kunam', dateOfService: '2026-08-10', status: 'submitted', // 38 days -> 31-60
+      diagnosisCodes: [{ code: 'F32.1', description: 'Major depressive disorder, single episode, moderate' }],
+      procedureCodes: [{ code: '99214', description: 'Office visit, established patient, moderate complexity', units: 1, chargeCents: 20000 }],
+      amountCents: 20000,
+    },
+    {
+      patientId: 'RD-0003', providerName: 'Dr. R. Kunam', dateOfService: '2026-07-05', status: 'submitted', // 74 days -> 61-90
+      diagnosisCodes: [{ code: 'F32.1', description: 'Major depressive disorder, single episode, moderate' }],
+      procedureCodes: [{ code: '99213', description: 'Office visit, established patient, low complexity', units: 1, chargeCents: 12500 }],
+      amountCents: 12500,
+    },
+    {
+      patientId: 'RD-0006', providerName: 'Dr. R. Kunam', dateOfService: '2026-05-25', status: 'submitted', // 115 days -> 91-120
+      diagnosisCodes: [{ code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' }],
+      procedureCodes: [{ code: '90837', description: 'Psychotherapy, 60 minutes', units: 2, chargeCents: 30000 }],
+      amountCents: 30000,
+    },
+    {
+      patientId: 'RD-0004', providerName: 'Dr. R. Kunam', dateOfService: '2026-03-01', status: 'submitted', // 200 days -> 121+
+      diagnosisCodes: [{ code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' }],
+      procedureCodes: [{ code: '99214', description: 'Office visit, established patient, moderate complexity', units: 1, chargeCents: 9000 }],
+      amountCents: 9000,
+    },
+    {
+      patientId: 'RD-0005', providerName: 'Dr. R. Kunam', dateOfService: '2026-09-01', status: 'submitted', // 16 days -> 0-30
+      diagnosisCodes: [{ code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' }],
+      procedureCodes: [{ code: '99215', description: 'Office visit, established patient, high complexity', units: 1, chargeCents: 17500 }],
+      amountCents: 17500,
+    },
+  ]).returning()
+
+  const byDos = (dos: string) => chargeRows.find((c) => c.dateOfService === dos)!
+  const chargeRd1Submitted = byDos('2026-09-05')
+  const chargeRd2Submitted = byDos('2026-08-10')
+  const chargeRd3Submitted = byDos('2026-07-05')
+  const chargeRd6Submitted = byDos('2026-05-25')
+  const chargeRd4Submitted = byDos('2026-03-01')
+  const chargeRd5Submitted = byDos('2026-09-01')
+
+  await db.insert(insuranceClaims).values([
+    { chargeId: chargeRd1Submitted.id, patientId: 'RD-0001', payerName: 'Blue Shield', billedAmountCents: 15000, paidAmountCents: 15000, status: 'paid', submittedDate: '2026-09-05' },
+    { chargeId: chargeRd2Submitted.id, patientId: 'RD-0002', payerName: 'Aetna', billedAmountCents: 20000, paidAmountCents: null, status: 'waiting_adjudication', submittedDate: '2026-08-10' },
+    { chargeId: chargeRd3Submitted.id, patientId: 'RD-0003', payerName: 'Cigna', billedAmountCents: 12500, paidAmountCents: 0, status: 'denied', submittedDate: '2026-07-05', notes: 'Missing prior authorization on file.' },
+    { chargeId: chargeRd6Submitted.id, patientId: 'RD-0006', payerName: 'United Healthcare', billedAmountCents: 30000, paidAmountCents: null, status: 'needs_investigation', submittedDate: '2026-05-25', notes: 'Payer requesting additional medical records.' },
+    { chargeId: chargeRd4Submitted.id, patientId: 'RD-0004', payerName: 'Medicare', billedAmountCents: 9000, paidAmountCents: 0, status: 'rejected', submittedDate: '2026-03-01', notes: 'Invalid procedure code modifier.' },
+  ])
+
+  // Two mock payments: one Luhn-valid ("success"), one Luhn-invalid
+  // ("failed"). The success payment (RD-0005, $200.00) exceeds its
+  // charge's $175.00 balance on purpose, so Patient Collections has a
+  // non-zero "unapplied" amount to demonstrate ($25.00).
+  await db.insert(mockPayments).values([
+    { patientId: 'RD-0005', chargeId: chargeRd5Submitted.id, amountCents: 20000, cardLast4: '4242', expMonth: 12, expYear: 2027, result: 'success', createdAt: new Date('2026-09-02') },
+    { patientId: 'RD-0003', chargeId: chargeRd3Submitted.id, amountCents: 12500, cardLast4: '4444', expMonth: 1, expYear: 2028, result: 'failed', createdAt: new Date('2026-07-10') },
+  ])
+
+  await db.insert(patientStatements).values([
+    { patientId: 'RD-0002', amountCents: 20000, deliveryMethod: 'email', type: 'reminder', deliveryStatus: 'delivered', sentDate: new Date('2026-08-15') },
+    { patientId: 'RD-0003', amountCents: 12500, deliveryMethod: 'paper', type: 'initial', deliveryStatus: 'delivered', sentDate: new Date('2026-07-10') },
+    { patientId: 'RD-0006', amountCents: 30000, deliveryMethod: 'sms', type: 'final_notice', deliveryStatus: 'failed', sentDate: new Date('2026-08-25') },
+    { patientId: 'RD-0004', amountCents: 9000, deliveryMethod: 'email', type: 'reminder', deliveryStatus: 'delivered', sentDate: new Date('2026-09-01') },
+  ])
+}
+
 async function clearExistingData() {
   const db = getDb()
   // Delete in FK-safe order (children before parents) so seed() is safely re-runnable
   // against the live database without unique-constraint violations.
+  await db.delete(mockPayments)
+  await db.delete(patientStatements)
+  await db.delete(insuranceClaims)
+  await db.delete(charges)
   await db.delete(screeningCriteriaResults)
   await db.delete(patientTrialScreenings)
   await db.delete(medicationEpisodes)
@@ -188,6 +307,12 @@ async function clearExistingData() {
   await db.delete(identityVerifications)
   await db.delete(appSettings)
   await db.delete(formTemplates)
+  // Delete from appointments table if it exists (may exist in some environments)
+  try {
+    await db.execute(sql`DELETE FROM "appointments"`)
+  } catch {
+    // appointments table may not exist, ignore
+  }
   await db.delete(patients)
   await db.delete(users)
   await db.delete(trials)
@@ -239,6 +364,7 @@ export async function seed() {
   }
 
   await seedFillerPatients()
+  await seedBilling()
 
   await db.insert(identityMatches).values([
     { intakeqClientIdEncrypted: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdEncrypted: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
