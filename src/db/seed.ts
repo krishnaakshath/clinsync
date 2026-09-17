@@ -35,11 +35,11 @@ const MDD_TRIAL = {
 
 const ADHD_TRIAL = {
   id: 'nct-adhd-demo-01',
-  name: 'Extended-Release Stimulant Response Study (demo)',
-  nctNumber: 'NCT-DEMO-0001',
+  name: 'Extended-Release Stimulant Response Study',
+  nctNumber: 'NCT-ADHD-0001',
   condition: 'ADHD',
   site: 'Redlands',
-  studyDrug: 'DEMO-STIM-01',
+  studyDrug: 'XR-STIM-01',
   ageMin: 18,
   ageMax: 55,
   diagnosisCodes: [{ code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' }],
