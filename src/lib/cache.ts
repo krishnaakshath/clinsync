@@ -41,3 +41,15 @@ export function patientListCacheKey(trialId: string | null): string {
 export function patientDetailCacheKey(anonId: string): string {
   return `patients:detail:${anonId}`
 }
+
+export function formTemplatesListCacheKey(): string {
+  return 'form-templates:list'
+}
+
+export function formSubmissionsListCacheKey(filters: string): string {
+  return `form-submissions:list:${filters}`
+}
+
+export function dashboardCacheKey(): string {
+  return 'dashboard:data'
+}
