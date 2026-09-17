@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
+import { AllergyBadge } from '@/components/AllergyBadge'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
@@ -56,6 +57,32 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
           {patient.diagnoses.map((d) => <li key={d.id}>{d.code} — {d.description}</li>)}
           {patient.medications.map((m) => <li key={m.id}>{m.name} ({m.medicationClass}), {m.dose}, since {m.startDate} — {m.status}</li>)}
         </ul>
+      </section>
+
+      <section className="mt-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Allergies</h2>
+        {patient.allergies.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No known allergies recorded.</p>
+        ) : (
+          <div className="space-y-2">
+            {patient.allergies.map((a) => <AllergyBadge key={a.id} allergen={a.allergen} reaction={a.reaction} severity={a.severity} />)}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Identity Verification</h2>
+        {patient.identityVerification?.verified ? (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-600" aria-hidden="true" />
+            <span className="text-foreground">Verified by {patient.identityVerification.verifiedBy} on {new Date(patient.identityVerification.verifiedAt!).toLocaleDateString()}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden="true" />
+            <span className="text-foreground">Verification pending{patient.identityVerification ? ` (${patient.identityVerification.idType.replace('_', ' ')} on file)` : ' — no ID on file'}</span>
+          </div>
+        )}
       </section>
     </div>
   )

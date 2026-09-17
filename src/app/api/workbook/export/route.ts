@@ -1,19 +1,72 @@
 import { NextResponse } from 'next/server'
 import { getDb } from '@/db/client'
-import { patients } from '@/db/schema'
-import { buildWorkbookXlsx } from '@/lib/excel-export'
+import { formSubmissions } from '@/db/schema'
+import { desc, eq } from 'drizzle-orm'
+import { buildWorkbookXlsx, type ExportablePatient } from '@/lib/excel-export'
 import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
+import { getPatientDetail, listPatientsWithStatus } from '@/lib/queries/patients'
+import { listAllTrials } from '@/lib/queries/trials'
 
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 
-  // Full, unjoined rows (not `listPatientsWithStatus`) so a patient screened
-  // against multiple trials appears exactly once in the export, and so every
-  // patient field is available regardless of the list view's column subset.
-  const rows = await getDb().select().from(patients)
-  const buffer = await buildWorkbookXlsx(rows)
+  // `listPatientsWithStatus(null)` (not a raw `select().from(patients)`) so a
+  // patient screened against multiple trials appears once per screening, each
+  // row carrying its own `trialId`/`overallStatus` — matching what the
+  // Patients list view already shows. Per-patient detail (allergies, identity
+  // verification, diagnoses, medications, criteria) is filled in below via
+  // `getPatientDetail`, the same query the Patient Detail page uses, so this
+  // export never duplicates query logic or touches the DB with new SQL.
+  const patientRows = await listPatientsWithStatus(null)
+  const trials = await listAllTrials()
+  const trialNameById = new Map(trials.map((t) => [t.id, t.name]))
+
+  const exportRows: ExportablePatient[] = await Promise.all(
+    patientRows.map(async (p): Promise<ExportablePatient> => {
+      const detail = await getPatientDetail(p.id)
+
+      // Latest form submission (by send date) stands in for the patient's
+      // current intake-form status; a nurse verifying a patient only cares
+      // about where things stand now, not the full submission history.
+      const [latestSubmission] = await getDb()
+        .select()
+        .from(formSubmissions)
+        .where(eq(formSubmissions.patientId, p.id))
+        .orderBy(desc(formSubmissions.sentDate))
+        .limit(1)
+
+      return {
+        id: p.id,
+        nameIntakeq: p.nameIntakeq,
+        nameTebra: p.nameTebra,
+        dobIntakeq: p.dobIntakeq,
+        dobTebra: p.dobTebra,
+        phoneIntakeq: p.phoneIntakeq,
+        phoneTebra: p.phoneTebra,
+        emailIntakeq: p.emailIntakeq,
+        identityVerified: detail?.identityVerification?.verified ?? false,
+        idType: detail?.identityVerification?.idType ?? null,
+        currentProvider: p.currentProvider,
+        referralType: p.referralType,
+        diagnoses: (detail?.diagnoses ?? []).map((d) => ({ code: d.code, description: d.description })),
+        medications: (detail?.medications ?? []).map((m) => ({ name: m.name, dose: m.dose, startDate: m.startDate })),
+        allergies: (detail?.allergies ?? []).map((a) => ({ allergen: a.allergen, severity: a.severity })),
+        trialName: p.trialId ? (trialNameById.get(p.trialId) ?? null) : null,
+        overallStatus: p.overallStatus ?? null,
+        // Only the criteria a nurse still needs to confirm on the call --
+        // anything already 'green' is settled and would just be noise here.
+        criteriaNeedingVerification: (detail?.criteria ?? [])
+          .filter((c) => c.verdict !== 'green')
+          .map((c) => ({ criterionText: c.criterionText, evidenceQuote: c.evidenceQuote })),
+        formStatus: latestSubmission?.status ?? null,
+        lastCommunication: p.lastCommunication,
+      }
+    })
+  )
+
+  const buffer = await buildWorkbookXlsx(exportRows)
   await logAudit(session, 'exported workbook to Excel', null)
 
   // exceljs's .d.ts declares an ambient global `Buffer extends ArrayBuffer`

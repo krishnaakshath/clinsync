@@ -127,3 +127,58 @@ export const users = pgTable('users', {
   email: text('email').notNull(),
   role: roleEnum('role').notNull(),
 })
+
+export const formSubmissionStatusEnum = pgEnum('form_submission_status', ['sent', 'partial', 'completed'])
+export const idTypeEnum = pgEnum('id_type', ['drivers_license', 'state_id', 'passport'])
+export const severityEnum = pgEnum('severity', ['mild', 'moderate', 'severe'])
+
+export const formTemplates = pgTable('form_templates', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  category: text('category').notNull(),          // folder grouping in the library UI, e.g. "Trial Intake", "Consent Forms", "Screening Questionnaires"
+  diagnosisTag: text('diagnosis_tag').notNull(),
+  questions: jsonb('questions').$type<{
+    id: string
+    label: string
+    type: 'text' | 'textarea' | 'date' | 'select' | 'checkbox'
+    options?: string[]
+    hipaaSensitive: boolean
+    required: boolean
+  }[]>().notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const formSubmissions = pgTable('form_submissions', {
+  id: serial('id').primaryKey(),
+  templateId: integer('template_id').notNull().references(() => formTemplates.id),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  status: formSubmissionStatusEnum('status').default('sent').notNull(),
+  sentDate: timestamp('sent_date').defaultNow().notNull(),
+  completedDate: timestamp('completed_date'),
+  answers: jsonb('answers').$type<Record<string, string>>().default({}),
+})
+
+export const allergies = pgTable('allergies', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  allergen: text('allergen').notNull(),
+  reaction: text('reaction'),
+  severity: severityEnum('severity').notNull(),
+})
+
+export const identityVerifications = pgTable('identity_verifications', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id).unique(),
+  idType: idTypeEnum('id_type').notNull(),
+  idNumberEncrypted: text('id_number_encrypted').notNull(),
+  verified: boolean('verified').default(false).notNull(),
+  verifiedBy: text('verified_by'),
+  verifiedAt: timestamp('verified_at'),
+})
+
+// Single-row table: one settings record for the whole pilot deployment.
+export const appSettings = pgTable('app_settings', {
+  id: serial('id').primaryKey(),
+  autoClassifyOnComplete: boolean('auto_classify_on_complete').default(false).notNull(),
+})
