@@ -114,7 +114,7 @@ export const identityMatches = pgTable('identity_matches', {
 export const auditLog = pgTable('audit_log', {
   id: serial('id').primaryKey(),
   userName: text('user_name').notNull(),
-  role: roleEnum('role').notNull(),
+  role: roleEnum('role'),
   action: text('action').notNull(),
   patientId: text('patient_id'),
   timestamp: timestamp('timestamp').defaultNow().notNull(),
@@ -144,6 +144,7 @@ export const formTemplates = pgTable('form_templates', {
     options?: string[]
     hipaaSensitive: boolean
     required: boolean
+    autofillField?: 'name' | 'dob' | 'email' | 'phone' | null
   }[]>().notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -157,6 +158,8 @@ export const formSubmissions = pgTable('form_submissions', {
   sentDate: timestamp('sent_date').defaultNow().notNull(),
   completedDate: timestamp('completed_date'),
   answers: jsonb('answers').$type<Record<string, string>>().default({}),
+  accessToken: text('access_token').unique(),
+  tokenExpiresAt: timestamp('token_expires_at'),
 })
 
 export const allergies = pgTable('allergies', {
