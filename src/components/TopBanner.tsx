@@ -1,6 +1,6 @@
 function ConnectionDot({ label, connected }: { label: string; connected: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-600' : 'bg-red-600'}`} aria-hidden="true" />
       <span>{label}</span> {connected ? 'Connected' : 'Disconnected'}
     </span>

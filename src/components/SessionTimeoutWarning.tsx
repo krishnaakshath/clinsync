@@ -41,10 +41,10 @@ export function SessionTimeoutWarning() {
 
   return (
     <div role="alertdialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="rounded-lg bg-white p-6 shadow-lg">
-        <p className="mb-2 font-semibold">You'll be signed out soon</p>
-        <p className="mb-4 text-sm text-slate-600">For patient data protection, inactive sessions end automatically.</p>
-        <button onClick={reset} className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white">
+      <div className="rounded-lg bg-card p-6 shadow-lg">
+        <p className="mb-2 font-semibold text-foreground">You'll be signed out soon</p>
+        <p className="mb-4 text-sm text-muted-foreground">For patient data protection, inactive sessions end automatically.</p>
+        <button onClick={reset} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90">
           Stay signed in
         </button>
       </div>
