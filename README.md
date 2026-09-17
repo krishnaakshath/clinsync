@@ -64,6 +64,18 @@ Required env vars (populated automatically in `.env.local` by
 pull with `vercel env pull .env.local`): `DATABASE_URL` (Neon Postgres),
 `KV_REST_API_URL` / `KV_REST_API_TOKEN` (Upstash Redis).
 
+Also required, but *not* provisioned by either Vercel integration —
+`IDENTITY_ENCRYPTION_KEY`: a 32-byte base64-encoded key used for AES-256-GCM
+encryption of identity-verification ID numbers (see `src/lib/crypto.ts`).
+Generate one with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Without it, `npm run db:seed` crashes and every identity-verification `PUT`
+request 500s.
+
 ## Demo auth
 
 There's no real authentication — `/login` lets you pick one of three demo
