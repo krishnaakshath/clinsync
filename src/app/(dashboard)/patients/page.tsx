@@ -30,7 +30,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
               <Link key={t.id} href={`/patients?trialId=${t.id}`} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${trialId === t.id ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{t.condition}</Link>
             ))}
           </div>
-          <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Export to Excel</a>
+          <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Download Verification Workbook</a>
         </div>
       </div>
       <table className="w-full border-collapse text-sm">

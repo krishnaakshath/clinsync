@@ -81,13 +81,25 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 Without it, `npm run db:seed` crashes and every identity-verification `PUT`
 request 500s.
 
-## Demo auth
+Also required for login — `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `ADMIN_NAME`:
+the single provisioned admin account. `ADMIN_PASSWORD_HASH` is a
+`salt:hash` pair produced by `src/lib/password.ts`'s `hashPassword()`
+(scrypt, not a plaintext or reversible value). Generate one with:
 
-There's no real authentication — `/login` lets you pick one of three demo
-roles (CRC, PI, Admin) via `/api/demo-login`, which sets a session cookie.
-This is explicitly out of scope for this pilot; see the design spec's open
-questions for the real-SSO plan (likely SSO against IPMG's identity
-provider before any real patient data flows through the system).
+```bash
+node -e "const{randomBytes,scryptSync}=require('crypto');const s=randomBytes(16).toString('hex');console.log(s+':'+scryptSync(process.argv[1],s,64).toString('hex'))" "your-new-password"
+```
+
+## Auth
+
+`/login` is a real email/password form — `/api/login` checks the submitted
+credentials against `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` and, on success, sets
+the same session cookie the rest of the app already relies on. Only the
+single admin account configured via those env vars can sign in; there is no
+self-service account creation or CRC/PI login yet. `/api/logout` clears the
+session cookie. See the design spec's open questions for the real-SSO plan
+(likely SSO against IPMG's identity provider, and real CRC/PI accounts,
+before any real patient data flows through the system).
 
 ## Security model
 

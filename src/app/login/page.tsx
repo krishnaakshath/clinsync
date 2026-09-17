@@ -1,37 +1,75 @@
 'use client'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-
-const DEMO_USERS = [
-  { role: 'crc', name: 'Jamie Ruiz (Research Coordinator)' },
-  { role: 'pi', name: 'Dr. R. Kunam (Principal Investigator)' },
-  { role: 'admin', name: 'Sam Patel (Admin / IT)' },
-] as const
+import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 
 export default function LoginPage() {
   const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  async function signIn(role: string, name: string) {
-    const res = await fetch('/api/demo-login', {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, name }),
+      body: JSON.stringify({ email, password }),
     })
-    if (!res.ok) return
+    setSubmitting(false)
+    if (!res.ok) {
+      setError('Invalid email or password.')
+      return
+    }
     router.push('/')
+    router.refresh()
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm rounded-lg border border-border bg-card p-8 shadow-sm">
-        <h1 className="mb-1 text-lg font-semibold">Clinsync — Sign In</h1>
-        <p className="mb-6 text-sm text-muted-foreground">Choose a role to continue.</p>
-        <div className="space-y-2">
-          {DEMO_USERS.map((u) => (
-            <button key={u.role} onClick={() => signIn(u.role, u.name)} className="w-full rounded-md border border-border px-4 py-2 text-left text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-secondary">
-              {u.name}
-            </button>
-          ))}
+        <div className="mb-6 flex flex-col items-center gap-2 text-center">
+          <ClinsyncLogo className="h-9 w-9 text-primary" />
+          <h1 className="text-lg font-semibold text-foreground">Clinsync</h1>
+          <p className="text-sm text-muted-foreground">Sign in to continue.</p>
         </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</label>
+            <input
+              id="email"
+              type="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+            />
+          </div>
+          <div>
+            <label htmlFor="password" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Password</label>
+            <input
+              id="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+            />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
       </div>
     </div>
   )
