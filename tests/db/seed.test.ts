@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { trials, patients, identityMatches } from '@/db/schema'
+import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments } from '@/db/schema'
 import { seed } from '@/db/seed'
 
 describe('seed', () => {
@@ -23,5 +23,27 @@ describe('seed', () => {
   it('creates at least 2 pending identity matches', async () => {
     const rows = await getDb().select().from(identityMatches)
     expect(rows.filter((r) => r.status === 'pending').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('creates charges covering every status in the workflow', async () => {
+    const rows = await getDb().select().from(charges)
+    expect(rows.length).toBeGreaterThanOrEqual(11)
+    const statuses = new Set(rows.map((r) => r.status))
+    expect(statuses).toEqual(new Set(['draft', 'pending_approval', 'approved', 'submitted']))
+  })
+
+  it('creates insurance claims covering rejected/denied/waiting/needs-investigation/paid', async () => {
+    const rows = await getDb().select().from(insuranceClaims)
+    const statuses = new Set(rows.map((r) => r.status))
+    expect(statuses).toEqual(new Set(['rejected', 'denied', 'waiting_adjudication', 'needs_investigation', 'paid']))
+  })
+
+  it('creates patient statements and mock payments', async () => {
+    const statements = await getDb().select().from(patientStatements)
+    const payments = await getDb().select().from(mockPayments)
+    expect(statements.length).toBeGreaterThanOrEqual(4)
+    expect(payments.length).toBeGreaterThanOrEqual(2)
+    expect(payments.some((p) => p.result === 'success')).toBe(true)
+    expect(payments.some((p) => p.result === 'failed')).toBe(true)
   })
 })
