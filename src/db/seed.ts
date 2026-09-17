@@ -316,12 +316,12 @@ export async function seed() {
 
   // Form submissions: a spread of sent/partial/completed across seeded patients.
   await db.insert(formSubmissions).values([
-    { templateId: mddTemplate.id, patientId: 'RD-0001', status: 'completed', completedDate: new Date('2026-08-15'), answers: { q1: 'Maria Alvarez', q4: 'Yes' } },
-    { templateId: mddTemplate.id, patientId: 'RD-0002', status: 'completed', completedDate: new Date('2026-08-20'), answers: { q1: 'James Thornton', q4: 'Yes' } },
-    { templateId: mddTemplate.id, patientId: 'RD-0003', status: 'sent' },
-    { templateId: mddTemplate.id, patientId: 'RD-0006', status: 'partial', answers: { q1: 'Kathryn Voss' } },
-    { templateId: adhdTemplate.id, patientId: 'RD-0004', status: 'completed', completedDate: new Date('2026-08-22'), answers: { q1: 'Priya Natarajan' } },
-    { templateId: adhdTemplate.id, patientId: 'RD-0005', status: 'sent' },
+    { templateId: mddTemplate.id, patientId: 'RD-0001', status: 'completed', sentDate: new Date('2026-08-10'), completedDate: new Date('2026-08-15'), answers: { q1: 'Maria Alvarez', q4: 'Yes' } },
+    { templateId: mddTemplate.id, patientId: 'RD-0002', status: 'completed', sentDate: new Date('2026-08-16'), completedDate: new Date('2026-08-20'), answers: { q1: 'James Thornton', q4: 'Yes' } },
+    { templateId: mddTemplate.id, patientId: 'RD-0003', status: 'sent', sentDate: new Date('2026-08-25') },
+    { templateId: mddTemplate.id, patientId: 'RD-0006', status: 'partial', sentDate: new Date('2026-08-18'), answers: { q1: 'Kathryn Voss' } },
+    { templateId: adhdTemplate.id, patientId: 'RD-0004', status: 'completed', sentDate: new Date('2026-08-17'), completedDate: new Date('2026-08-22'), answers: { q1: 'Priya Natarajan' } },
+    { templateId: adhdTemplate.id, patientId: 'RD-0005', status: 'sent', sentDate: new Date('2026-08-24') },
   ])
 
   // Allergies for a subset of patients.
