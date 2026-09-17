@@ -1,5 +1,5 @@
 import { getDb } from '@/db/client'
-import { patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes } from '@/db/schema'
+import { patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { getOrSetCache, patientListCacheKey, patientDetailCacheKey } from '@/lib/cache'
 import type { Verdict } from '@/lib/rule-engine'
@@ -44,7 +44,9 @@ export async function getPatientDetail(anonId: string) {
     const criteria = screening ? await getDb().select().from(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, screening.id)) : []
     const dx = await getDb().select().from(diagnoses).where(eq(diagnoses.patientId, anonId))
     const meds = await getDb().select().from(medicationEpisodes).where(eq(medicationEpisodes.patientId, anonId))
+    const patientAllergies = await getDb().select().from(allergies).where(eq(allergies.patientId, anonId))
+    const [identity] = await getDb().select().from(identityVerifications).where(eq(identityVerifications.patientId, anonId))
 
-    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds }
+    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null }
   })
 }
