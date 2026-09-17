@@ -8,11 +8,11 @@ import { getPatientDetail } from '@/lib/queries/patients'
 function ComparisonRow({ label, intakeq, tebra, merged }: { label: string; intakeq: string | null; tebra: string | null; merged: string | null }) {
   const mismatch = intakeq && tebra && intakeq !== tebra
   return (
-    <div className="grid grid-cols-4 gap-2 border-b py-2 text-sm">
-      <span className="font-medium text-slate-600">{label}</span>
-      <span>{intakeq ?? '—'}</span>
-      <span>{tebra ?? '—'}</span>
-      <span className={mismatch ? 'rounded bg-amber-100 px-1 font-medium text-amber-800' : ''}>{merged ?? '—'}</span>
+    <div className="grid grid-cols-4 gap-2 border-b border-border py-3 text-sm">
+      <span className="font-medium text-muted-foreground">{label}</span>
+      <span className="text-foreground">{intakeq ?? '—'}</span>
+      <span className="text-foreground">{tebra ?? '—'}</span>
+      <span className={mismatch ? 'rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800' : 'text-foreground'}>{merged ?? '—'}</span>
     </div>
   )
 }
@@ -29,20 +29,20 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="max-w-4xl space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">{patient.id} — {patient.nameTebra ?? patient.nameIntakeq}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{patient.id} — {patient.nameTebra ?? patient.nameIntakeq}</h1>
         <StatusChip status={patient.overallStatus ?? 'yellow'} />
       </div>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase text-slate-500">Screening Evidence</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Screening Evidence</h2>
         <div className="space-y-3">
           {patient.criteria.map((c) => <EvidenceCard key={c.id} criterion={c} />)}
         </div>
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase text-slate-500">Dual-Sourced Fields</h2>
-        <div className="grid grid-cols-4 gap-2 border-b pb-1 text-xs font-semibold text-slate-400">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dual-Sourced Fields</h2>
+        <div className="grid grid-cols-4 gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Field</span><span>IntakeQ</span><span>Tebra</span><span>Merged (used)</span>
         </div>
         <ComparisonRow label="Name" intakeq={patient.nameIntakeq} tebra={patient.nameTebra} merged={patient.nameTebra ?? patient.nameIntakeq} />
@@ -51,8 +51,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase text-slate-500">Diagnoses & Medications</h2>
-        <ul className="list-inside list-disc text-sm">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Diagnoses & Medications</h2>
+        <ul className="space-y-1.5 text-sm text-foreground">
           {patient.diagnoses.map((d) => <li key={d.id}>{d.code} — {d.description}</li>)}
           {patient.medications.map((m) => <li key={m.id}>{m.name} ({m.medicationClass}), {m.dose}, since {m.startDate} — {m.status}</li>)}
         </ul>
