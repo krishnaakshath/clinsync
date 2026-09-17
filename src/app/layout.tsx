@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Clinsync — IPMG Pre-Screening Workbook (Pilot Demo)",
-  description: "Research pre-screening workbook combining IntakeQ referrals and Tebra chart data — pilot demo, no real patient data.",
+  title: "Clinsync — IPMG Pre-Screening Workbook",
+  description: "Research pre-screening workbook combining IntakeQ referrals and Tebra chart data.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
