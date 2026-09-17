@@ -16,12 +16,12 @@ export default async function IdentityMatchingPage() {
         {matches.map((m) => (
           <div key={m.id} className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-card p-5">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">IntakeQ Referral</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Intake Referral</p>
               <p className="text-sm">{m.referralName}</p>
               <p className="text-xs text-muted-foreground">DOB {m.referralDob}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Candidate Tebra Chart ({m.confidence}% confidence)</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Candidate Clinical Record ({m.confidence}% confidence)</p>
               <p className="text-sm">{m.candidateName}</p>
               <p className="text-xs text-muted-foreground">DOB {m.candidateDob}</p>
             </div>
