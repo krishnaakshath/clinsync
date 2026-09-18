@@ -1,13 +1,12 @@
 import type { Verdict } from '@/lib/rule-engine'
 
-// Matches the real Tebra/IntakeQ convention observed directly in the
-// product: status is a colored dot + plain text label, never an icon
-// glyph. The dot is decorative (aria-hidden) -- the text label alone
-// satisfies "never color alone" on its own.
+// Status is always a colored dot + plain text label, never an icon glyph.
+// The dot is decorative (aria-hidden) -- the text label alone satisfies
+// "never color alone" on its own.
 const CONFIG: Record<Verdict, { label: string; dotClassName: string; textClassName: string }> = {
-  green: { label: 'Meets', dotClassName: 'bg-emerald-600', textClassName: 'text-emerald-800' },
-  yellow: { label: 'Needs Verification', dotClassName: 'bg-amber-500', textClassName: 'text-amber-800' },
-  red: { label: 'Potential Exclusion', dotClassName: 'bg-red-600', textClassName: 'text-red-800' },
+  green: { label: 'Meets', dotClassName: 'bg-success', textClassName: 'text-success' },
+  yellow: { label: 'Needs Verification', dotClassName: 'bg-warning', textClassName: 'text-warning' },
+  red: { label: 'Potential Exclusion', dotClassName: 'bg-destructive', textClassName: 'text-destructive' },
 }
 
 export function StatusChip({ status }: { status: Verdict }) {
