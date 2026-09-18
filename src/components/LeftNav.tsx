@@ -10,6 +10,7 @@ const ITEMS = [
   { href: '/forms', label: 'Form Templates' },
   { href: '/client-forms', label: 'Client Forms' },
   { href: '/audit-log', label: 'Audit Log' },
+  { href: '/build-status', label: 'Build Progress' },
   { href: '/settings', label: 'Settings' },
 ]
 
