@@ -1,7 +1,20 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterAll } from 'vitest'
 import { POST } from '@/app/api/mock-payments/route'
+import { getDb } from '@/db/client'
+import { mockPayments } from '@/db/schema'
+import { inArray } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+
+// This suite exercises the real createMockPayment DB write path against the
+// shared dev database (not mocked), so every row it creates is tracked here
+// and deleted afterward -- otherwise these rows accumulate permanently,
+// since seed()'s guard against destructive reseeds means a non-empty table
+// is never cleared between runs.
+const createdPaymentIds: number[] = []
+afterAll(async () => {
+  if (createdPaymentIds.length > 0) await getDb().delete(mockPayments).where(inArray(mockPayments.id, createdPaymentIds))
+})
 
 describe('POST /api/mock-payments', () => {
   it('rejects a payload with an unknown field (mass-assignment guard)', async () => {
@@ -20,6 +33,7 @@ describe('POST /api/mock-payments', () => {
     })
     const res = await POST(req as never)
     const body = await res.json()
+    createdPaymentIds.push(body.id)
     expect(res.status).toBe(201)
     expect(body.result).toBe('success')
     expect(body.cardLast4).toBe('4242')
@@ -34,6 +48,7 @@ describe('POST /api/mock-payments', () => {
     })
     const res = await POST(req as never)
     const body = await res.json()
+    createdPaymentIds.push(body.id)
     expect(body.result).toBe('failed')
   })
 })

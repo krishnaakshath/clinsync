@@ -41,6 +41,7 @@ export function ChargesTable({ charges, patients }: { charges: Charge[]; patient
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMNS.map((c) => c.key))
   const [pending, setPending] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const providers = useMemo(() => [...new Set(charges.map((c) => c.providerName))], [charges])
   const filterFields: DataGridFilterField[] = [
@@ -57,13 +58,19 @@ export function ChargesTable({ charges, patients }: { charges: Charge[]; patient
 
   async function advance(chargeId: number, nextStatus: Charge['status']) {
     setPending(chargeId)
-    await fetch(`/api/charges/${chargeId}`, {
+    setError(null)
+    const res = await fetch(`/api/charges/${chargeId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: nextStatus }),
     })
     setPending(null)
-    router.refresh()
+    if (res.ok) {
+      router.refresh()
+    } else {
+      const body = await res.json()
+      setError(body.error ?? 'Could not update this charge.')
+    }
   }
 
   const show = (key: string) => visibleColumns.includes(key)
@@ -86,6 +93,8 @@ export function ChargesTable({ charges, patients }: { charges: Charge[]; patient
         />
         <NewChargeModal patients={patients} />
       </div>
+
+      {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground">No records found.</p>

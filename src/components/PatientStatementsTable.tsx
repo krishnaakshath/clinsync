@@ -17,6 +17,7 @@ type Statement = {
 const DELIVERY_LABELS: Record<Statement['deliveryMethod'], string> = { email: 'Email', sms: 'SMS', paper: 'Paper' }
 const TYPE_LABELS: Record<Statement['type'], string> = { initial: 'Initial', reminder: 'Reminder', final_notice: 'Final Notice' }
 const STATUS_LABELS: Record<Statement['deliveryStatus'], string> = { delivered: 'Delivered', failed: 'Failed' }
+const STATUS_DOT: Record<Statement['deliveryStatus'], string> = { delivered: 'bg-success', failed: 'bg-destructive' }
 
 const COLUMNS: DataGridColumn[] = [
   { key: 'sentDate', label: 'Sent' },
@@ -89,7 +90,14 @@ export function PatientStatementsTable({ statements }: { statements: Statement[]
                 {show('amount') && <td className="p-3 text-foreground">{formatCents(s.amountCents)}</td>}
                 {show('delivery') && <td className="p-3 text-foreground">{DELIVERY_LABELS[s.deliveryMethod]}</td>}
                 {show('type') && <td className="p-3 text-foreground">{TYPE_LABELS[s.type]}</td>}
-                {show('status') && <td className="p-3 text-foreground">{STATUS_LABELS[s.deliveryStatus]}</td>}
+                {show('status') && (
+                  <td className="p-3">
+                    <span className="inline-flex items-center gap-1.5 text-foreground">
+                      <span className={`h-2 w-2 rounded-full ${STATUS_DOT[s.deliveryStatus]}`} aria-hidden="true" />
+                      {STATUS_LABELS[s.deliveryStatus]}
+                    </span>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

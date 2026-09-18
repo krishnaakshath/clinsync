@@ -1,8 +1,21 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterAll } from 'vitest'
 import { GET, POST } from '@/app/api/charges/route'
 import { GET as getOne, PATCH } from '@/app/api/charges/[id]/route'
+import { getDb } from '@/db/client'
+import { charges } from '@/db/schema'
+import { inArray } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+
+// This suite exercises the real create/PATCH DB path against the shared dev
+// database (not mocked), so every charge it creates is tracked here and
+// deleted afterward -- otherwise these rows accumulate permanently, since
+// seed()'s guard against destructive reseeds means a non-empty `charges`
+// table is never cleared between runs.
+const createdChargeIds: number[] = []
+afterAll(async () => {
+  if (createdChargeIds.length > 0) await getDb().delete(charges).where(inArray(charges.id, createdChargeIds))
+})
 
 describe('GET /api/charges', () => {
   it('returns the seeded charges', async () => {
@@ -50,6 +63,7 @@ describe('POST /api/charges', () => {
     })
     const res = await POST(req as never)
     const body = await res.json()
+    createdChargeIds.push(body.id)
     expect(res.status).toBe(201)
     expect(body.status).toBe('draft')
     expect(body.amountCents).toBe(25000) // 15000 + 2*5000, computed server-side
@@ -67,6 +81,7 @@ describe('GET /api/charges/[id]', () => {
       }),
     })
     const created = await (await POST(createReq as never)).json()
+    createdChargeIds.push(created.id)
 
     const res = await getOne(new Request('http://localhost') as never, { params: Promise.resolve({ id: String(created.id) }) })
     const body = await res.json()
@@ -90,7 +105,9 @@ describe('PATCH /api/charges/[id]', () => {
         procedureCodes: [{ code: '90837', description: 'Psychotherapy', units: 1, chargeCents: 15000 }],
       }),
     })
-    return (await POST(createReq as never)).json()
+    const created = await (await POST(createReq as never)).json()
+    createdChargeIds.push(created.id)
+    return created
   }
 
   it('rejects an illegal status transition (draft straight to submitted)', async () => {
