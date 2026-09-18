@@ -1,5 +1,5 @@
-import { getDb } from './client'
 import { sql } from 'drizzle-orm'
+import { getDb } from './client'
 import { encryptSensitive } from '../lib/crypto'
 import {
   trials,
@@ -19,6 +19,8 @@ import {
   allergies,
   identityVerifications,
   appSettings,
+  providers,
+  appointments,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -51,6 +53,18 @@ const ADHD_TRIAL = {
   ratingScales: [{ name: 'ASRS-v1.1', description: 'Adult ADHD Self-Report Scale' }],
   medicationClasses: [{ className: 'Stimulant', washoutDays: 14, rule: 'No stimulant medication within the last 14 days' }],
 }
+
+// Independent provider roster — see the Design Decision section in this
+// phase's plan for why this is not backfilled from patients.currentProvider.
+// colorTag cycles through the design system's grayscale chart tokens so the
+// calendar can color-code providers without ever using a hardcoded color.
+const PROVIDER_ROSTER = [
+  { name: 'Dr. Rajiv Kunam', credentials: 'MD', specialty: 'Psychiatry', colorTag: 'chart-1' },
+  { name: 'Dr. Elena Bosch', credentials: 'MD', specialty: 'Psychiatry', colorTag: 'chart-2' },
+  { name: 'Priya Sundaram', credentials: 'PMHNP', specialty: 'Psychiatric Nurse Practitioner', colorTag: 'chart-3' },
+  { name: 'Dr. Michael Farr', credentials: 'DO', specialty: 'Psychiatry', colorTag: 'chart-4' },
+  { name: 'Dana Whitfield', credentials: 'PMHNP', specialty: 'Psychiatric Nurse Practitioner', colorTag: 'chart-5' },
+]
 
 type HeroPatient = {
   id: string; trialId: string; overallStatus: 'green' | 'yellow' | 'red'
@@ -289,6 +303,30 @@ async function seedBilling() {
   ])
 }
 
+async function seedProvidersAndAppointments() {
+  const db = getDb()
+  const insertedProviders = await db.insert(providers).values(PROVIDER_ROSTER).returning()
+  const [kunam, bosch, sundaram, farr, whitfield] = insertedProviders
+
+  // Appointments spread across past (completed/no-show/cancelled), today
+  // (2026-09-17), and upcoming dates so Day/Week/Month views and the Home
+  // Dashboard's Upcoming Appointments widget all have real demo data.
+  await db.insert(appointments).values([
+    { patientId: 'RD-0001', providerId: kunam.id, startsAt: new Date('2026-09-10T09:00:00'), endsAt: new Date('2026-09-10T09:30:00'), visitReason: 'Pre-screening follow-up', status: 'completed' },
+    { patientId: 'RD-0006', providerId: kunam.id, startsAt: new Date('2026-09-12T14:00:00'), endsAt: new Date('2026-09-12T14:30:00'), visitReason: 'Medication review', status: 'no_show' },
+    { patientId: 'RD-0005', providerId: whitfield.id, startsAt: new Date('2026-09-16T11:00:00'), endsAt: new Date('2026-09-16T11:30:00'), visitReason: 'Intake consult', status: 'cancelled' },
+    { patientId: 'RD-0002', providerId: bosch.id, startsAt: new Date('2026-09-17T09:00:00'), endsAt: new Date('2026-09-17T09:30:00'), visitReason: 'PHQ-9 rescreen', status: 'scheduled' },
+    { patientId: 'RD-0004', providerId: sundaram.id, startsAt: new Date('2026-09-17T10:30:00'), endsAt: new Date('2026-09-17T11:00:00'), visitReason: 'ASRS follow-up', status: 'scheduled' },
+    { patientId: 'RD-0003', providerId: farr.id, startsAt: new Date('2026-09-18T13:00:00'), endsAt: new Date('2026-09-18T13:30:00'), visitReason: 'Identity verification appointment', status: 'scheduled' },
+    { patientId: 'RD-0007', providerId: kunam.id, startsAt: new Date('2026-09-19T09:00:00'), endsAt: new Date('2026-09-19T09:30:00'), visitReason: 'New patient intake', status: 'scheduled' },
+    { patientId: 'RD-0008', providerId: bosch.id, startsAt: new Date('2026-09-22T15:00:00'), endsAt: new Date('2026-09-22T15:30:00'), visitReason: 'Screening visit', status: 'scheduled' },
+    { patientId: 'RD-0009', providerId: whitfield.id, startsAt: new Date('2026-09-24T10:00:00'), endsAt: new Date('2026-09-24T10:30:00'), visitReason: 'Consent review', status: 'scheduled' },
+    { patientId: 'RD-0010', providerId: sundaram.id, startsAt: new Date('2026-09-25T09:30:00'), endsAt: new Date('2026-09-25T10:00:00'), visitReason: 'Baseline rating scale', status: 'scheduled' },
+    { patientId: 'RD-0011', providerId: farr.id, startsAt: new Date('2026-09-29T13:30:00'), endsAt: new Date('2026-09-29T14:00:00'), visitReason: 'Follow-up visit', status: 'scheduled' },
+    { patientId: 'RD-0012', providerId: kunam.id, startsAt: new Date('2026-09-30T11:00:00'), endsAt: new Date('2026-09-30T11:30:00'), visitReason: 'Randomization visit', status: 'scheduled' },
+  ])
+}
+
 async function clearExistingData() {
   const db = getDb()
   // Delete in FK-safe order (children before parents) so seed() is safely re-runnable
@@ -307,7 +345,9 @@ async function clearExistingData() {
   await db.delete(identityVerifications)
   await db.delete(appSettings)
   await db.delete(formTemplates)
+  await db.delete(appointments)
   await db.delete(patients)
+  await db.delete(providers)
   await db.delete(users)
   await db.delete(trials)
 }
@@ -315,14 +355,35 @@ async function clearExistingData() {
 export async function seed() {
   const db = getDb()
 
-  // Guard against re-seeding a shared dev database that already has data --
-  // sibling feature branches now have tables with FK references into
-  // `patients`/`formSubmissions` that this branch's schema doesn't know
-  // about, so a full clear-and-reinsert can no longer safely delete those
-  // two tables without aborting partway through. Skip entirely if seeded.
+  // Guard against re-seeding a shared dev database that already has data.
+  // Several parallel feature branches now have their own tables with FK
+  // references into `patients`/`formSubmissions` (appointments, charges,
+  // reviews, ...) that this branch's schema doesn't know about, so a full
+  // clear-and-reinsert here can no longer safely delete those two tables --
+  // it would abort partway through with a foreign-key violation and leave
+  // whatever it deleted first empty. If the DB is already seeded, skip the
+  // destructive cycle entirely and leave existing data alone.
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(patients)
   if (count > 0) {
     console.log(`Seed skipped: patients table already has ${count} row(s).`)
+    // Even when patients is already seeded, this branch's own new tables
+    // (providers/appointments, charges/insuranceClaims/patientStatements/
+    // mockPayments) might not be -- e.g. a shared dev database seeded by a
+    // sibling branch before this branch's schema existed. Top those up
+    // without touching anything else: both top-up functions only insert
+    // into tables this branch owns exclusively, against patients rows
+    // already confirmed present, so neither carries the deletion/FK risk
+    // clearExistingData() has.
+    const [{ providerCount }] = await db.select({ providerCount: sql<number>`count(*)::int` }).from(providers)
+    if (providerCount === 0) {
+      await seedProvidersAndAppointments()
+      console.log('Seeded providers/appointments (patients table was already populated).')
+    }
+    const [{ chargeCount }] = await db.select({ chargeCount: sql<number>`count(*)::int` }).from(charges)
+    if (chargeCount === 0) {
+      await seedBilling()
+      console.log('Seeded billing (charges/claims/payments/statements) (patients table was already populated).')
+    }
     return
   }
 
@@ -370,6 +431,7 @@ export async function seed() {
   }
 
   await seedFillerPatients()
+  await seedProvidersAndAppointments()
   await seedBilling()
 
   await db.insert(identityMatches).values([
@@ -384,8 +446,8 @@ export async function seed() {
     category: 'Trial Intake',
     diagnosisTag: 'Major Depressive Disorder',
     questions: [
-      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true },
-      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true },
+      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true, autofillField: 'name' },
+      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true, autofillField: 'dob' },
       { id: 'q3', label: 'Current mood symptoms (describe)', type: 'textarea', hipaaSensitive: true, required: true },
       { id: 'q4', label: 'Currently taking antidepressants?', type: 'select', options: ['Yes', 'No'], hipaaSensitive: true, required: true },
       { id: 'q5', label: 'Consent to share records with study team', type: 'checkbox', hipaaSensitive: false, required: true },
@@ -397,8 +459,8 @@ export async function seed() {
     category: 'Trial Intake',
     diagnosisTag: 'ADHD',
     questions: [
-      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true },
-      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true },
+      { id: 'q1', label: 'Full legal name', type: 'text', hipaaSensitive: true, required: true, autofillField: 'name' },
+      { id: 'q2', label: 'Date of birth', type: 'date', hipaaSensitive: true, required: true, autofillField: 'dob' },
       { id: 'q3', label: 'Current stimulant medication (if any)', type: 'text', hipaaSensitive: true, required: false },
       { id: 'q4', label: 'Consent to share records with study team', type: 'checkbox', hipaaSensitive: false, required: true },
     ],

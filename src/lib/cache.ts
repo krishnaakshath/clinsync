@@ -81,3 +81,7 @@ export function arDashboardCacheKey(): string {
 export function billingAnalyticsCacheKey(): string {
   return 'billing:analytics'
 }
+
+export function providersListCacheKey(): string {
+  return 'providers:list'
+}

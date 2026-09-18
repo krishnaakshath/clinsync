@@ -16,7 +16,7 @@ export default async function ClientFormDetailPage({ params }: { params: Promise
       <p className="mb-6 text-sm text-muted-foreground">{submission.patientName} · <span className="capitalize">{submission.status}</span></p>
       <div className="space-y-3">
         {submission.questions.map((q) => (
-          <div key={q.id} className="rounded-lg border border-border bg-card p-4">
+          <div key={q.id} className="rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{q.label}</p>
             <p className="text-sm text-foreground">{submission.answers?.[q.id] ?? '—'}</p>
           </div>

@@ -114,7 +114,7 @@ export const identityMatches = pgTable('identity_matches', {
 export const auditLog = pgTable('audit_log', {
   id: serial('id').primaryKey(),
   userName: text('user_name').notNull(),
-  role: roleEnum('role').notNull(),
+  role: roleEnum('role'),
   action: text('action').notNull(),
   patientId: text('patient_id'),
   timestamp: timestamp('timestamp').defaultNow().notNull(),
@@ -212,6 +212,7 @@ export const formTemplates = pgTable('form_templates', {
     options?: string[]
     hipaaSensitive: boolean
     required: boolean
+    autofillField?: 'name' | 'dob' | 'email' | 'phone' | null
   }[]>().notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -225,6 +226,8 @@ export const formSubmissions = pgTable('form_submissions', {
   sentDate: timestamp('sent_date').defaultNow().notNull(),
   completedDate: timestamp('completed_date'),
   answers: jsonb('answers').$type<Record<string, string>>().default({}),
+  accessToken: text('access_token').unique(),
+  tokenExpiresAt: timestamp('token_expires_at'),
 })
 
 export const allergies = pgTable('allergies', {
@@ -249,4 +252,38 @@ export const identityVerifications = pgTable('identity_verifications', {
 export const appSettings = pgTable('app_settings', {
   id: serial('id').primaryKey(),
   autoClassifyOnComplete: boolean('auto_classify_on_complete').default(false).notNull(),
+})
+
+export const appointmentStatusEnum = pgEnum('appointment_status', ['scheduled', 'completed', 'cancelled', 'no_show'])
+
+// A real, structured provider roster for scheduling. Deliberately NOT
+// backfilled from `patients.currentProvider` — see the Design Decision
+// section in this phase's plan (docs/superpowers/plans/2026-09-17-phase2-scheduling.md)
+// for the reasoning: that free-text field has almost no diversity to backfill
+// from and lacks the structured fields (credentials, specialty, calendar
+// color) a real scheduling feature needs. `colorTag` is always one of the
+// design system's grayscale chart tokens ('chart-1'..'chart-5', defined in
+// src/app/globals.css) — enforced at the application layer (see the seed
+// roster and PROVIDER_DOT_CLASSNAME map in later tasks), not as a DB enum,
+// since it's a display concern rather than a domain invariant.
+export const providers = pgTable('providers', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  credentials: text('credentials'),
+  specialty: text('specialty').notNull(),
+  colorTag: text('color_tag').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const appointments = pgTable('appointments', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  providerId: integer('provider_id').notNull().references(() => providers.id),
+  startsAt: timestamp('starts_at').notNull(),
+  endsAt: timestamp('ends_at').notNull(),
+  visitReason: text('visit_reason').notNull(),
+  status: appointmentStatusEnum('status').default('scheduled').notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 })
