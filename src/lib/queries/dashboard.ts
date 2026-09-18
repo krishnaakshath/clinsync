@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { formSubmissions, formTemplates, patients, patientTrialScreenings, auditLog } from '@/db/schema'
-import { eq, desc, isNull, or, inArray } from 'drizzle-orm'
+import { eq, desc, isNull, or, inArray, sql } from 'drizzle-orm'
 import { getOrSetCache, dashboardCacheKey } from '@/lib/cache'
 
 const ACCOUNT_EVENT_ACTIONS = ['sent intake form', 'completed intake form', 'verified identity', 'ran classification']
@@ -27,6 +27,11 @@ export async function getDashboardData() {
       .orderBy(desc(formSubmissions.sentDate))
       .limit(5)
 
+    const [{ count: pendingFormsTotal }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(formSubmissions)
+      .where(or(eq(formSubmissions.status, 'sent'), eq(formSubmissions.status, 'partial')))
+
     // Patients with completed intake + at least one recorded diagnosis/medication,
     // but no screening row yet — the "ready but not yet classified" queue.
     const allPatients = await db.select().from(patients)
@@ -44,6 +49,7 @@ export async function getDashboardData() {
     return {
       latestForms: latestForms.map((r) => ({ ...r.submission, templateName: r.template.name, patientName: r.patient.nameTebra ?? r.patient.nameIntakeq })),
       pendingForms: pendingForms.map((r) => ({ ...r.submission, templateName: r.template.name, patientName: r.patient.nameTebra ?? r.patient.nameIntakeq })),
+      pendingFormsTotal,
       pendingClassification,
       recentEvents,
     }
