@@ -45,7 +45,7 @@ export function SendSurveyButton({ candidates }: { candidates: Candidate[] }) {
               <select value={selected ?? ''} onChange={(e) => setSelected(Number(e.target.value))} className="mb-3 w-full rounded-md border border-border px-3 py-2 text-sm">
                 {candidates.map((c) => <option key={c.formSubmissionId} value={c.formSubmissionId}>{c.patientName} — {c.templateName}</option>)}
               </select>
-              {error && <p className="mb-2 text-sm text-red-700">{error}</p>}
+              {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
               <button onClick={send} disabled={sending} className="w-full rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
                 {sending ? 'Sending…' : 'Send'}
               </button>
