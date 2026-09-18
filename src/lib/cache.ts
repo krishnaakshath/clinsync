@@ -34,6 +34,19 @@ export async function invalidateCache(key: string): Promise<void> {
   await getRedis().del(key)
 }
 
+/**
+ * Deletes every cached key starting with `prefix` — for a cache keyed per
+ * filter combination (e.g. reviewsListCacheKey), the write path can't know
+ * every filter combination a reader might have cached under, so a single
+ * invalidateCache(key) call for one specific key (like the no-filter view)
+ * silently misses every other cached filter combination. Safe at Clinsync's
+ * real scale (a handful of keys per prefix, not thousands).
+ */
+export async function invalidateCacheByPrefix(prefix: string): Promise<void> {
+  const keys = await getRedis().keys(`${prefix}*`)
+  if (keys.length > 0) await getRedis().del(...keys)
+}
+
 export function patientListCacheKey(trialId: string | null): string {
   return `patients:list:${trialId ?? 'all'}`
 }

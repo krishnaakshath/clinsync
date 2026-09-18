@@ -50,12 +50,12 @@ export default async function PipelineDashboardPage({ searchParams }: { searchPa
       <form className="mb-6 flex items-end gap-3 text-sm" action="/pipeline-dashboard">
         <input type="hidden" name="preset" value="custom" />
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">From</label>
-          <input type="date" name="from" defaultValue={range.from.toISOString().slice(0, 10)} className="rounded-md border border-border px-3 py-2" />
+          <label htmlFor="pipeline-from" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">From</label>
+          <input id="pipeline-from" type="date" name="from" defaultValue={range.from.toISOString().slice(0, 10)} className="rounded-md border border-border px-3 py-2" />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">To</label>
-          <input type="date" name="to" defaultValue={range.to.toISOString().slice(0, 10)} className="rounded-md border border-border px-3 py-2" />
+          <label htmlFor="pipeline-to" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">To</label>
+          <input id="pipeline-to" type="date" name="to" defaultValue={range.to.toISOString().slice(0, 10)} className="rounded-md border border-border px-3 py-2" />
         </div>
         <button type="submit" className="rounded-md border border-border px-4 py-2 font-medium text-foreground hover:bg-secondary">Update</button>
       </form>

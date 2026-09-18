@@ -16,7 +16,8 @@ export default async function BroadcastsPage({ searchParams }: { searchParams: P
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-foreground">Patient Broadcast</h1>
+      <h1 className="mb-1 text-2xl font-bold text-foreground">Patient Broadcast</h1>
+      <p className="mb-6 text-sm text-muted-foreground">Simulated delivery only — no SMS or email is ever sent to a real patient.</p>
       <div className="mb-6 flex w-fit gap-1 rounded-lg bg-secondary p-1 text-sm">
         <Link href="/broadcasts?tab=send" className={`rounded-md px-4 py-1.5 font-medium transition-colors ${activeTab === 'send' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Send Broadcast</Link>
         <Link href="/broadcasts?tab=history" className={`rounded-md px-4 py-1.5 font-medium transition-colors ${activeTab === 'history' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Broadcast History</Link>

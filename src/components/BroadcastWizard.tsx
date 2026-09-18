@@ -84,6 +84,7 @@ export function BroadcastWizard({ trials }: { trials: Trial[] }) {
     return (
       <div className="max-w-xl rounded-lg border border-border bg-card p-6">
         <p className="text-sm font-medium text-foreground">Broadcast sent to {sent.recipientCount} recipient{sent.recipientCount === 1 ? '' : 's'}.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Simulated delivery only — no real SMS or email was sent.</p>
         <button
           onClick={() => { setSent(null); setStep(1); setMessage(''); setSubject(''); setCandidates(null) }}
           className="mt-4 rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
@@ -143,20 +144,20 @@ export function BroadcastWizard({ trials }: { trials: Trial[] }) {
         <div className="space-y-4">
           <div>
             <label htmlFor="broadcast-trial" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trial</label>
-            <select id="broadcast-trial" value={trialId} onChange={(e) => setTrialId(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+            <select id="broadcast-trial" value={trialId} onChange={(e) => { setTrialId(e.target.value); setCandidates(null) }} className="w-full rounded-md border border-border px-3 py-2 text-sm">
               <option value="">All trials</option>
               {trials.map((t) => <option key={t.id} value={t.id}>{t.condition}</option>)}
             </select>
           </div>
           <div>
             <label htmlFor="broadcast-overall-status" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Screening Status</label>
-            <select id="broadcast-overall-status" value={overallStatus} onChange={(e) => setOverallStatus(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+            <select id="broadcast-overall-status" value={overallStatus} onChange={(e) => { setOverallStatus(e.target.value); setCandidates(null) }} className="w-full rounded-md border border-border px-3 py-2 text-sm">
               {OVERALL_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div>
             <label htmlFor="broadcast-form-status" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Form Status</label>
-            <select id="broadcast-form-status" value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+            <select id="broadcast-form-status" value={formStatus} onChange={(e) => { setFormStatus(e.target.value); setCandidates(null) }} className="w-full rounded-md border border-border px-3 py-2 text-sm">
               {FORM_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>

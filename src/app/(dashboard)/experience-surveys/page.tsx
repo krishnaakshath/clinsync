@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { listReviews, listSurveyableSubmissions, getAverageExperienceRating } from '@/lib/queries/reviews'
+import { listReviews, listSurveyableSubmissions } from '@/lib/queries/reviews'
 import { SendSurveyButton } from '@/components/SendSurveyButton'
 
 export default async function ExperienceSurveysPage({ searchParams }: { searchParams: Promise<{ status?: string; dateFrom?: string; dateTo?: string; sortBy?: string; sortDir?: string }> }) {
@@ -14,12 +14,18 @@ export default async function ExperienceSurveysPage({ searchParams }: { searchPa
     sortBy: sp.sortBy === 'ratingOverall' ? ('ratingOverall' as const) : ('sentAt' as const),
     sortDir: sp.sortDir === 'asc' ? ('asc' as const) : ('desc' as const),
   }
-  const [reviewsList, surveyable, averageRating] = await Promise.all([
+  const [reviewsList, surveyable] = await Promise.all([
     listReviews(filters),
     listSurveyableSubmissions(),
-    getAverageExperienceRating(),
   ])
   await logAudit(session, 'viewed pre-screening experience surveys', null)
+
+  // Derived from the same (filtered) reviewsList the table below renders,
+  // rather than a separate DB-wide average -- otherwise applying a filter
+  // shows a rating that doesn't describe the rows actually on screen (e.g.
+  // "4.0 / 5 across 0 responses" when filtering to Sent-only surveys).
+  const completedRatings = reviewsList.filter((r) => r.status === 'completed' && r.ratingOverall !== null).map((r) => r.ratingOverall!)
+  const averageRating = completedRatings.length > 0 ? completedRatings.reduce((a, b) => a + b, 0) / completedRatings.length : null
 
   return (
     <div>
@@ -27,7 +33,7 @@ export default async function ExperienceSurveysPage({ searchParams }: { searchPa
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pre-Screening Experience Surveys</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {averageRating !== null ? `Average rating: ${averageRating.toFixed(1)} / 5 across ${reviewsList.filter((r) => r.status === 'completed').length} responses` : 'No responses recorded yet.'}
+            {averageRating !== null ? `Average rating: ${averageRating.toFixed(1)} / 5 across ${completedRatings.length} responses` : 'No responses recorded yet.'}
           </p>
         </div>
         <SendSurveyButton candidates={surveyable} />
@@ -35,24 +41,24 @@ export default async function ExperienceSurveysPage({ searchParams }: { searchPa
 
       <form className="mb-4 flex flex-wrap items-end gap-3 text-sm" action="/experience-surveys">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Filter By</label>
-          <select name="status" defaultValue={filters.status ?? ''} className="rounded-md border border-border px-3 py-2">
+          <label htmlFor="survey-status" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Filter By</label>
+          <select id="survey-status" name="status" defaultValue={filters.status ?? ''} className="rounded-md border border-border px-3 py-2">
             <option value="">All statuses</option>
             <option value="sent">Sent</option>
             <option value="completed">Completed</option>
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">From</label>
-          <input type="date" name="dateFrom" defaultValue={filters.dateFrom ?? ''} className="rounded-md border border-border px-3 py-2" />
+          <label htmlFor="survey-date-from" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">From</label>
+          <input id="survey-date-from" type="date" name="dateFrom" defaultValue={filters.dateFrom ?? ''} className="rounded-md border border-border px-3 py-2" />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">To</label>
-          <input type="date" name="dateTo" defaultValue={filters.dateTo ?? ''} className="rounded-md border border-border px-3 py-2" />
+          <label htmlFor="survey-date-to" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">To</label>
+          <input id="survey-date-to" type="date" name="dateTo" defaultValue={filters.dateTo ?? ''} className="rounded-md border border-border px-3 py-2" />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort By</label>
-          <select name="sortBy" defaultValue={filters.sortBy} className="rounded-md border border-border px-3 py-2">
+          <label htmlFor="survey-sort-by" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort By</label>
+          <select id="survey-sort-by" name="sortBy" defaultValue={filters.sortBy} className="rounded-md border border-border px-3 py-2">
             <option value="sentAt">Date Sent</option>
             <option value="ratingOverall">Rating</option>
           </select>
