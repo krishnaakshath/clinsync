@@ -17,9 +17,9 @@ export interface Phase {
 export const BUILD_PHASES: Phase[] = [
   { name: 'Phase 1 — Core Workbook', total: 11, done: 11, status: 'merged', note: 'Live in this app right now.' },
   { name: 'Phase 2 — Scheduling', total: 8, done: 8, status: 'merged', note: 'Live — try /calendar.' },
-  { name: 'Phase 3 — Billing', total: 13, done: 5, status: 'progress', note: 'Charges, insurance claims, mock-only payments.' },
+  { name: 'Phase 3 — Billing', total: 13, done: 13, status: 'progress', note: 'All 13 tasks done locally -- pending whole-branch review before merge.' },
   { name: 'Patient Intake Portal', total: 6, done: 6, status: 'merged', note: 'Live — try /intake/<token> after sending a form.' },
-  { name: 'Phase 5 — Engagement', total: 9, done: 4, status: 'progress', note: 'Broadcasts (simulated delivery), patient reviews.' },
+  { name: 'Phase 5 — Engagement', total: 9, done: 9, status: 'progress', note: 'All 9 tasks done locally -- pending whole-branch review before merge.' },
   { name: 'Phase 4 — Reports & Documents', total: 14, done: 0, status: 'blocked', note: 'Queued behind Phase 2/3 schema settling.' },
   { name: 'Phase 6 — Practice Settings', total: 6, done: 0, status: 'blocked', note: 'Runs last by design.' },
 ]
