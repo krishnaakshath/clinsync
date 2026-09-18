@@ -53,3 +53,7 @@ export function formSubmissionsListCacheKey(filters: string): string {
 export function dashboardCacheKey(): string {
   return 'dashboard:data'
 }
+
+export function providersListCacheKey(): string {
+  return 'providers:list'
+}

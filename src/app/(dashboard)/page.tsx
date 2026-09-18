@@ -4,7 +4,9 @@ import { logAudit } from '@/lib/audit'
 import { getDashboardData } from '@/lib/queries/dashboard'
 import { listFormTemplates } from '@/lib/queries/form-templates'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
+import { listUpcomingAppointments } from '@/lib/queries/appointments'
 import { DashboardHomeClient } from '@/components/DashboardHomeClient'
+import { AppointmentStatusChip } from '@/components/AppointmentStatusChip'
 
 const EVENT_DOT: Record<string, string> = {
   'sent intake form': 'bg-sky-600',
@@ -32,7 +34,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 export default async function DashboardHomePage() {
   const session = await requireSessionOrRedirect()
-  const [data, templates, patients] = await Promise.all([getDashboardData(), listFormTemplates(), listPatientsWithStatus(null)])
+  const [data, templates, patients, upcomingAppointments] = await Promise.all([getDashboardData(), listFormTemplates(), listPatientsWithStatus(null), listUpcomingAppointments(5)])
   await logAudit(session, 'viewed home dashboard', null)
 
   return (
@@ -99,6 +101,29 @@ export default async function DashboardHomePage() {
                   <span className={`h-2 w-2 rounded-full ${EVENT_DOT[e.action] ?? 'bg-muted-foreground'}`} aria-hidden="true" />
                   <span className="text-foreground">{e.action}</span>
                   <span className="text-xs text-muted-foreground">{new Date(e.timestamp).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="col-span-2 rounded-lg border border-border bg-card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Upcoming Appointments</h2>
+            <Link href="/calendar" className="text-xs font-medium text-primary hover:underline">View Calendar</Link>
+          </div>
+          {upcomingAppointments.length === 0 ? <p className="text-sm text-muted-foreground">No appointments to show.</p> : (
+            <ul className="space-y-2">
+              {upcomingAppointments.map((a) => (
+                <li key={a.id} className="flex items-center justify-between text-sm">
+                  <div>
+                    <Link href={`/patients/${a.patientId}`} className="font-medium text-primary hover:underline">{a.patientName}</Link>
+                    <span className="text-muted-foreground"> — {a.visitReason} with {a.providerName}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">{new Date(a.startsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    <AppointmentStatusChip status={a.status} />
+                  </div>
                 </li>
               ))}
             </ul>
