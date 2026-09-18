@@ -12,7 +12,6 @@ const createChargeSchema = z.object({
   procedureCodes: z.array(z.object({
     code: z.string().min(1), description: z.string().min(1), units: z.number().int().positive(), chargeCents: z.number().int().positive(),
   })).min(1),
-  amountCents: z.number().int().positive(),
   notes: z.string().optional(),
 }).strict()
 
@@ -29,7 +28,12 @@ export async function POST(request: NextRequest) {
   const parsed = createChargeSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid charge payload', details: parsed.error.flatten() }, { status: 400 })
 
-  const created = await createCharge(parsed.data)
+  // amountCents is never trusted from the client -- it's derived here from
+  // procedureCodes so a charge's stored total can never drift from its own
+  // line items, whether by a client bug or a direct API call.
+  const amountCents = parsed.data.procedureCodes.reduce((sum, p) => sum + p.units * p.chargeCents, 0)
+
+  const created = await createCharge({ ...parsed.data, amountCents })
   await logAudit(session, 'created charge', parsed.data.patientId)
   return NextResponse.json(created, { status: 201 })
 }
