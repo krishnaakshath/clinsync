@@ -4,15 +4,19 @@ import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { setPatientPortalPassword, revokePatientPortalAccess } from '@/lib/queries/patient-portal'
 
-// A memorable-but-random word-number credential (e.g. "harbor-4821") rather
-// than a dense random string -- this is read aloud or handed to a patient
-// on paper at checkout, not pasted from a password manager.
-const WORDS = ['harbor', 'meadow', 'summit', 'willow', 'canyon', 'lantern', 'juniper', 'ember', 'cascade', 'orchard']
+// Handed to a patient on paper or read aloud at checkout, not pasted from a
+// password manager -- so it needs to be transcribable without ambiguity,
+// but it's still a real PHI-guarding credential and needs real entropy.
+// A word-list + short-digit scheme (an earlier version of this function)
+// only had ~16.5 bits of entropy (10 words x 9000 digit values), brute-
+// forceable well within the rate limiter's tolerance over time. This
+// charset excludes visually-ambiguous characters (0/O, 1/I/L) and draws 12
+// characters from a 31-symbol alphabet: ~5 bits/char x 12 = ~59 bits.
+const UNAMBIGUOUS_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
 function generatePortalPassword(): string {
-  const word = WORDS[randomInt(WORDS.length)]
-  const digits = randomInt(1000, 10000)
-  return `${word}-${digits}`
+  const chars = Array.from({ length: 12 }, () => UNAMBIGUOUS_CHARS[randomInt(UNAMBIGUOUS_CHARS.length)])
+  return `${chars.slice(0, 4).join('')}-${chars.slice(4, 8).join('')}-${chars.slice(8, 12).join('')}`
 }
 
 // Admin-only: generates a new hospital-issued portal password for this

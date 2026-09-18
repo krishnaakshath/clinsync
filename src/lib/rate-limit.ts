@@ -38,7 +38,33 @@ function getPatientLoginLimiter() {
   return _patientLoginLimiter
 }
 
+// A second, IP-independent bucket keyed on patientId alone: the per-IP
+// limiter above is defeated by an attacker rotating source addresses (a
+// real risk for `x-forwarded-for`-derived IPs, which aren't authenticated),
+// so this catches sustained guessing against one patient account regardless
+// of how many IPs it comes from. Slower and wider than the per-IP bucket --
+// it's the backstop, not the primary defense, and shouldn't lock out a
+// patient's own handful of real typos.
+let _patientLoginGlobalLimiter: Ratelimit | null = null
+function getPatientLoginGlobalLimiter() {
+  if (!_patientLoginGlobalLimiter) {
+    _patientLoginGlobalLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(10, '600 s'),
+      prefix: 'ratelimit:patient-login-global',
+    })
+  }
+  return _patientLoginGlobalLimiter
+}
+
 export async function checkPatientLoginRateLimit(ip: string, patientId: string): Promise<{ allowed: boolean }> {
-  const { success } = await getPatientLoginLimiter().limit(`${ip}:${patientId.toLowerCase()}`)
-  return { allowed: success }
+  // Patient IDs have one fixed canonical case ("RD-0001") and the DB lookup
+  // this gates is an exact-case match -- keying on the exact string here
+  // (not a lowercased form) keeps the rate-limit bucket and the credential
+  // check from ever disagreeing about what counts as "the same" patient id.
+  const [perIp, global] = await Promise.all([
+    getPatientLoginLimiter().limit(`${ip}:${patientId}`),
+    getPatientLoginGlobalLimiter().limit(patientId),
+  ])
+  return { allowed: perIp.success && global.success }
 }
