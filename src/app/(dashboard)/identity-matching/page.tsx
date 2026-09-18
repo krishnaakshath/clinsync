@@ -1,13 +1,13 @@
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 import { listPendingIdentityMatches } from '@/lib/queries/identity-matches'
 
 export default async function IdentityMatchingPage() {
   // Must be the first statement — see the comment in patients/page.tsx for
-  // why relying on the layout's redirect() alone isn't sufficient. No audit
-  // log entry is required for viewing this queue, so the session isn't used
-  // beyond this check.
-  await requireSessionOrRedirect()
+  // why relying on the layout's redirect() alone isn't sufficient.
+  const session = await requireSessionOrRedirect()
   const matches = await listPendingIdentityMatches()
+  await logAudit(session, 'viewed identity matching queue', null)
 
   return (
     <div>

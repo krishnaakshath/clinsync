@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
     dateFrom: url.searchParams.get('dateFrom') ?? undefined,
     dateTo: url.searchParams.get('dateTo') ?? undefined,
   }
-  return NextResponse.json(await listFormSubmissions(filters))
+  const submissions = await listFormSubmissions(filters)
+  await logAudit(session, 'viewed client forms list', null)
+  return NextResponse.json(submissions)
 }
 
 export async function POST(request: NextRequest) {
