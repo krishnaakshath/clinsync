@@ -4,8 +4,12 @@ import { identityMatches } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
+import { rejectCrossOrigin } from '@/lib/csrf'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const csrfRejection = rejectCrossOrigin(request)
+  if (csrfRejection) return csrfRejection
+
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 
