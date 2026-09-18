@@ -21,8 +21,17 @@ import {
  * - insuranceClaims has no providerId/serviceDate -- "service date" is derived from the linked charge.
  */
 
+// Both derive from the Date object's LOCAL getters/formatters -- never mix
+// toISOString() (UTC) with toLocaleTimeString() (local) here, since for an
+// appointment within the ~UTC-offset window of local midnight the two would
+// disagree about which calendar day it falls on (a real bug caught in
+// review: an appointment shortly after local midnight could show a date one
+// day earlier than the time displayed next to it).
 function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 function formatTime(d: Date): string {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
