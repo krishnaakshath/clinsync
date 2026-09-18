@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { charges, insuranceClaims, mockPayments } from '@/db/schema'
 import { getOrSetCache, billingAnalyticsCacheKey } from '@/lib/cache'
+import { computeChargeBalance } from '@/lib/billing-calculations'
 
 export interface MonthlyTrendPoint { month: string; grossChargesCents: number; netCollectionsCents: number }
 
@@ -13,18 +14,12 @@ export async function getBillingAnalyticsData() {
 
     const submitted = allCharges.filter((c) => c.status === 'submitted')
     const grossChargesCents = submitted.reduce((sum, c) => sum + c.amountCents, 0)
-    const netCollectionsCents = submitted.reduce((sum, c) => {
-      const insurancePaid = claims.filter((cl) => cl.chargeId === c.id).reduce((s, cl) => s + (cl.paidAmountCents ?? 0), 0)
-      const patientPaid = payments.filter((p) => p.chargeId === c.id && p.result === 'success').reduce((s, p) => s + p.amountCents, 0)
-      return sum + Math.min(c.amountCents, insurancePaid + Math.min(patientPaid, Math.max(0, c.amountCents - insurancePaid)))
-    }, 0)
+    const netCollectionsCents = submitted.reduce((sum, c) => sum + computeChargeBalance(c, claims, payments).collectedCents, 0)
 
     const byMonth = new Map<string, { grossChargesCents: number; netCollectionsCents: number }>()
     for (const c of submitted) {
       const month = c.dateOfService.slice(0, 7) // "YYYY-MM"
-      const insurancePaid = claims.filter((cl) => cl.chargeId === c.id).reduce((s, cl) => s + (cl.paidAmountCents ?? 0), 0)
-      const patientPaid = payments.filter((p) => p.chargeId === c.id && p.result === 'success').reduce((s, p) => s + p.amountCents, 0)
-      const collected = Math.min(c.amountCents, insurancePaid + Math.min(patientPaid, Math.max(0, c.amountCents - insurancePaid)))
+      const collected = computeChargeBalance(c, claims, payments).collectedCents
       const existing = byMonth.get(month) ?? { grossChargesCents: 0, netCollectionsCents: 0 }
       byMonth.set(month, { grossChargesCents: existing.grossChargesCents + c.amountCents, netCollectionsCents: existing.netCollectionsCents + collected })
     }

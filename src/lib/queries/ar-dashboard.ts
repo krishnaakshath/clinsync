@@ -2,6 +2,7 @@ import { getDb } from '@/db/client'
 import { charges, insuranceClaims, mockPayments } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { getOrSetCache, arDashboardCacheKey } from '@/lib/cache'
+import { computeChargeBalance } from '@/lib/billing-calculations'
 
 export interface AgingBucket { label: string; outstandingCents: number }
 
@@ -32,22 +33,18 @@ export async function getArDashboardData(now: Date = new Date()) {
     const buckets: AgingBucket[] = BUCKETS.map((b) => ({ label: b.label, outstandingCents: 0 }))
 
     for (const charge of submittedCharges) {
-      const insurancePaid = claims
-        .filter((c) => c.chargeId === charge.id)
-        .reduce((sum, c) => sum + (c.paidAmountCents ?? 0), 0)
-      const patientPaid = payments
-        .filter((p) => p.chargeId === charge.id && p.result === 'success')
-        .reduce((sum, p) => sum + p.amountCents, 0)
-      const totalPaid = insurancePaid + Math.min(patientPaid, Math.max(0, charge.amountCents - insurancePaid))
-      const outstanding = Math.max(0, charge.amountCents - totalPaid)
+      const { collectedCents, outstandingCents: outstanding } = computeChargeBalance(charge, claims, payments)
 
       totalBilledCents += charge.amountCents
-      totalCollectedCents += Math.min(totalPaid, charge.amountCents)
+      totalCollectedCents += collectedCents
       outstandingCents += outstanding
 
       if (outstanding > 0) {
         const age = daysBetween(new Date(charge.dateOfService), now)
-        const bucketIndex = BUCKETS.findIndex((b) => age >= b.min && age <= b.max)
+        // A charge dated in the future (age < 0) has no matching bucket --
+        // clamp it into the youngest bucket rather than silently dropping
+        // it, so agingBuckets always sums to outstandingArCents.
+        const bucketIndex = age < 0 ? 0 : BUCKETS.findIndex((b) => age >= b.min && age <= b.max)
         if (bucketIndex >= 0) buckets[bucketIndex].outstandingCents += outstanding
         ageWeightedDaysSum += age * outstanding
         outstandingWeightSum += outstanding
