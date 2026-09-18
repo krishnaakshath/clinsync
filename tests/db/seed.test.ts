@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments } from '@/db/schema'
+import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments, documents, faxes } from '@/db/schema'
 import { seed } from '@/db/seed'
 
 describe('seed', () => {
@@ -61,5 +61,21 @@ describe('seed', () => {
     expect(statuses.has('completed')).toBe(true)
     expect(statuses.has('cancelled')).toBe(true)
     expect(statuses.has('no_show')).toBe(true)
+  })
+})
+
+describe('documents and faxes seed data', () => {
+  it('seeds documents with a mix of New/Processed statuses', async () => {
+    const rows = await getDb().select().from(documents)
+    expect(rows.length).toBeGreaterThanOrEqual(10)
+    expect(rows.some((d) => d.status === 'new')).toBe(true)
+    expect(rows.some((d) => d.status === 'processed')).toBe(true)
+  })
+
+  it('seeds faxes with a mix of simulated delivered/failed statuses', async () => {
+    const rows = await getDb().select().from(faxes)
+    expect(rows.length).toBeGreaterThanOrEqual(8)
+    expect(rows.some((f) => f.deliveryStatus === 'delivered')).toBe(true)
+    expect(rows.some((f) => f.deliveryStatus === 'failed')).toBe(true)
   })
 })

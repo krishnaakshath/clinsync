@@ -287,3 +287,33 @@ export const appointments = pgTable('appointments', {
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
+
+export const documentStatusEnum = pgEnum('document_status', ['new', 'processed'])
+export const documentLabelEnum = pgEnum('document_label', ['other', 'drivers_license', 'legal_document'])
+export const faxDeliveryStatusEnum = pgEnum('fax_delivery_status', ['delivered', 'failed'])
+
+export const documents = pgTable('documents', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  documentDate: date('document_date').notNull(),
+  status: documentStatusEnum('status').default('new').notNull(),
+  receivedFrom: text('received_from').notNull(),
+  label: documentLabelEnum('label').default('other').notNull(),
+  patientId: text('patient_id').references(() => patients.id),
+  fileType: text('file_type').notNull(), // metadata only, e.g. "PDF" / "JPG" -- no file is ever stored
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// `deliveryStatus` is a SIMULATED value set at seed/creation time by a mock
+// rule -- this app never performs a real fax transmission. See the on-screen
+// disclaimer on the Fax History tab (Task 12) and architecture spec §3.
+export const faxes = pgTable('faxes', {
+  id: serial('id').primaryKey(),
+  faxDate: timestamp('fax_date').defaultNow().notNull(),
+  subject: text('subject').notNull(),
+  documentsIncluded: text('documents_included').notNull(), // free-text summary, e.g. "Consent Form.pdf" -- metadata only
+  deliveryStatus: faxDeliveryStatusEnum('delivery_status').notNull(),
+  sender: text('sender').notNull(),
+  sentToFaxNumber: text('sent_to_fax_number').notNull(),
+  patientId: text('patient_id').references(() => patients.id),
+})
