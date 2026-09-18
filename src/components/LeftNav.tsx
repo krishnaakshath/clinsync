@@ -25,10 +25,10 @@ export function LeftNav() {
               <Link
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`block rounded-md border-l-2 py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
+                className={`block rounded-md border-l-2 py-2 pe-3 ps-2.5 text-sm font-medium transition-all duration-150 ${
                   active
                     ? 'border-sidebar-ring bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    : 'border-transparent text-sidebar-foreground/80 hover:translate-x-0.5 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 }`}
               >
                 {item.label}
