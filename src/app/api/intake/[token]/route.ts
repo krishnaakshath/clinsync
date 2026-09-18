@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { formSubmissions } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { and, eq, ne } from 'drizzle-orm'
 import { getIntakePortalData, getSubmissionPatientIdByToken } from '@/lib/queries/intake-portal'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
@@ -32,7 +32,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const status = parsed.data.complete ? 'completed' : 'partial'
   const completedDate = parsed.data.complete ? new Date() : null
-  await getDb().update(formSubmissions).set({ answers: parsed.data.answers, status, completedDate }).where(eq(formSubmissions.accessToken, token))
+  // Re-check status !== 'completed' in the same statement as the write --
+  // the earlier getSubmissionPatientIdByToken check and this update are two
+  // separate round-trips, so a second, near-simultaneous PUT could otherwise
+  // slip through between them and overwrite an already-completed submission.
+  const updated = await getDb()
+    .update(formSubmissions)
+    .set({ answers: parsed.data.answers, status, completedDate })
+    .where(and(eq(formSubmissions.accessToken, token), ne(formSubmissions.status, 'completed')))
+    .returning({ id: formSubmissions.id })
+  if (updated.length === 0) return NextResponse.json({ error: 'This link is no longer valid.' }, { status: 404 })
 
   await invalidateCache(patientDetailCacheKey(patientId))
   await logPatientPortalAction(parsed.data.complete ? 'completed intake form via patient portal' : 'saved partial progress via patient portal', patientId)

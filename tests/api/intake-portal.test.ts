@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { GET, PUT } from '@/app/api/intake/[token]/route'
 import { POST as sendForm } from '@/app/api/form-submissions/route'
 import { getDb } from '@/db/client'
-import { formTemplates } from '@/db/schema'
+import { formSubmissions, formTemplates } from '@/db/schema'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -39,6 +40,15 @@ describe('GET /api/intake/[token]', () => {
     expect(body).not.toHaveProperty('idNumberEncrypted')
     expect(body).not.toHaveProperty('diagnoses')
   })
+
+  it('returns expired state for a token whose tokenExpiresAt has passed', async () => {
+    const { accessToken } = await sendRealForm()
+    await getDb().update(formSubmissions).set({ tokenExpiresAt: new Date(Date.now() - 1000) }).where(eq(formSubmissions.accessToken, accessToken))
+
+    const res = await GET({} as never, { params: Promise.resolve({ token: accessToken }) })
+    const body = await res.json()
+    expect(body.state).toBe('expired')
+  })
 })
 
 describe('PUT /api/intake/[token]', () => {
@@ -71,6 +81,23 @@ describe('PUT /api/intake/[token]', () => {
 
     const getRes = await GET({} as never, { params: Promise.resolve({ token: accessToken }) })
     const body = await getRes.json()
+    expect(body.state).toBe('completed')
+  })
+
+  it('rejects a PUT against a token whose submission is already completed', async () => {
+    const { accessToken } = await sendRealForm()
+
+    const firstPut = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ answers: { q1: 'first' }, complete: true }) })
+    expect((await PUT(firstPut as never, { params: Promise.resolve({ token: accessToken }) })).status).toBe(200)
+
+    const secondPut = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ answers: { q1: 'tampered' }, complete: false }) })
+    const secondRes = await PUT(secondPut as never, { params: Promise.resolve({ token: accessToken }) })
+    expect(secondRes.status).toBe(404)
+
+    // Confirms the first submission's answers were never overwritten by the
+    // rejected second write.
+    const check = await GET({} as never, { params: Promise.resolve({ token: accessToken }) })
+    const body = await check.json()
     expect(body.state).toBe('completed')
   })
 })
