@@ -22,3 +22,23 @@ export async function checkLoginRateLimit(ip: string, email: string): Promise<{ 
   const { success } = await getLoginLimiter().limit(`${ip}:${email.toLowerCase()}`)
   return { allowed: success }
 }
+
+// Same defense, separate bucket -- a patient hammering their own portal
+// login (or an attacker guessing patient IDs) must never be able to affect
+// or be affected by the staff login limiter's counters.
+let _patientLoginLimiter: Ratelimit | null = null
+function getPatientLoginLimiter() {
+  if (!_patientLoginLimiter) {
+    _patientLoginLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(5, '60 s'),
+      prefix: 'ratelimit:patient-login',
+    })
+  }
+  return _patientLoginLimiter
+}
+
+export async function checkPatientLoginRateLimit(ip: string, patientId: string): Promise<{ allowed: boolean }> {
+  const { success } = await getPatientLoginLimiter().limit(`${ip}:${patientId.toLowerCase()}`)
+  return { allowed: success }
+}

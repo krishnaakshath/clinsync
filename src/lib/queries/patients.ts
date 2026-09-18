@@ -61,6 +61,6 @@ export async function getPatientDetail(anonId: string) {
       .from(identityVerifications)
       .where(eq(identityVerifications.patientId, anonId))
 
-    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null }
+    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null, portalConfigured: !!patient.portalPasswordHash }
   })
 }
