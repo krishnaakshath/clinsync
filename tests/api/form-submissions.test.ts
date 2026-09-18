@@ -1,7 +1,18 @@
 import { describe, it, expect, vi } from 'vitest'
 import { GET, POST } from '@/app/api/form-submissions/route'
+import { getDb } from '@/db/client'
+import { formTemplates } from '@/db/schema'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+
+// The seeded template IDs are serial and drift across reseeds of the shared
+// dev database, so tests look up a real, currently-valid template ID rather
+// than assuming any fixed value.
+async function realTemplateId(): Promise<number> {
+  const [row] = await getDb().select({ id: formTemplates.id }).from(formTemplates).limit(1)
+  if (!row) throw new Error('No seeded form templates found -- run npm run db:seed')
+  return row.id
+}
 
 describe('GET /api/form-submissions', () => {
   it('returns seeded submissions', async () => {
@@ -14,13 +25,15 @@ describe('GET /api/form-submissions', () => {
 
 describe('POST /api/form-submissions', () => {
   it('rejects a payload with an unknown field (mass-assignment guard)', async () => {
-    const req = new Request('http://localhost/api/form-submissions', { method: 'POST', body: JSON.stringify({ templateId: 1, patientId: 'RD-0001', status: 'completed' }) })
+    const templateId = await realTemplateId()
+    const req = new Request('http://localhost/api/form-submissions', { method: 'POST', body: JSON.stringify({ templateId, patientId: 'RD-0001', status: 'completed' }) })
     const res = await POST(req as never)
     expect(res.status).toBe(400) // 'status' is not in sendFormSchema — new submissions always start 'sent'
   })
 
   it('generates a unique access token and a 30-day expiry when a form is sent', async () => {
-    const req = new Request('http://localhost/api/form-submissions', { method: 'POST', body: JSON.stringify({ templateId: 1, patientId: 'RD-0001' }) })
+    const templateId = await realTemplateId()
+    const req = new Request('http://localhost/api/form-submissions', { method: 'POST', body: JSON.stringify({ templateId, patientId: 'RD-0001' }) })
     const res = await POST(req as never)
     const body = await res.json()
     expect(body.accessToken).toBeTruthy()
