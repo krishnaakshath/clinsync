@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { GET, PUT } from '@/app/api/intake/[token]/route'
 import { POST as sendForm } from '@/app/api/form-submissions/route'
@@ -6,6 +6,18 @@ import { getDb } from '@/db/client'
 import { formSubmissions, formTemplates } from '@/db/schema'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+
+// Every sendRealForm() call inserts a real row into the shared dev DB via
+// the actual POST route -- this file was previously missing cleanup
+// entirely, and most of its tests call it, so a single run left 5-6 junk
+// "sent"/"completed" submissions on RD-0001 every time.
+const createdIds: number[] = []
+afterEach(async () => {
+  while (createdIds.length > 0) {
+    const id = createdIds.pop()!
+    await getDb().delete(formSubmissions).where(eq(formSubmissions.id, id))
+  }
+})
 
 // The seeded template IDs are serial and drift across reseeds of the shared
 // dev database, so tests look up a real, currently-valid template ID rather
@@ -20,7 +32,9 @@ async function sendRealForm() {
   const templateId = await realTemplateId()
   const req = new Request('http://localhost/api/form-submissions', { method: 'POST', body: JSON.stringify({ templateId, patientId: 'RD-0001' }) })
   const res = await sendForm(req as never)
-  return res.json() as Promise<{ accessToken: string }>
+  const body = await res.json() as { id: number; accessToken: string }
+  createdIds.push(body.id)
+  return body
 }
 
 describe('GET /api/intake/[token]', () => {
