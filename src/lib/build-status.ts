@@ -20,7 +20,7 @@ export const BUILD_PHASES: Phase[] = [
   { name: 'Phase 3 — Billing', total: 13, done: 13, status: 'progress', note: 'All 13 tasks done locally -- pending whole-branch review before merge.' },
   { name: 'Patient Intake Portal', total: 6, done: 6, status: 'merged', note: 'Live — try /intake/<token> after sending a form.' },
   { name: 'Phase 5 — Engagement', total: 9, done: 9, status: 'progress', note: 'All 9 tasks done locally -- pending whole-branch review before merge.' },
-  { name: 'Phase 4 — Reports & Documents', total: 12, done: 10, status: 'progress', note: 'Documents + Fax History live -- try /documents. Nav integration + final QA remain.' },
+  { name: 'Phase 4 — Reports & Documents', total: 12, done: 12, status: 'progress', note: 'All 12 tasks done locally -- pending whole-branch review before merge.' },
   { name: 'Phase 6 — Practice Settings', total: 6, done: 0, status: 'blocked', note: 'Runs last by design.' },
 ]
 
