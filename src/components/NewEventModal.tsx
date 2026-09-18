@@ -31,24 +31,29 @@ export function NewEventModal({ patients, providers, defaultDate, onClose }: {
   async function submit() {
     setSubmitting(true)
     setError(null)
-    const res = await fetch('/api/appointments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        patientId,
-        providerId,
-        startsAt: `${date}T${startTime}:00`,
-        endsAt: `${date}T${endTime}:00`,
-        visitReason,
-      }),
-    })
-    setSubmitting(false)
-    if (res.ok) {
-      router.refresh()
-      onClose()
-    } else {
-      const body = await res.json()
-      setError(body.error ?? 'Could not schedule the appointment.')
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId,
+          providerId,
+          startsAt: `${date}T${startTime}:00`,
+          endsAt: `${date}T${endTime}:00`,
+          visitReason,
+        }),
+      })
+      if (res.ok) {
+        router.refresh()
+        onClose()
+        return
+      }
+      const body = await res.json().catch(() => null)
+      setError(body?.error ?? 'Could not schedule the appointment.')
+    } catch {
+      setError('Could not reach the server. Please check your connection and try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -63,7 +68,7 @@ export function NewEventModal({ patients, providers, defaultDate, onClose }: {
             <option value="">Select a patient…</option>
             {patients.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
           </select>
-          <select value={providerId} onChange={(e) => setProviderId(Number(e.target.value))} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+          <select value={providerId} onChange={(e) => setProviderId(e.target.value === '' ? '' : Number(e.target.value))} className="w-full rounded-md border border-border px-3 py-2 text-sm">
             <option value="">Select a provider…</option>
             {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
