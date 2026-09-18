@@ -151,6 +151,11 @@ export const users = pgTable('users', {
   name: text('name').notNull(),
   email: text('email').notNull(),
   role: roleEnum('role').notNull(),
+  // Nullable: the one real admin account still authenticates via
+  // ADMIN_EMAIL/ADMIN_PASSWORD_HASH (see api/login/route.ts) rather than a
+  // row here. Set for any other user this pilot provisions a real login
+  // for (pi/crc demo accounts). Same scrypt scheme as lib/password.ts.
+  passwordHash: text('password_hash'),
 })
 
 export const formSubmissionStatusEnum = pgEnum('form_submission_status', ['sent', 'partial', 'completed'])

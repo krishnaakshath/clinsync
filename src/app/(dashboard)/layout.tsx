@@ -13,7 +13,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <SessionTimeoutWarning />
       <TopBanner userName={session.name} />
       <div className="flex flex-1">
-        <LeftNav />
+        <LeftNav role={session.role} />
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
     </div>
