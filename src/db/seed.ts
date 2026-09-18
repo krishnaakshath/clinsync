@@ -245,6 +245,18 @@ export async function seed() {
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(patients)
   if (count > 0) {
     console.log(`Seed skipped: patients table already has ${count} row(s).`)
+    // Even when patients is already seeded, this branch's own new tables
+    // (providers/appointments) might not be -- e.g. a shared dev database
+    // seeded by a sibling branch before this branch's schema existed. Top
+    // those up without touching anything else: seedProvidersAndAppointments
+    // only inserts into two tables this branch owns exclusively, against
+    // patients rows already confirmed present, so it carries none of the
+    // deletion/FK risk clearExistingData() has.
+    const [{ providerCount }] = await db.select({ providerCount: sql<number>`count(*)::int` }).from(providers)
+    if (providerCount === 0) {
+      await seedProvidersAndAppointments()
+      console.log('Seeded providers/appointments (patients table was already populated).')
+    }
     return
   }
 
