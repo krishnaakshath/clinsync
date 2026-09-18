@@ -17,12 +17,12 @@ const EVENT_DOT: Record<string, string> = {
 
 const CARD_SURFACE = 'rounded-xl border border-primary/10 bg-card/80 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 
-function StatTile({ value, label }: { value: number; label: string }) {
+function StatTile({ value, label, href }: { value: number; label: string; href: string }) {
   return (
-    <div className="rounded-xl border border-primary/15 bg-primary/5 p-5 backdrop-blur-sm transition-colors duration-200 hover:bg-primary/10">
+    <Link href={href} className="block rounded-xl border border-primary/15 bg-primary/5 p-5 backdrop-blur-sm transition-colors duration-200 hover:bg-primary/10">
       <p className="text-3xl font-bold tabular-nums text-primary">{value}</p>
       <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-    </div>
+    </Link>
   )
 }
 
@@ -43,10 +43,10 @@ export default async function DashboardHomePage() {
       <DashboardHomeClient templates={templates.map((t) => ({ id: t.id, name: t.name }))} patients={patients.map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq }))} />
 
       <div className="mb-6 grid grid-cols-4 gap-4">
-        <StatTile value={patients.length} label="Total Patients" />
-        <StatTile value={data.pendingFormsTotal} label="Pending Forms" />
-        <StatTile value={data.pendingClassification.length} label="Pending Classifications" />
-        <StatTile value={templates.length} label="Form Templates" />
+        <StatTile value={patients.length} label="Total Patients" href="/patients" />
+        <StatTile value={data.pendingFormsTotal} label="Pending Forms" href="/client-forms" />
+        <StatTile value={data.pendingClassification.length} label="Pending Classifications" href="/patients" />
+        <StatTile value={templates.length} label="Form Templates" href="/forms" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -93,7 +93,10 @@ export default async function DashboardHomePage() {
         </section>
 
         <section className={`${CARD_SURFACE} p-5`}>
-          <SectionHeading>Latest Account Events</SectionHeading>
+          <div className="mb-3 flex items-center justify-between">
+            <SectionHeading>Latest Account Events</SectionHeading>
+            <Link href="/audit-log" className="text-xs font-medium text-primary hover:underline">View Audit Log</Link>
+          </div>
           {data.recentEvents.length === 0 ? <p className="text-sm text-muted-foreground">No records found.</p> : (
             <ul className="space-y-2">
               {data.recentEvents.map((e) => (
