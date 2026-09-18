@@ -9,10 +9,15 @@
 // for the same fix with more detail.
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { NextRequest } from 'next/server'
+import { eq } from 'drizzle-orm'
 import { hashPassword } from '@/lib/password'
 import { POST as login } from '@/app/api/login/route'
+import { getDb } from '@/db/client'
+import { users } from '@/db/schema'
 
 const TEST_HASH = hashPassword('s3cret-pass')
+const TEST_DB_USER_EMAIL = 'test-pi-login@example.com'
+const TEST_DB_USER_PASSWORD = 'pi-test-pass-123'
 
 // Login now rate-limits via a shared, real Upstash Redis instance (same
 // account/window as production, since tests share the dev cache -- see the
@@ -71,5 +76,30 @@ describe('POST /api/login', () => {
     vi.mocked(checkLoginRateLimit).mockResolvedValueOnce({ allowed: false })
     const res = await login(req({ email: 'admin@example.com', password: 's3cret-pass' }))
     expect(res.status).toBe(429)
+  })
+
+  describe('DB-backed (non-admin) accounts', () => {
+    afterAll(async () => {
+      await getDb().delete(users).where(eq(users.email, TEST_DB_USER_EMAIL))
+    })
+
+    it('accepts a provisioned pi/crc account by checking users.passwordHash', async () => {
+      await getDb().insert(users).values({ name: 'Test PI', email: TEST_DB_USER_EMAIL, role: 'pi', passwordHash: hashPassword(TEST_DB_USER_PASSWORD) })
+      const res = await login(req({ email: TEST_DB_USER_EMAIL, password: TEST_DB_USER_PASSWORD }))
+      expect(res.status).toBe(200)
+    })
+
+    it('rejects a DB user with no password set at all', async () => {
+      // spatel.demo@example.com is the seeded admin-role user row (distinct
+      // from the real admin, which authenticates via ADMIN_EMAIL/PASSWORD_HASH
+      // and never gets a users.passwordHash) -- it never gets a password set.
+      const res = await login(req({ email: 'spatel.demo@example.com', password: 'anything' }))
+      expect(res.status).toBe(401)
+    })
+
+    it('rejects an unknown email with no matching admin or DB account', async () => {
+      const res = await login(req({ email: 'nobody-at-all@example.com', password: 'anything' }))
+      expect(res.status).toBe(401)
+    })
   })
 })

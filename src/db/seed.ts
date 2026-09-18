@@ -1,6 +1,7 @@
 import { sql, eq } from 'drizzle-orm'
 import { getDb } from './client'
 import { encryptSensitive } from '../lib/crypto'
+import { hashPassword } from '../lib/password'
 import {
   trials,
   patients,
@@ -415,8 +416,12 @@ export async function seed() {
   await db.insert(trials).values([MDD_TRIAL, ADHD_TRIAL])
 
   await db.insert(users).values([
-    { name: 'Jamie Ruiz', email: 'jruiz.demo@example.com', role: 'crc' },
-    { name: 'Dr. R. Kunam', email: 'rkunam.demo@example.com', role: 'pi' },
+    // Demo credentials for the pilot's pi/crc roles, so login isn't
+    // admin-only. The real admin account (support@symbiosystech.com) still
+    // authenticates via ADMIN_EMAIL/ADMIN_PASSWORD_HASH, never through this
+    // table -- Sam Patel's row here is inert demo data with no password.
+    { name: 'Jamie Ruiz', email: 'jruiz.demo@example.com', role: 'crc', passwordHash: hashPassword('CoordinatorDemo123!') },
+    { name: 'Dr. R. Kunam', email: 'rkunam.demo@example.com', role: 'pi', passwordHash: hashPassword('DoctorDemo123!') },
     { name: 'Sam Patel', email: 'spatel.demo@example.com', role: 'admin' },
   ])
 

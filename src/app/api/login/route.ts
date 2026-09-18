@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { setSessionCookie } from '@/lib/auth'
 import { verifyPassword } from '@/lib/password'
 import { checkLoginRateLimit } from '@/lib/rate-limit'
+import { findUserByEmail } from '@/lib/queries/users'
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -40,20 +41,23 @@ export async function POST(request: NextRequest) {
   const adminEmail = process.env.ADMIN_EMAIL
   const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH
   const adminName = process.env.ADMIN_NAME ?? 'Admin'
-  if (!adminEmail || !adminPasswordHash) {
-    return NextResponse.json({ error: 'Admin login is not configured' }, { status: 500 })
+
+  // The one real admin account still authenticates via env vars, not a DB
+  // row -- checked first so its behavior is byte-for-byte unchanged. Any
+  // other provisioned account (pi/crc) authenticates against users.passwordHash.
+  // Same generic error for a wrong email, a wrong password, or an account
+  // with no password set at all, so this endpoint never confirms which
+  // part was wrong or whether an email exists in the system.
+  if (adminEmail && adminPasswordHash && email.toLowerCase() === adminEmail.toLowerCase() && verifyPassword(password, adminPasswordHash)) {
+    await setSessionCookie('admin', adminName)
+    return NextResponse.json({ ok: true })
   }
 
-  // Only the single provisioned admin account can sign in right now -- this
-  // pilot deliberately has no self-service account creation yet, so there is
-  // no user table to look up. Same generic error for a wrong email as for a
-  // wrong password, so this endpoint never confirms which part was wrong.
-  const emailMatches = email.toLowerCase() === adminEmail.toLowerCase()
-  const passwordMatches = verifyPassword(password, adminPasswordHash)
-  if (!emailMatches || !passwordMatches) {
-    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+  const user = await findUserByEmail(email)
+  if (user?.passwordHash && verifyPassword(password, user.passwordHash)) {
+    await setSessionCookie(user.role, user.name)
+    return NextResponse.json({ ok: true })
   }
 
-  await setSessionCookie('admin', adminName)
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
 }
