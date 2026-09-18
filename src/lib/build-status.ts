@@ -20,7 +20,7 @@ export const BUILD_PHASES: Phase[] = [
   { name: 'Phase 3 — Billing', total: 13, done: 13, status: 'progress', note: 'All 13 tasks done locally -- pending whole-branch review before merge.' },
   { name: 'Patient Intake Portal', total: 6, done: 6, status: 'merged', note: 'Live — try /intake/<token> after sending a form.' },
   { name: 'Phase 5 — Engagement', total: 9, done: 9, status: 'progress', note: 'All 9 tasks done locally -- pending whole-branch review before merge.' },
-  { name: 'Phase 4 — Reports & Documents', total: 13, done: 4, status: 'progress', note: 'Dropped a redundant task (FilterPanel -- DataGridToolbar already does this); shared table shell landed.' },
+  { name: 'Phase 4 — Reports & Documents', total: 13, done: 5, status: 'progress', note: 'Reports module shell live -- try /reports. Caught a real RSC-boundary bug before it could spread to every leaf.' },
   { name: 'Phase 6 — Practice Settings', total: 6, done: 0, status: 'blocked', note: 'Runs last by design.' },
 ]
 
