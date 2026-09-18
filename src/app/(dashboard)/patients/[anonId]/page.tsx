@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
 import { AllergyBadge } from '@/components/AllergyBadge'
+import { RefreshEligibilityButton } from '@/components/RefreshEligibilityButton'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
@@ -31,14 +32,37 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     <div className="max-w-4xl space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">{patient.id} — {patient.nameTebra ?? patient.nameIntakeq}</h1>
-        <StatusChip status={patient.overallStatus ?? 'yellow'} />
+        <div className="flex items-center gap-3">
+          {patient.overallStatus && <RefreshEligibilityButton anonId={patient.id} />}
+          <StatusChip status={patient.overallStatus ?? 'yellow'} />
+        </div>
       </div>
+      {!patient.overallStatus && (
+        <p className="-mt-6 text-xs text-muted-foreground">Not currently enrolled in a trial — assign this patient to a trial to run an eligibility check.</p>
+      )}
 
       <section className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
         <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Screening Evidence</h2>
-        <div className="space-y-3">
-          {patient.criteria.map((c) => <EvidenceCard key={c.id} criterion={c} />)}
-        </div>
+        {patient.criteria.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No screening evidence yet — click Refresh from Source Systems to run eligibility.</p>
+        ) : (
+          <div className="space-y-5">
+            <div>
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-700">Inclusion criteria</h3>
+              <div className="space-y-3">
+                {patient.criteria.filter((c) => c.criterionType !== 'exclusion').map((c) => <EvidenceCard key={c.id} criterion={c} />)}
+              </div>
+            </div>
+            {patient.criteria.some((c) => c.criterionType === 'exclusion') && (
+              <div>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-red-700">Exclusion criteria</h3>
+                <div className="space-y-3">
+                  {patient.criteria.filter((c) => c.criterionType === 'exclusion').map((c) => <EvidenceCard key={c.id} criterion={c} />)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">

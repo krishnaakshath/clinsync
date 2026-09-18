@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client'
-import { patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes } from '@/db/schema'
+import { patients, patientTrialScreenings, diagnoses, medicationEpisodes } from '@/db/schema'
 import { eq } from 'drizzle-orm'
-import { evaluateCriteria } from '@/lib/rule-engine'
+import { regenerateScreeningCriteria } from '@/lib/queries/eligibility'
 import { getAppSettings } from '@/lib/queries/settings'
 import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/lib/cache'
 import { logAudit } from '@/lib/audit'
@@ -32,9 +32,7 @@ export async function maybeAutoClassify(patientId: string, session: Session): Pr
   const [screening] = await getDb().select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, patientId))
   if (!screening) return  // no trial screening exists yet for this patient — manual assignment to a trial happens first
 
-  const criteria = await getDb().select().from(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, screening.id))
-  const overallStatus = evaluateCriteria(criteria)
-  await getDb().update(patientTrialScreenings).set({ overallStatus }).where(eq(patientTrialScreenings.id, screening.id))
+  const overallStatus = await regenerateScreeningCriteria(patientId, screening.id, screening.trialId)
   await getDb().update(patients).set({ chartDataAsOf: new Date() }).where(eq(patients.id, patientId))
 
   await invalidateCache(patientDetailCacheKey(patientId))

@@ -15,9 +15,25 @@ export const trials = pgTable('trials', {
   ageMax: integer('age_max').notNull(),
   diagnosisCodes: jsonb('diagnosis_codes').$type<{ code: string; description: string }[]>().notNull(),
   ratingScales: jsonb('rating_scales').$type<{ name: string; description: string }[]>().notNull(),
+  // Two different medication-rule shapes share this column, distinguished
+  // by ruleType: 'washout_exclusion' (must NOT be actively on this class
+  // within `washoutDays` -- an exclusion criterion, e.g. ADHD's stimulant
+  // washout) vs 'required_stable' (must BE actively on this class for at
+  // least `washoutDays` -- an inclusion/stability criterion, e.g. MDD's
+  // "on current antidepressant >= 8 weeks"). Treating both the same was a
+  // real evaluation bug: someone correctly on a stable antidepressant would
+  // otherwise be scored as if they were on an excluded medication.
   medicationClasses: jsonb('medication_classes').$type<
-    { className: string; washoutDays: number; rule: string }[]
+    { className: string; washoutDays: number; rule: string; ruleType: 'washout_exclusion' | 'required_stable' }[]
   >().notNull(),
+  // Exclusion criteria: diagnoses that disqualify an otherwise-eligible
+  // patient (e.g. active psychosis, current substance use disorder) --
+  // distinct from medicationClasses above, which is also an exclusion rule
+  // but keyed on active medications rather than diagnoses.
+  exclusionDiagnoses: jsonb('exclusion_diagnoses').$type<{ code: string; description: string }[]>().default([]).notNull(),
+  // Inclusion criterion: minimum severity on the trial's primary rating
+  // scale (ratingScales[0]). Null means this trial doesn't gate on score.
+  minRatingScaleScore: integer('min_rating_scale_score'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -98,6 +114,10 @@ export const screeningCriteriaResults = pgTable('screening_criteria_results', {
   screeningId: integer('screening_id').notNull().references(() => patientTrialScreenings.id),
   criterionKey: text('criterion_key').notNull(),
   criterionText: text('criterion_text').notNull(),
+  // Nullable for backward compatibility with rows written before this
+  // column existed (see the seed.ts migration note) -- the UI treats a null
+  // type the same as 'inclusion'.
+  criterionType: text('criterion_type', { enum: ['inclusion', 'exclusion'] }),
   verdict: verdictEnum('verdict').notNull(),
   evidenceQuote: text('evidence_quote'),
   evidenceSourceDoc: text('evidence_source_doc'),

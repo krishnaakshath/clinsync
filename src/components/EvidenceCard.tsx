@@ -1,6 +1,6 @@
 import { StatusChip } from './StatusChip'
 
-export function EvidenceCard({ criterion }: { criterion: { criterionText: string; verdict: 'green' | 'yellow' | 'red'; evidenceQuote: string | null; evidenceSourceDoc: string | null; evidenceSourceDate: string | null } }) {
+export function EvidenceCard({ criterion }: { criterion: { criterionText: string; criterionType?: 'inclusion' | 'exclusion' | null; verdict: 'green' | 'yellow' | 'red'; evidenceQuote: string | null; evidenceSourceDoc: string | null; evidenceSourceDate: string | null } }) {
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="mb-3 flex items-center justify-between">

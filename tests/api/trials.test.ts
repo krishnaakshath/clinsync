@@ -52,7 +52,7 @@ describe('PUT /api/trials/[trialId]/criteria', () => {
   it('returns 401 when there is no authenticated session', async () => {
     vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
     const response = await updateCriteria(
-      new NextRequest('http://localhost/api/trials/nct-adhd-demo-01/criteria', { method: 'PUT', body: JSON.stringify({ medicationClasses: [{ className: 'Stimulant', washoutDays: 21, rule: 'Updated rule' }] }) }),
+      new NextRequest('http://localhost/api/trials/nct-adhd-demo-01/criteria', { method: 'PUT', body: JSON.stringify({ medicationClasses: [{ className: 'Stimulant', washoutDays: 21, rule: 'Updated rule', ruleType: 'washout_exclusion' as const }] }) }),
       { params: Promise.resolve({ trialId: 'nct-adhd-demo-01' }) }
     )
     expect(response.status).toBe(401)
@@ -60,7 +60,7 @@ describe('PUT /api/trials/[trialId]/criteria', () => {
 
   it('updates a trial\'s medication classes without affecting other trials', async () => {
     const response = await updateCriteria(
-      new NextRequest('http://localhost/api/trials/nct-adhd-demo-01/criteria', { method: 'PUT', body: JSON.stringify({ medicationClasses: [{ className: 'Stimulant', washoutDays: 21, rule: 'Updated rule' }] }) }),
+      new NextRequest('http://localhost/api/trials/nct-adhd-demo-01/criteria', { method: 'PUT', body: JSON.stringify({ medicationClasses: [{ className: 'Stimulant', washoutDays: 21, rule: 'Updated rule', ruleType: 'washout_exclusion' as const }] }) }),
       { params: Promise.resolve({ trialId: 'nct-adhd-demo-01' }) }
     )
     expect(response.status).toBe(200)
@@ -68,7 +68,7 @@ describe('PUT /api/trials/[trialId]/criteria', () => {
     const listResponse = await listTrials(new NextRequest('http://localhost/api/trials'))
     const { trials } = await listResponse.json()
     const other = trials.find((t: any) => t.id === 'nct06911112')
-    expect(other.medicationClasses).not.toEqual([{ className: 'Stimulant', washoutDays: 21, rule: 'Updated rule' }])
+    expect(other.medicationClasses).not.toEqual([{ className: 'Stimulant', washoutDays: 21, rule: 'Updated rule', ruleType: 'washout_exclusion' as const }])
   })
 
   it('rejects a payload containing a field outside the criteria allowlist (mass-assignment attempt)', async () => {

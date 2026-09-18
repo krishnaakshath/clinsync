@@ -15,8 +15,10 @@ const criteriaUpdateSchema = z
     diagnosisCodes: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
     ratingScales: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
     medicationClasses: z
-      .array(z.object({ className: z.string(), washoutDays: z.number(), rule: z.string() }))
+      .array(z.object({ className: z.string(), washoutDays: z.number(), rule: z.string(), ruleType: z.enum(['washout_exclusion', 'required_stable']) }))
       .optional(),
+    exclusionDiagnoses: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
+    minRatingScaleScore: z.number().int().positive().nullable().optional(),
     ageMin: z.number().int().positive().optional(),
     ageMax: z.number().int().positive().optional(),
   })
