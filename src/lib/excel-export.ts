@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import type { WorkbookRow } from '@/lib/queries/workbook'
 
 const COLUMNS = [
   'Anonymous Number',
@@ -80,6 +81,39 @@ export async function buildWorkbookXlsx(patients: ExportablePatient[]): Promise<
   // route handler's response body). Route the value through `Buffer.from`
   // (valid since exceljs's type does extend `ArrayBuffer`) to get a real,
   // correctly-typed Node `Buffer` back out.
+  const raw = await workbook.xlsx.writeBuffer()
+  return Buffer.from(raw as unknown as ArrayBuffer)
+}
+
+// The literal 30 headings of the source IPMG pre-screening workbook, in
+// their original order -- this list, and the row-building order below, must
+// stay in lockstep with WorkbookRow's field order (src/lib/queries/workbook.ts)
+// so the in-app grid and this download always show the same columns the same way.
+const FULL_WORKBOOK_COLUMNS = [
+  'Anonymous Number', 'Date Added to Tab', 'Patient Name', 'Current Provider', 'Rating Scales',
+  'DOB', 'Age', 'City', 'Zip', 'Phone',
+  'Dx Codes', 'Last Communication', 'Referral Type', 'Availability', 'Past & Future Appt Date',
+  'Comm Consent Signed/Pref/IntakeQ', 'Form Notes', 'Reviewer Notes', 'Clinician Reviewer Notes', "Dr. Kunam's Recommendation",
+  'Active Meds', 'Inactive Meds', 'Old Notes', 'Old Recs', 'Link Tebra',
+  'IntakeQ Email', 'Patient Email', 'Meds List from Pharmacy (Outside Confirmation)', 'Template Word Doc in SharePoint', 'Research Depression Prescreening Sent Date',
+]
+
+export async function buildFullWorkbookXlsx(rows: WorkbookRow[]): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook()
+  const sheet = workbook.addWorksheet('Pre-Screening Workbook')
+  sheet.addRow(FULL_WORKBOOK_COLUMNS)
+
+  for (const r of rows) {
+    sheet.addRow([
+      r.id, r.dateAdded, sanitizeCell(r.patientName), sanitizeCell(r.currentProvider), sanitizeCell(r.ratingScales),
+      r.dob, r.age, sanitizeCell(r.city), sanitizeCell(r.zip), sanitizeCell(r.phone),
+      sanitizeCell(r.dxCodes), sanitizeCell(r.lastCommunication), sanitizeCell(r.referralType), sanitizeCell(r.availability), sanitizeCell(r.apptDates),
+      sanitizeCell(r.commConsent), sanitizeCell(r.formNotes), sanitizeCell(r.reviewerNotes), sanitizeCell(r.clinicianReviewerNotes), sanitizeCell(r.piRecommendation),
+      sanitizeCell(r.activeMeds), sanitizeCell(r.inactiveMeds), sanitizeCell(r.oldNotes), sanitizeCell(r.oldRecs), sanitizeCell(r.tebraChartUrl),
+      sanitizeCell(r.intakeqEmail), sanitizeCell(r.patientEmail), sanitizeCell(r.outsideMedsConfirmation), sanitizeCell(r.templateDocUrl), sanitizeCell(r.prescreeningSentDate),
+    ])
+  }
+
   const raw = await workbook.xlsx.writeBuffer()
   return Buffer.from(raw as unknown as ArrayBuffer)
 }
