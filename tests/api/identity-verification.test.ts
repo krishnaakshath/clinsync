@@ -29,7 +29,7 @@ describe('PUT /api/patients/[anonId]/identity', () => {
 
   it('marks identity verified for a valid payload', async () => {
     await cleanup()
-    await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdEncrypted: 'ENC[test]', nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01' })
+    await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01' })
 
     const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ idType: 'passport', idNumber: 'P0000001' }) })
     const res = await PUT(req as never, { params: Promise.resolve({ anonId: TEST_PATIENT_ID }) })

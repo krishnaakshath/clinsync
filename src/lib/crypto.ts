@@ -2,8 +2,8 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 
 // AES-256-GCM for genuinely sensitive fields (government ID numbers, etc.) --
 // never the `ENC[...]` string-wrapping convention used elsewhere in this
-// codebase for internal system identifiers (intakeqClientIdEncrypted,
-// tebraPatientIdEncrypted), which are pseudonymous IDs, not PII on the same
+// codebase for internal system identifiers (intakeqClientIdRef,
+// tebraPatientIdRef), which are pseudonymous IDs, not PII on the same
 // level as a driver's license/passport number and don't warrant the same
 // treatment. IDENTITY_ENCRYPTION_KEY must be a 32-byte key, base64-encoded.
 function getKey(): Buffer {

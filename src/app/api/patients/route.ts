@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
   const [created] = await getDb().insert(patients).values({
     id: newId,
-    intakeqClientIdEncrypted: `ENC[pending-${newId}]`,
+    intakeqClientIdRef: `ENC[pending-${newId}]`,
     ...parsed.data,
   }).returning()
 
