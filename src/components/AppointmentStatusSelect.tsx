@@ -5,6 +5,13 @@ import type { AppointmentStatus } from '@/lib/queries/appointments'
 
 const STATUS_OPTIONS: AppointmentStatus[] = ['scheduled', 'completed', 'cancelled', 'no_show']
 
+const STATUS_STYLE: Record<AppointmentStatus, string> = {
+  scheduled: 'border-primary/30 bg-primary/5 text-primary',
+  completed: 'border-success/30 bg-success/5 text-success',
+  cancelled: 'border-border bg-secondary text-muted-foreground',
+  no_show: 'border-destructive/30 bg-destructive/5 text-destructive',
+}
+
 export function AppointmentStatusSelect({ appointmentId, status }: { appointmentId: number; status: AppointmentStatus }) {
   const router = useRouter()
   const [updating, setUpdating] = useState(false)
@@ -38,7 +45,7 @@ export function AppointmentStatusSelect({ appointmentId, status }: { appointment
         value={status}
         disabled={updating}
         onChange={(e) => updateStatus(e.target.value)}
-        className="rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground disabled:opacity-50"
+        className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize disabled:opacity-50 ${STATUS_STYLE[status]}`}
       >
         {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s.replace('_', '-')}</option>)}
       </select>

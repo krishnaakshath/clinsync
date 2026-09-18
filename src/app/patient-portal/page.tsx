@@ -1,12 +1,35 @@
 import { notFound } from 'next/navigation'
-import { Download } from 'lucide-react'
+import { Download, Pill, Stethoscope, CalendarCheck, ClipboardList } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { PatientPortalSignOutButton } from '@/components/PatientPortalSignOutButton'
+import { PatientAvatar } from '@/components/PatientAvatar'
+import { Tabs } from '@/components/Tabs'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+
+const TILE_COLOR: Record<string, string> = {
+  primary: 'bg-primary/10 text-primary',
+  sky: 'bg-sky-500/10 text-sky-700',
+  emerald: 'bg-emerald-500/10 text-emerald-700',
+  amber: 'bg-amber-500/10 text-amber-700',
+}
+
+function SummaryTile({ icon: Icon, value, label, color }: { icon: React.ComponentType<{ className?: string }>; value: string | number; label: string; color: keyof typeof TILE_COLOR }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TILE_COLOR[color]}`} aria-hidden="true">
+        <Icon className="h-4.5 w-4.5" />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-foreground">{value}</p>
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  )
+}
 
 export default async function PatientPortalPage() {
   const session = await requirePatientSessionOrRedirect()
@@ -15,21 +38,27 @@ export default async function PatientPortalPage() {
 
   await logPatientPortalAction('viewed patient portal home', session.patientId)
 
-  return (
+  const overviewTab = (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome, {data.name}</h1>
-          <p className="text-sm text-muted-foreground">DOB {data.dob} · Patient ID {data.id}</p>
-        </div>
-        <PatientPortalSignOutButton />
-      </div>
-
       <section className={SECTION}>
         <h2 className={HEADING}>Your care team</h2>
         <p className="text-sm text-foreground">{data.currentProvider ?? 'Not yet assigned'}</p>
       </section>
+      <section className={SECTION}>
+        <h2 className={HEADING}>Diagnoses on file</h2>
+        {data.diagnoses.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No diagnoses on file.</p>
+        ) : (
+          <ul className="space-y-1.5 text-sm text-foreground">
+            {data.diagnoses.map((d, i) => <li key={i}>{d.code} — {d.description}</li>)}
+          </ul>
+        )}
+      </section>
+    </div>
+  )
 
+  const medicationsTab = (
+    <div className="space-y-6">
       <section className={SECTION}>
         <div className="mb-3 flex items-center justify-between">
           <h2 className={HEADING}>Current medications</h2>
@@ -67,18 +96,11 @@ export default async function PatientPortalPage() {
           </ul>
         )}
       </section>
+    </div>
+  )
 
-      <section className={SECTION}>
-        <h2 className={HEADING}>Diagnoses on file</h2>
-        {data.diagnoses.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No diagnoses on file.</p>
-        ) : (
-          <ul className="space-y-1.5 text-sm text-foreground">
-            {data.diagnoses.map((d, i) => <li key={i}>{d.code} — {d.description}</li>)}
-          </ul>
-        )}
-      </section>
-
+  const appointmentsTab = (
+    <div className="space-y-6">
       <section className={SECTION}>
         <h2 className={HEADING}>Upcoming appointments</h2>
         {data.upcomingAppointments.length === 0 ? (
@@ -110,6 +132,34 @@ export default async function PatientPortalPage() {
           </ul>
         )}
       </section>
+    </div>
+  )
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
+        <div className="flex items-center gap-4">
+          <PatientAvatar name={data.name} size="lg" />
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Welcome, {data.name}</h1>
+            <p className="font-mono text-xs text-muted-foreground">DOB {data.dob} · Patient ID {data.id}</p>
+          </div>
+        </div>
+        <PatientPortalSignOutButton />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryTile icon={Stethoscope} value={data.currentProvider ?? 'Unassigned'} label="Care team" color="primary" />
+        <SummaryTile icon={Pill} value={data.activeMedications.length} label="Current meds" color="sky" />
+        <SummaryTile icon={ClipboardList} value={data.diagnoses.length} label="Diagnoses" color="emerald" />
+        <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="amber" />
+      </div>
+
+      <Tabs tabs={[
+        { id: 'overview', label: 'Overview', content: overviewTab },
+        { id: 'medications', label: <><Pill className="h-4 w-4" aria-hidden="true" />Medications</>, content: medicationsTab },
+        { id: 'appointments', label: <><CalendarCheck className="h-4 w-4" aria-hidden="true" />Appointments</>, content: appointmentsTab },
+      ]} />
     </div>
   )
 }
