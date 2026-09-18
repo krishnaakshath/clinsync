@@ -10,6 +10,18 @@ export interface ReportColumn<Row> {
   render: (row: Row) => ReactNode
 }
 
+// IMPORTANT: `ReportTable` is a Client Component ('use client' above), so
+// `columns`/`matchesFilters` (both contain functions) must always be
+// constructed INSIDE a Client Component -- never assembled in a Server
+// Component page and passed down as props. Next.js's RSC boundary cannot
+// serialize a function from a Server Component into a Client Component
+// (confirmed live: "Functions cannot be passed directly to Client
+// Components"), so every report leaf needs its own small 'use client'
+// wrapper (e.g. PatientsReportTable.tsx) that receives plain, serializable
+// row data from its Server Component page and builds columns/filterFields/
+// matchesFilters itself -- exactly the same two-file split every existing
+// table in this app already uses (ChargesTable.tsx + billing/charges/page.tsx,
+// PatientStatementsTable.tsx + billing/statements/page.tsx, etc.).
 interface ReportTableProps<Row> {
   rows: Row[]
   columns: ReportColumn<Row>[]
