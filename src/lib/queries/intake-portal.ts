@@ -19,6 +19,15 @@ const AUTOFILL_SOURCE = {
   phone: (p: typeof patients.$inferSelect) => p.phoneIntakeq ?? '',
 } as const
 
+// The one place "is this token still usable" is decided -- both
+// getIntakePortalData and getSubmissionPatientIdByToken call this instead
+// of each re-implementing the completed/expiry check, so a future change
+// (a new terminal status, an off-by-one on expiry) can't update one path
+// and silently leave the other path's check stale.
+function isSubmissionTokenValid(row: { status: string; tokenExpiresAt: Date | null }): boolean {
+  return row.status !== 'completed' && !(row.tokenExpiresAt && row.tokenExpiresAt < new Date())
+}
+
 // Deliberately returns only what a specific form's own questions need --
 // never diagnoses, medications, allergies, screening verdicts, or any other
 // patient field. The token scopes access to exactly this one submission.
@@ -32,7 +41,7 @@ export async function getIntakePortalData(token: string): Promise<IntakePortalDa
 
   if (!row) return { state: 'not_found' }
   if (row.submission.status === 'completed') return { state: 'completed' }
-  if (row.submission.tokenExpiresAt && row.submission.tokenExpiresAt < new Date()) return { state: 'expired' }
+  if (!isSubmissionTokenValid(row.submission)) return { state: 'expired' }
 
   const autofill: Record<string, string> = {}
   for (const q of row.template.questions) {
@@ -50,6 +59,6 @@ export async function getIntakePortalData(token: string): Promise<IntakePortalDa
 
 export async function getSubmissionPatientIdByToken(token: string): Promise<string | null> {
   const [row] = await getDb().select({ patientId: formSubmissions.patientId, status: formSubmissions.status, tokenExpiresAt: formSubmissions.tokenExpiresAt }).from(formSubmissions).where(eq(formSubmissions.accessToken, token))
-  if (!row || row.status === 'completed' || (row.tokenExpiresAt && row.tokenExpiresAt < new Date())) return null
+  if (!row || !isSubmissionTokenValid(row)) return null
   return row.patientId
 }
