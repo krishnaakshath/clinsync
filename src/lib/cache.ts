@@ -53,3 +53,15 @@ export function formSubmissionsListCacheKey(filters: string): string {
 export function dashboardCacheKey(): string {
   return 'dashboard:data'
 }
+
+export function broadcastsListCacheKey(): string {
+  return 'broadcasts:list'
+}
+
+export function reviewsListCacheKey(filters: string): string {
+  return `reviews:list:${filters}`
+}
+
+export function pipelineDashboardCacheKey(fromISO: string, toISO: string): string {
+  return `pipeline-dashboard:${fromISO}:${toISO}`
+}
