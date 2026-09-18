@@ -85,3 +85,27 @@ export function billingAnalyticsCacheKey(): string {
 export function providersListCacheKey(): string {
   return 'providers:list'
 }
+
+export function documentsListCacheKey(): string {
+  return 'documents:list:all'
+}
+
+export function faxesListCacheKey(): string {
+  return 'faxes:list:all'
+}
+
+export function allAppointmentsReportCacheKey(): string {
+  return 'reports:appointments:all'
+}
+
+export function unsignedNotesReportCacheKey(): string {
+  return 'reports:notes:unsigned'
+}
+
+export function allEncountersReportCacheKey(): string {
+  return 'reports:encounters:all'
+}
+
+export function insuranceCollectionsReportCacheKey(): string {
+  return 'reports:claims:insurance-collections'
+}
