@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation'
 import { NotificationPanel } from '@/components/NotificationPanel'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
+import { GlobalSearch } from '@/components/GlobalSearch'
 
 export function TopBanner({ userName }: { userName: string }) {
   const router = useRouter()
@@ -19,6 +20,7 @@ export function TopBanner({ userName }: { userName: string }) {
           <ClinsyncLogo className="h-6 w-6" />
           <span className="text-base font-semibold tracking-tight">Clinsync</span>
         </div>
+        <GlobalSearch />
         <div className="flex items-center gap-4">
           <NotificationPanel triggerClassName="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
           <span className="text-sm font-medium text-sidebar-foreground">{userName}</span>
