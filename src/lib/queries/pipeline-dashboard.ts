@@ -1,0 +1,57 @@
+import { getDb } from '@/db/client'
+import { patients, patientTrialScreenings, formSubmissions } from '@/db/schema'
+import { eq, and, gte, lte } from 'drizzle-orm'
+import { getOrSetCache, pipelineDashboardCacheKey } from '@/lib/cache'
+
+export interface PipelineDateRange {
+  from: Date
+  to: Date
+}
+
+export interface PipelinePerformance {
+  referralsReceived: number
+  formsCompleted: number
+  patientsClassified: number
+  avgDaysToClassify: number | null
+}
+
+export async function getPipelinePerformance(range: PipelineDateRange): Promise<PipelinePerformance> {
+  return getOrSetCache(pipelineDashboardCacheKey(range.from.toISOString(), range.to.toISOString()), 30, async () => {
+    const db = getDb()
+
+    const referrals = await db
+      .select()
+      .from(patients)
+      .where(and(gte(patients.dateAdded, range.from), lte(patients.dateAdded, range.to)))
+
+    const completedForms = await db
+      .select()
+      .from(formSubmissions)
+      .where(and(eq(formSubmissions.status, 'completed'), gte(formSubmissions.completedDate, range.from), lte(formSubmissions.completedDate, range.to)))
+
+    // A patient counts as "classified" once a screening row exists for them
+    // (the rule engine has run at least once) and their chart's most recent
+    // (re-)evaluation timestamp, `chartDataAsOf`, falls in the selected
+    // window. `chartDataAsOf` is bumped by both the manual "Run
+    // Classification" refresh action (`src/app/api/patients/[anonId]/refresh/route.ts`)
+    // and by auto-classify-on-complete, so it is the one real, already-existing
+    // signal for "classification activity" shared by both paths.
+    const screenedPatientIds = new Set((await db.select({ patientId: patientTrialScreenings.patientId }).from(patientTrialScreenings)).map((r) => r.patientId))
+    const candidatesInWindow = await db
+      .select()
+      .from(patients)
+      .where(and(gte(patients.chartDataAsOf, range.from), lte(patients.chartDataAsOf, range.to)))
+    const classifiedInWindow = candidatesInWindow.filter((p) => screenedPatientIds.has(p.id))
+
+    const daysToClassify = classifiedInWindow
+      .map((p) => (p.chartDataAsOf.getTime() - p.dateAdded.getTime()) / (1000 * 60 * 60 * 24))
+      .filter((days) => days >= 0)
+
+    return {
+      referralsReceived: referrals.length,
+      formsCompleted: completedForms.length,
+      patientsClassified: classifiedInWindow.length,
+      avgDaysToClassify: daysToClassify.length > 0 ? daysToClassify.reduce((a, b) => a + b, 0) / daysToClassify.length : null,
+    }
+  })
+}
