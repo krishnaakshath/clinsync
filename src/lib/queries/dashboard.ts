@@ -34,7 +34,9 @@ export async function getDashboardData() {
 
     // Patients with completed intake + at least one recorded diagnosis/medication,
     // but no screening row yet — the "ready but not yet classified" queue.
-    const allPatients = await db.select().from(patients)
+    // Only id/name are ever rendered from this list, so select only those --
+    // no reason to cache clinician notes or the encrypted-ID columns here.
+    const allPatients = await db.select({ id: patients.id, nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq }).from(patients)
     const screenedIds = new Set((await db.select({ id: patientTrialScreenings.patientId }).from(patientTrialScreenings)).map((r) => r.id))
     const completedIntakeIds = new Set((await db.select({ id: formSubmissions.patientId }).from(formSubmissions).where(eq(formSubmissions.status, 'completed'))).map((r) => r.id))
     const pendingClassification = allPatients.filter((p) => completedIntakeIds.has(p.id) && !screenedIds.has(p.id))
@@ -46,9 +48,23 @@ export async function getDashboardData() {
       .orderBy(desc(auditLog.timestamp))
       .limit(10)
 
+    // Project the submission down explicitly rather than spreading the full
+    // row -- `accessToken` is a 30-day unauthenticated bearer credential for
+    // the intake portal, and this dashboard summary never needs it (it also
+    // sits in the plaintext Upstash cache, so less PHI/credentials in here
+    // is a real reduction in blast radius, not just an unused field).
+    const projectForm = (r: { submission: typeof formSubmissions.$inferSelect; template: { name: string }; patient: { nameTebra: string | null; nameIntakeq: string } }) => ({
+      id: r.submission.id,
+      status: r.submission.status,
+      sentDate: r.submission.sentDate,
+      completedDate: r.submission.completedDate,
+      templateName: r.template.name,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+    })
+
     return {
-      latestForms: latestForms.map((r) => ({ ...r.submission, templateName: r.template.name, patientName: r.patient.nameTebra ?? r.patient.nameIntakeq })),
-      pendingForms: pendingForms.map((r) => ({ ...r.submission, templateName: r.template.name, patientName: r.patient.nameTebra ?? r.patient.nameIntakeq })),
+      latestForms: latestForms.map(projectForm),
+      pendingForms: pendingForms.map(projectForm),
       pendingFormsTotal,
       pendingClassification,
       recentEvents,
