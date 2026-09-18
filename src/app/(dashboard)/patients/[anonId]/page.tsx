@@ -3,6 +3,7 @@ import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
 import { AllergyBadge } from '@/components/AllergyBadge'
 import { RefreshEligibilityButton } from '@/components/RefreshEligibilityButton'
+import { PatientPortalAccessPanel } from '@/components/PatientPortalAccessPanel'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
@@ -107,6 +108,11 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <span className="text-foreground">Verification pending{patient.identityVerification ? ` (${patient.identityVerification.idType.replace('_', ' ')} on file)` : ' — no ID on file'}</span>
           </div>
         )}
+      </section>
+
+      <section className="mt-6 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient Portal Access</h2>
+        <PatientPortalAccessPanel anonId={patient.id} initialConfigured={patient.portalConfigured} isAdmin={session.role === 'admin'} />
       </section>
     </div>
   )

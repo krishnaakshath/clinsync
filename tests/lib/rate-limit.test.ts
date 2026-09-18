@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { checkLoginRateLimit } from '@/lib/rate-limit'
+import { checkLoginRateLimit, checkPatientLoginRateLimit } from '@/lib/rate-limit'
 
 describe('checkLoginRateLimit', () => {
   it('allows the first few attempts for a fresh ip+email key', async () => {
@@ -29,5 +29,31 @@ describe('checkLoginRateLimit', () => {
     expect(blocked.allowed).toBe(false)
     const stillAllowed = await checkLoginRateLimit(ip, emailB)
     expect(stillAllowed.allowed).toBe(true)
+  })
+})
+
+describe('checkPatientLoginRateLimit', () => {
+  it('uses a separate Redis key prefix from checkLoginRateLimit, so exhausting one never touches the other', async () => {
+    const ip = '203.0.113.9'
+    const sharedId = `rl-test-shared-${Date.now()}`
+    for (let i = 0; i < 5; i++) {
+      const { allowed } = await checkLoginRateLimit(ip, sharedId)
+      expect(allowed).toBe(true)
+    }
+    // Same ip, same identifier string, but the patient bucket (a distinct
+    // 'ratelimit:patient-login' prefix -- see rate-limit.ts) starts fresh.
+    const patientStillAllowed = await checkPatientLoginRateLimit(ip, sharedId)
+    expect(patientStillAllowed.allowed).toBe(true)
+  })
+
+  it('blocks after the window is exhausted for one ip+patientId key', async () => {
+    const ip = '203.0.113.10'
+    const patientId = `rl-test-patient-${Date.now()}`
+    for (let i = 0; i < 5; i++) {
+      const { allowed } = await checkPatientLoginRateLimit(ip, patientId)
+      expect(allowed).toBe(true)
+    }
+    const sixth = await checkPatientLoginRateLimit(ip, patientId)
+    expect(sixth.allowed).toBe(false)
   })
 })

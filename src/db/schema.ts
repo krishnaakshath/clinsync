@@ -71,6 +71,13 @@ export const patients = pgTable('patients', {
   prescreeningSentDate: date('prescreening_sent_date'),
   tebraChartUrl: text('tebra_chart_url'),
   // Staff-owned fields (2, 12, 17-20, 23, 24, 28 in the 30-column map) — never overwritten by refresh
+  // Hospital-issued patient portal credential -- distinct from any staff
+  // account, scrypt-hashed the same way as lib/password.ts. Null means the
+  // patient has no portal access provisioned yet; portal login refuses to
+  // even attempt a password check in that case (see api/patient-portal/login),
+  // so a patient can only ever reach the portal after staff sets this up
+  // for them from inside the app.
+  portalPasswordHash: text('portal_password_hash'),
   lastCommunication: text('last_communication'),
   formNotes: text('form_notes'),
   reviewerNotes: text('reviewer_notes'),
