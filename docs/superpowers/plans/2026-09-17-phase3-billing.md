@@ -638,7 +638,7 @@ git commit -m "feat: add charges, insurance claims, patient statements, and mock
 
 **Interfaces:**
 - Consumes: the 4 new tables from Task 2.
-- Produces: `listCharges()`, `getCharge(id)`, `createCharge(input)`, `advanceChargeStatus(id, nextStatus)`, `listInsuranceClaims()`, `listPatientStatements()`, `createMockPayment(input)`, `listPatientCollections()`, `getArDashboardData()`, `getBillingAnalyticsData()`, `luhnCheck(cardNumber)`, `formatCents(cents)` — all consumed directly by Server Component pages and API routes in Tasks 4–11 (never via `fetch()` from a Server Component).
+- Produces: `listCharges()`, `getCharge(id)`, `createCharge(input)`, `updateChargeStatus(id, status)`, `listInsuranceClaims()`, `listPatientStatements()`, `createMockPayment(input)`, `listPatientCollections()`, `getArDashboardData()`, `getBillingAnalyticsData()`, `luhnCheck(cardNumber)`, `formatCents(cents)` — all consumed directly by Server Component pages and API routes in Tasks 4–11 (never via `fetch()` from a Server Component).
 
 - [ ] **Step 1: `src/lib/cache.ts` — add cache keys**
 
