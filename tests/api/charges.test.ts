@@ -63,7 +63,7 @@ describe('POST /api/charges', () => {
     })
     const res = await POST(req as never)
     const body = await res.json()
-    createdChargeIds.push(body.id)
+    if (body.id) createdChargeIds.push(body.id)
     expect(res.status).toBe(201)
     expect(body.status).toBe('draft')
     expect(body.amountCents).toBe(25000) // 15000 + 2*5000, computed server-side
@@ -81,7 +81,7 @@ describe('GET /api/charges/[id]', () => {
       }),
     })
     const created = await (await POST(createReq as never)).json()
-    createdChargeIds.push(created.id)
+    if (created.id) createdChargeIds.push(created.id)
 
     const res = await getOne(new Request('http://localhost') as never, { params: Promise.resolve({ id: String(created.id) }) })
     const body = await res.json()
@@ -106,7 +106,7 @@ describe('PATCH /api/charges/[id]', () => {
       }),
     })
     const created = await (await POST(createReq as never)).json()
-    createdChargeIds.push(created.id)
+    if (created.id) createdChargeIds.push(created.id)
     return created
   }
 
