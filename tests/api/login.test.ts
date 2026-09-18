@@ -1,9 +1,28 @@
+// @vitest-environment node
+//
+// A successful login signs the session cookie with jose (HS256), which does
+// a strict `instanceof Uint8Array` check internally -- under this project's
+// default jsdom test environment that check runs against a different global
+// realm than the one `new TextEncoder().encode()` (src/lib/auth.ts)
+// constructs its value in, so a genuine Uint8Array fails jose's own type
+// guard with a jsdom-only, false-positive error. See tests/lib/auth.test.ts
+// for the same fix with more detail.
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { NextRequest } from 'next/server'
 import { hashPassword } from '@/lib/password'
 import { POST as login } from '@/app/api/login/route'
 
 const TEST_HASH = hashPassword('s3cret-pass')
+
+// Login now rate-limits via a shared, real Upstash Redis instance (same
+// account/window as production, since tests share the dev cache -- see the
+// shared-dev-DB note in tests/db/seed.test.ts for the same class of issue).
+// Mocked here so re-running this file within the same sliding window can't
+// make an unrelated later test fail with 429; rate-limit.ts is unit-tested
+// separately with a throwaway key.
+vi.mock('@/lib/rate-limit', () => ({
+  checkLoginRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+}))
 
 beforeAll(() => {
   vi.stubEnv('ADMIN_EMAIL', 'admin@example.com')
@@ -45,5 +64,12 @@ describe('POST /api/login', () => {
   it('rejects a malformed email', async () => {
     const res = await login(req({ email: 'not-an-email', password: 's3cret-pass' }))
     expect(res.status).toBe(400)
+  })
+
+  it('returns 429 when the rate limiter reports the request is not allowed', async () => {
+    const { checkLoginRateLimit } = await import('@/lib/rate-limit')
+    vi.mocked(checkLoginRateLimit).mockResolvedValueOnce({ allowed: false })
+    const res = await login(req({ email: 'admin@example.com', password: 's3cret-pass' }))
+    expect(res.status).toBe(429)
   })
 })

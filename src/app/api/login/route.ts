@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { setSessionCookie } from '@/lib/auth'
 import { verifyPassword } from '@/lib/password'
+import { checkLoginRateLimit } from '@/lib/rate-limit'
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
 }).strict()
+
+// Vercel/most proxies set the client IP as the first entry in
+// x-forwarded-for; NextRequest no longer exposes `.ip` directly.
+function getClientIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  if (forwardedFor) return forwardedFor.split(',')[0].trim()
+  return request.headers.get('x-real-ip') ?? 'unknown'
+}
 
 export async function POST(request: NextRequest) {
   let body: unknown
@@ -21,6 +30,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid login payload' }, { status: 400 })
   }
 
+  const { email, password } = parsed.data
+
+  const { allowed } = await checkLoginRateLimit(getClientIp(request), email)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many login attempts. Try again in a minute.' }, { status: 429 })
+  }
+
   const adminEmail = process.env.ADMIN_EMAIL
   const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH
   const adminName = process.env.ADMIN_NAME ?? 'Admin'
@@ -28,7 +44,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Admin login is not configured' }, { status: 500 })
   }
 
-  const { email, password } = parsed.data
   // Only the single provisioned admin account can sign in right now -- this
   // pilot deliberately has no self-service account creation yet, so there is
   // no user table to look up. Same generic error for a wrong email as for a

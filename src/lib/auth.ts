@@ -1,29 +1,55 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { NextResponse } from 'next/server'
+import { SignJWT, jwtVerify } from 'jose'
 
 export type Role = 'crc' | 'pi' | 'admin'
 export interface Session { role: Role; name: string }
 
 const VALID_ROLES: readonly Role[] = ['crc', 'pi', 'admin']
 const COOKIE_NAME = 'clinsync_demo_session'
+// Absolute session lifetime -- a server-enforced backstop independent of the
+// client-side idle timer (SessionTimeoutWarning), which cannot itself expire
+// this cookie since it's httpOnly. A full clinic shift plus margin.
+const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60
 
-export function buildSessionCookieValue(role: Role, name: string): string {
-  return JSON.stringify({ role, name })
+function getSessionSecret(): Uint8Array {
+  const secret = process.env.SESSION_SECRET
+  if (!secret) throw new Error('SESSION_SECRET is not configured')
+  return new TextEncoder().encode(secret)
 }
 
-export function parseSessionCookie(value: string): Session | null {
+// SECURITY: the session cookie used to be a bare `JSON.stringify({role, name})`
+// with no signature -- anyone could set
+// `Cookie: clinsync_demo_session={"role":"admin","name":"x"}` and receive a
+// fully authenticated admin session with no password, completely bypassing
+// /api/login. Signing it with a server-only secret (HS256 JWT) makes the
+// cookie's *contents* untrustworthy without the secret, so forging a session
+// now requires compromising the server, not just typing into devtools. This
+// was found and independently confirmed by two separate security audits.
+export async function buildSessionCookieValue(role: Role, name: string): Promise<string> {
+  return new SignJWT({ role, name })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
+    .sign(getSessionSecret())
+}
+
+export async function parseSessionCookie(value: string): Promise<Session | null> {
   try {
-    const parsed = JSON.parse(value)
+    const { payload } = await jwtVerify(value, getSessionSecret())
     // Validate `role` is one of the real enum values, not just "truthy" --
     // an invalid role here previously reached the audit_log insert and
     // crashed with a Postgres enum-constraint violation on every subsequent
     // audited request for that session.
-    if (typeof parsed.name === 'string' && parsed.name.length > 0 && VALID_ROLES.includes(parsed.role)) {
-      return { role: parsed.role, name: parsed.name }
+    if (typeof payload.name === 'string' && payload.name.length > 0 && VALID_ROLES.includes(payload.role as Role)) {
+      return { role: payload.role as Role, name: payload.name }
     }
     return null
   } catch {
+    // Covers a missing/invalid signature, an expired token, and malformed
+    // input -- jwtVerify throws for all of these, so an expired session is
+    // indistinguishable from a forged one, which is the correct behavior.
     return null
   }
 }
@@ -36,7 +62,14 @@ export async function getSession(): Promise<Session | null> {
 
 export async function setSessionCookie(role: Role, name: string) {
   const store = await cookies()
-  store.set(COOKIE_NAME, buildSessionCookieValue(role, name), { httpOnly: true, sameSite: 'lax', path: '/' })
+  const value = await buildSessionCookieValue(role, name)
+  store.set(COOKIE_NAME, value, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  })
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME
