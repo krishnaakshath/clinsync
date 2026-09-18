@@ -18,4 +18,14 @@ describe('POST /api/form-submissions', () => {
     const res = await POST(req as never)
     expect(res.status).toBe(400) // 'status' is not in sendFormSchema — new submissions always start 'sent'
   })
+
+  it('generates a unique access token and a 30-day expiry when a form is sent', async () => {
+    const req = new Request('http://localhost/api/form-submissions', { method: 'POST', body: JSON.stringify({ templateId: 1, patientId: 'RD-0001' }) })
+    const res = await POST(req as never)
+    const body = await res.json()
+    expect(body.accessToken).toBeTruthy()
+    expect(typeof body.accessToken).toBe('string')
+    expect(body.accessToken.length).toBeGreaterThan(30)
+    expect(new Date(body.tokenExpiresAt).getTime()).toBeGreaterThan(Date.now())
+  })
 })
