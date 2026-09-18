@@ -1,9 +1,12 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
+import { eq } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
+import { getDb } from '@/db/client'
+import { patients } from '@/db/schema'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-import { GET as listPatients } from '@/app/api/patients/route'
+import { GET as listPatients, POST as createPatient } from '@/app/api/patients/route'
 import { GET as getPatient } from '@/app/api/patients/[anonId]/route'
 import { POST as refreshPatient } from '@/app/api/patients/[anonId]/refresh/route'
 
@@ -62,6 +65,63 @@ describe('GET /api/patients/[anonId]', () => {
   it('returns 404 for an unknown anonymous id', async () => {
     const response = await getPatient(new NextRequest('http://localhost/api/patients/RD-9999'), { params: Promise.resolve({ anonId: 'RD-9999' }) })
     expect(response.status).toBe(404)
+  })
+})
+
+describe('POST /api/patients', () => {
+  // Every successful create leaves a real row in the shared dev DB, so track
+  // and delete it -- same pattern as the other write-path tests that mutate
+  // real seeded state.
+  const createdIds: string[] = []
+  afterEach(async () => {
+    while (createdIds.length > 0) {
+      const id = createdIds.pop()!
+      await getDb().delete(patients).where(eq(patients.id, id))
+    }
+  })
+
+  function req(body: unknown) {
+    return new NextRequest('http://localhost/api/patients', { method: 'POST', body: JSON.stringify(body) })
+  }
+
+  it('returns 401 when there is no authenticated session', async () => {
+    vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
+    const response = await createPatient(req({ nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01' }))
+    expect(response.status).toBe(401)
+  })
+
+  it('rejects a payload missing the required name or DOB', async () => {
+    const response = await createPatient(req({ nameIntakeq: 'Test Patient' }))
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects a payload with an unexpected extra field', async () => {
+    const response = await createPatient(req({ nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01', ssn: '123-45-6789' }))
+    expect(response.status).toBe(400)
+  })
+
+  it('creates a patient with the full set of optional intake fields', async () => {
+    const response = await createPatient(req({
+      nameIntakeq: 'Test Patient',
+      dobIntakeq: '1990-01-01',
+      emailIntakeq: 'test.patient@example.com',
+      phoneIntakeq: '555-0100',
+      cityIntakeq: 'Riverside',
+      zipIntakeq: '92501',
+      currentProvider: 'Dr. Kunam',
+      referralType: 'Self-referral',
+      availability: 'Weekday mornings',
+      commConsentSigned: true,
+      commConsentPref: 'email',
+      formNotes: 'Prefers email contact.',
+    }))
+    expect(response.status).toBe(201)
+    const body = await response.json()
+    createdIds.push(body.id)
+    expect(body.id).toMatch(/^RD-\d{4}$/)
+    expect(body.cityIntakeq).toBe('Riverside')
+    expect(body.currentProvider).toBe('Dr. Kunam')
+    expect(body.commConsentSigned).toBe(true)
   })
 })
 
