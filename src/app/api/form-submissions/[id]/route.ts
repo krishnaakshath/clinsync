@@ -19,6 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const submission = await getFormSubmission(Number(id))
   if (!submission) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  await logAudit(session, `viewed client form ${id}`, submission.patientId)
   return NextResponse.json(submission)
 }
 

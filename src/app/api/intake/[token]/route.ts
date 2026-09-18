@@ -14,6 +14,11 @@ import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
 export async function GET(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const data = await getIntakePortalData(token)
+  // Log only when the token actually resolves to a patient -- a not_found
+  // or already-expired token has no patientId to attribute the row to, and
+  // logging an audit-log-free-text scan of dead tokens isn't useful signal.
+  const patientId = await getSubmissionPatientIdByToken(token)
+  if (patientId) await logPatientPortalAction('viewed intake form via patient portal', patientId)
   return NextResponse.json(data)
 }
 

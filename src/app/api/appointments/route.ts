@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     : undefined
 
   const results = await listAppointmentsInRange(new Date(from), new Date(to), providerIds)
+  await logAudit(session, 'viewed appointments', null)
   return NextResponse.json(results)
 }
 

@@ -1,10 +1,12 @@
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 import { listAuditLog } from '@/lib/queries/audit-log'
 
 export default async function AuditLogPage() {
   // Must be the first statement — see the comment in patients/page.tsx.
-  await requireSessionOrRedirect()
+  const session = await requireSessionOrRedirect()
   const entries = await listAuditLog()
+  await logAudit(session, 'viewed audit log', null)
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-foreground">Audit Log</h1>
