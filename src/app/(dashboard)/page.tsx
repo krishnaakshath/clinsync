@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Users, FileClock, ClipboardCheck, LayoutTemplate } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getDashboardData } from '@/lib/queries/dashboard'
@@ -17,11 +18,23 @@ const EVENT_DOT: Record<string, string> = {
 
 const CARD_SURFACE = 'rounded-xl border border-primary/10 bg-card/80 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 
-function StatTile({ value, label, href }: { value: number; label: string; href: string }) {
+const STAT_ICON_COLOR: Record<string, string> = {
+  primary: 'bg-primary/10 text-primary',
+  accent: 'bg-accent/10 text-accent',
+  sky: 'bg-sky-500/10 text-sky-700',
+  emerald: 'bg-emerald-500/10 text-emerald-700',
+}
+
+function StatTile({ value, label, href, icon: Icon, color }: { value: number; label: string; href: string; icon: React.ComponentType<{ className?: string }>; color: keyof typeof STAT_ICON_COLOR }) {
   return (
-    <Link href={href} className="block rounded-xl border border-primary/15 bg-primary/5 p-5 backdrop-blur-sm transition-colors duration-200 hover:bg-primary/10">
-      <p className="text-3xl font-bold tabular-nums text-primary">{value}</p>
-      <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+    <Link href={href} className="flex items-center gap-4 rounded-xl border border-primary/15 bg-primary/5 p-5 backdrop-blur-sm transition-colors duration-200 hover:bg-primary/10">
+      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${STAT_ICON_COLOR[color]}`} aria-hidden="true">
+        <Icon className="h-5 w-5" />
+      </span>
+      <div>
+        <p className="text-3xl font-bold tabular-nums text-primary">{value}</p>
+        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      </div>
     </Link>
   )
 }
@@ -43,10 +56,10 @@ export default async function DashboardHomePage() {
       <DashboardHomeClient templates={templates.map((t) => ({ id: t.id, name: t.name }))} patients={patients.map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq }))} />
 
       <div className="mb-6 grid grid-cols-4 gap-4">
-        <StatTile value={patients.length} label="Total Patients" href="/patients" />
-        <StatTile value={data.pendingFormsTotal} label="Pending Forms" href="/client-forms" />
-        <StatTile value={data.pendingClassification.length} label="Pending Classifications" href="/patients" />
-        <StatTile value={templates.length} label="Form Templates" href="/forms" />
+        <StatTile value={patients.length} label="Total Patients" href="/patients" icon={Users} color="primary" />
+        <StatTile value={data.pendingFormsTotal} label="Pending Forms" href="/client-forms" icon={FileClock} color="sky" />
+        <StatTile value={data.pendingClassification.length} label="Pending Classifications" href="/patients" icon={ClipboardCheck} color="accent" />
+        <StatTile value={templates.length} label="Form Templates" href="/forms" icon={LayoutTemplate} color="emerald" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
