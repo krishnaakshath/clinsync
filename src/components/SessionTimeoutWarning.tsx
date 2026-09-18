@@ -20,8 +20,12 @@ export function SessionTimeoutWarning() {
     setShowWarning(false)
     warnTimer.current = setTimeout(() => setShowWarning(true), WARN_AFTER_MS)
     logoutTimer.current = setTimeout(() => {
-      document.cookie = 'clinsync_demo_session=; Max-Age=0; path=/'
-      router.push('/login')
+      // The session cookie is httpOnly (can't be read or cleared from JS --
+      // that was a real bug here: browsers silently ignore an attempt to
+      // overwrite an httpOnly cookie via document.cookie, so this used to
+      // navigate to /login while leaving the session fully valid). Go
+      // through the real server-side logout endpoint instead.
+      fetch('/api/logout', { method: 'POST' }).finally(() => router.push('/login'))
     }, LOGOUT_AFTER_MS)
   }, [router])
 

@@ -11,7 +11,7 @@ function createRedis() {
 }
 
 let _redis: Redis | null = null
-function getRedis() {
+export function getRedis() {
   if (!_redis) _redis = createRedis()
   return _redis
 }
