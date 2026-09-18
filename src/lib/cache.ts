@@ -57,3 +57,7 @@ export function dashboardCacheKey(): string {
 export function providersListCacheKey(): string {
   return 'providers:list'
 }
+
+export function workbookListCacheKey(): string {
+  return 'workbook:list'
+}
