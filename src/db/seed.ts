@@ -21,6 +21,8 @@ import {
   appSettings,
   providers,
   appointments,
+  documents,
+  faxes,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -193,6 +195,39 @@ async function seedFillerPatients() {
   }
 }
 
+async function seedDocumentsAndFaxes() {
+  const db = getDb()
+
+  // Documents: metadata-only rows demonstrating the New/Processed status split,
+  // a mix of labels, and both patient-linked and unlinked documents.
+  await db.insert(documents).values([
+    { name: 'Drivers License - Front.jpg', documentDate: '2026-08-10', status: 'processed', receivedFrom: 'Patient Portal Upload', label: 'drivers_license', patientId: 'RD-0001', fileType: 'JPG' },
+    { name: 'Signed Consent Form.pdf', documentDate: '2026-08-12', status: 'processed', receivedFrom: 'Jamie Ruiz (CRC)', label: 'legal_document', patientId: 'RD-0001', fileType: 'PDF' },
+    { name: 'Outside Lab Results.pdf', documentDate: '2026-08-14', status: 'new', receivedFrom: 'Fax', label: 'other', patientId: 'RD-0002', fileType: 'PDF' },
+    { name: 'Referral Letter.pdf', documentDate: '2026-08-15', status: 'new', receivedFrom: 'Referring Provider Office', label: 'other', patientId: 'RD-0003', fileType: 'PDF' },
+    { name: 'State ID Card.png', documentDate: '2026-08-16', status: 'processed', receivedFrom: 'Patient Portal Upload', label: 'drivers_license', patientId: 'RD-0002', fileType: 'PNG' },
+    { name: 'Power of Attorney.pdf', documentDate: '2026-08-18', status: 'new', receivedFrom: 'Mail', label: 'legal_document', patientId: 'RD-0004', fileType: 'PDF' },
+    { name: 'Prior Medication List.pdf', documentDate: '2026-08-19', status: 'processed', receivedFrom: 'Priya Natarajan (CRC)', label: 'other', patientId: 'RD-0004', fileType: 'PDF' },
+    { name: 'Insurance Card - Back.jpg', documentDate: '2026-08-20', status: 'new', receivedFrom: 'Patient Portal Upload', label: 'other', patientId: 'RD-0005', fileType: 'JPG' },
+    { name: 'Telehealth Consent.pdf', documentDate: '2026-08-21', status: 'processed', receivedFrom: 'Jamie Ruiz (CRC)', label: 'legal_document', patientId: 'RD-0006', fileType: 'PDF' },
+    { name: 'Passport Copy.pdf', documentDate: '2026-08-22', status: 'new', receivedFrom: 'Fax', label: 'drivers_license', patientId: 'RD-0003', fileType: 'PDF' },
+  ])
+
+  // Faxes: a mix of delivered/failed SIMULATED statuses across several patients
+  // and senders, so Fax History is demonstrable without ever implying a real
+  // fax was sent (see the disclaimer requirement on the Fax History tab).
+  await db.insert(faxes).values([
+    { faxDate: new Date('2026-08-10T09:15:00'), subject: 'Lab Results - CBC Panel', documentsIncluded: 'CBC Panel Results.pdf', deliveryStatus: 'delivered', sender: 'Jamie Ruiz (CRC)', sentToFaxNumber: '(555) 010-2201', patientId: 'RD-0001' },
+    { faxDate: new Date('2026-08-11T14:32:00'), subject: 'Signed Consent Form', documentsIncluded: 'General Research Consent.pdf', deliveryStatus: 'delivered', sender: 'Jamie Ruiz (CRC)', sentToFaxNumber: '(555) 010-2202', patientId: 'RD-0002' },
+    { faxDate: new Date('2026-08-12T11:05:00'), subject: 'Referral Records Request', documentsIncluded: 'Records Request Form.pdf', deliveryStatus: 'failed', sender: 'Priya Natarajan (CRC)', sentToFaxNumber: '(555) 010-2203', patientId: 'RD-0003' },
+    { faxDate: new Date('2026-08-13T08:47:00'), subject: 'Prior Authorization', documentsIncluded: 'Prior Auth Request.pdf', deliveryStatus: 'delivered', sender: 'Sam Patel (Admin)', sentToFaxNumber: '(555) 010-2204', patientId: 'RD-0004' },
+    { faxDate: new Date('2026-08-14T16:20:00'), subject: 'Medication History', documentsIncluded: 'Medication History.pdf', deliveryStatus: 'delivered', sender: 'Jamie Ruiz (CRC)', sentToFaxNumber: '(555) 010-2205', patientId: 'RD-0005' },
+    { faxDate: new Date('2026-08-15T10:00:00'), subject: 'Screening Questionnaire Results', documentsIncluded: 'PHQ-9 Results.pdf, ASRS Results.pdf', deliveryStatus: 'failed', sender: 'Priya Natarajan (CRC)', sentToFaxNumber: '(555) 010-2206', patientId: 'RD-0006' },
+    { faxDate: new Date('2026-08-16T13:40:00'), subject: 'Telehealth Consent Confirmation', documentsIncluded: 'Telehealth Consent.pdf', deliveryStatus: 'delivered', sender: 'Jamie Ruiz (CRC)', sentToFaxNumber: '(555) 010-2207', patientId: 'RD-0006' },
+    { faxDate: new Date('2026-08-17T09:55:00'), subject: 'Insurance Verification', documentsIncluded: 'Insurance Card Copy.pdf', deliveryStatus: 'delivered', sender: 'Sam Patel (Admin)', sentToFaxNumber: '(555) 010-2208', patientId: 'RD-0002' },
+  ])
+}
+
 async function seedBilling() {
   const db = getDb()
 
@@ -331,6 +366,8 @@ async function clearExistingData() {
   const db = getDb()
   // Delete in FK-safe order (children before parents) so seed() is safely re-runnable
   // against the live database without unique-constraint violations.
+  await db.delete(faxes)
+  await db.delete(documents)
   await db.delete(mockPayments)
   await db.delete(patientStatements)
   await db.delete(insuranceClaims)
@@ -368,12 +405,12 @@ export async function seed() {
     console.log(`Seed skipped: patients table already has ${count} row(s).`)
     // Even when patients is already seeded, this branch's own new tables
     // (providers/appointments, charges/insuranceClaims/patientStatements/
-    // mockPayments) might not be -- e.g. a shared dev database seeded by a
-    // sibling branch before this branch's schema existed. Top those up
-    // without touching anything else: both top-up functions only insert
-    // into tables this branch owns exclusively, against patients rows
-    // already confirmed present, so neither carries the deletion/FK risk
-    // clearExistingData() has.
+    // mockPayments, documents/faxes) might not be -- e.g. a shared dev
+    // database seeded by a sibling branch before this branch's schema
+    // existed. Top those up without touching anything else: every top-up
+    // function only inserts into tables this branch owns exclusively,
+    // against patients rows already confirmed present, so none carries the
+    // deletion/FK risk clearExistingData() has.
     const [{ providerCount }] = await db.select({ providerCount: sql<number>`count(*)::int` }).from(providers)
     if (providerCount === 0) {
       await seedProvidersAndAppointments()
@@ -383,6 +420,11 @@ export async function seed() {
     if (chargeCount === 0) {
       await seedBilling()
       console.log('Seeded billing (charges/claims/payments/statements) (patients table was already populated).')
+    }
+    const [{ documentCount }] = await db.select({ documentCount: sql<number>`count(*)::int` }).from(documents)
+    if (documentCount === 0) {
+      await seedDocumentsAndFaxes()
+      console.log('Seeded documents/faxes (patients table was already populated).')
     }
     return
   }
@@ -433,6 +475,7 @@ export async function seed() {
   await seedFillerPatients()
   await seedProvidersAndAppointments()
   await seedBilling()
+  await seedDocumentsAndFaxes()
 
   await db.insert(identityMatches).values([
     { intakeqClientIdEncrypted: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdEncrypted: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
