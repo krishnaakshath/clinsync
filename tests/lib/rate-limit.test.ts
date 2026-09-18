@@ -56,4 +56,18 @@ describe('checkPatientLoginRateLimit', () => {
     const sixth = await checkPatientLoginRateLimit(ip, patientId)
     expect(sixth.allowed).toBe(false)
   })
+
+  it('blocks sustained guessing against one patient id even when spread across many source IPs', async () => {
+    // Each individual IP below never exceeds its own 5-per-60s bucket, but
+    // the IP-independent global bucket (10 per 600s, keyed on patientId
+    // alone) still catches the attacker rotating addresses -- exactly the
+    // gap a per-IP-only limiter leaves open.
+    const patientId = `rl-test-distributed-${Date.now()}`
+    for (let i = 0; i < 10; i++) {
+      const { allowed } = await checkPatientLoginRateLimit(`203.0.114.${i}`, patientId)
+      expect(allowed).toBe(true)
+    }
+    const eleventh = await checkPatientLoginRateLimit('203.0.114.99', patientId)
+    expect(eleventh.allowed).toBe(false)
+  })
 })
