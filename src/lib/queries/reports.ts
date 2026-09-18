@@ -1,0 +1,153 @@
+import { getDb } from '@/db/client'
+import {
+  appointments, providers, patients, formSubmissions, formTemplates,
+  patientTrialScreenings, insuranceClaims, charges,
+} from '@/db/schema'
+import { eq, and, notInArray } from 'drizzle-orm'
+import {
+  getOrSetCache,
+  allAppointmentsReportCacheKey,
+  unsignedNotesReportCacheKey,
+  allEncountersReportCacheKey,
+  insuranceCollectionsReportCacheKey,
+} from '@/lib/cache'
+
+/**
+ * CROSS-PHASE DEPENDENCY (see docs/superpowers/plans/2026-09-18-phase4-schema-reconciliation.md):
+ * this plan's original code assumed shapes for `appointments`/`charges`/`insuranceClaims`
+ * that differ from what Phase 2 and Phase 3 actually shipped. Corrected here:
+ * - appointments has startsAt/endsAt timestamps, not apptDate+apptTime, and no location field.
+ * - charges has no providerId (free-text providerName instead) and no placeOfService/visitMode.
+ * - insuranceClaims has no providerId/serviceDate -- "service date" is derived from the linked charge.
+ */
+
+function formatDate(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+export async function listAllAppointmentsReport() {
+  return getOrSetCache(allAppointmentsReportCacheKey(), 15, async () => {
+    const rows = await getDb()
+      .select({ appointment: appointments, patient: patients, provider: providers })
+      .from(appointments)
+      .innerJoin(patients, eq(appointments.patientId, patients.id))
+      .leftJoin(providers, eq(appointments.providerId, providers.id))
+
+    return rows.map((r) => ({
+      id: r.appointment.id,
+      apptDate: formatDate(r.appointment.startsAt),
+      apptTime: formatTime(r.appointment.startsAt),
+      status: r.appointment.status,
+      patientId: r.patient.id,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      dob: r.patient.dobTebra ?? r.patient.dobIntakeq,
+      homePhone: r.patient.phoneTebra ?? '—',
+      mobilePhone: r.patient.phoneIntakeq ?? '—',
+      providerName: r.provider?.name ?? r.patient.currentProvider ?? '—',
+    }))
+  })
+}
+
+// "Unsigned" means: a form submission whose status is 'completed' but whose
+// patient has no patientTrialScreenings row yet -- the same "pending
+// classification" concept the Home Dashboard already uses (see
+// src/lib/queries/dashboard.ts's getDashboardData, Phase 1).
+export async function listUnsignedNotesReport() {
+  return getOrSetCache(unsignedNotesReportCacheKey(), 15, async () => {
+    const screenedPatientIds = (
+      await getDb().select({ patientId: patientTrialScreenings.patientId }).from(patientTrialScreenings)
+    ).map((r) => r.patientId)
+
+    const rows = await getDb()
+      .select({ submission: formSubmissions, template: formTemplates, patient: patients })
+      .from(formSubmissions)
+      .innerJoin(formTemplates, eq(formSubmissions.templateId, formTemplates.id))
+      .innerJoin(patients, eq(formSubmissions.patientId, patients.id))
+      .where(
+        and(
+          eq(formSubmissions.status, 'completed'),
+          screenedPatientIds.length > 0 ? notInArray(formSubmissions.patientId, screenedPatientIds) : undefined
+        )
+      )
+
+    return rows.map((r) => ({
+      noteId: r.submission.id,
+      patientId: r.patient.id,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      visitDate: r.submission.completedDate,
+      noteType: r.template.name,
+      status: 'Unsigned',
+      assignedUser: r.patient.currentProvider ?? 'Unassigned',
+    }))
+  })
+}
+
+// A completed appointment IS an encounter for Clinsync's data model -- no
+// separate encounters table. "Payer Scenario" and "Encounter Status" are
+// derived by a best-effort join against Phase 3's charges/insuranceClaims
+// (matched by patientId, and by date for charges) rather than invented as
+// static text, so the report demonstrates real cross-table data. Charges
+// have no providerId (Phase 3 uses a free-text providerName since Phase 2's
+// `providers` table didn't exist when Phase 3's schema was written), so this
+// join is deliberately patientId+date only, never provider-scoped.
+export async function listAllEncountersReport() {
+  return getOrSetCache(allEncountersReportCacheKey(), 15, async () => {
+    const rows = await getDb()
+      .select({ appointment: appointments, patient: patients, provider: providers })
+      .from(appointments)
+      .innerJoin(patients, eq(appointments.patientId, patients.id))
+      .leftJoin(providers, eq(appointments.providerId, providers.id))
+      .where(eq(appointments.status, 'completed'))
+
+    const allCharges = await getDb().select().from(charges)
+    const allClaims = await getDb().select().from(insuranceClaims)
+
+    return rows.map((r) => {
+      const apptDate = formatDate(r.appointment.startsAt)
+      const matchingCharge = allCharges.find(
+        (c) => c.patientId === r.patient.id && c.dateOfService === apptDate
+      )
+      const hasClaim = allClaims.some((c) => c.patientId === r.patient.id)
+      const firstProcedure = matchingCharge?.procedureCodes?.[0]?.code ?? '—'
+
+      return {
+        encounterId: `ENC-${r.appointment.id}`,
+        dateOfService: apptDate,
+        patientId: r.patient.id,
+        patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+        renderingProvider: r.provider?.name ?? r.patient.currentProvider ?? '—',
+        payerScenario: hasClaim ? 'Insurance' : 'Self-Pay',
+        encounterStatus: matchingCharge ? 'Billed' : 'Completed — Not Billed',
+        procedure: firstProcedure,
+      }
+    })
+  })
+}
+
+export async function listInsuranceCollectionsReport() {
+  return getOrSetCache(insuranceCollectionsReportCacheKey(), 15, async () => {
+    const rows = await getDb()
+      .select({ claim: insuranceClaims, patient: patients, charge: charges })
+      .from(insuranceClaims)
+      .innerJoin(patients, eq(insuranceClaims.patientId, patients.id))
+      .innerJoin(charges, eq(insuranceClaims.chargeId, charges.id))
+
+    return rows.map((r) => ({
+      id: r.claim.id,
+      patientId: r.patient.id,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      payerName: r.claim.payerName,
+      status: r.claim.status,
+      billedAmountCents: r.claim.billedAmountCents,
+      paidAmountCents: r.claim.paidAmountCents,
+      // insuranceClaims has no serviceDate of its own -- every claim has a
+      // required chargeId, so the linked charge's dateOfService IS the
+      // service date for this row.
+      serviceDate: r.charge.dateOfService,
+      submittedDate: r.claim.submittedDate,
+    }))
+  })
+}
