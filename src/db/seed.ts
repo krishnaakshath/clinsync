@@ -156,7 +156,12 @@ async function seedFillerPatients() {
       dobTebra: `19${80 + i}-0${(i % 9) + 1}-1${i % 9}`,
       cityIntakeq: 'Redlands',
       zipIntakeq: '92373',
-      phoneIntakeq: `909-555-0${200 + i}`,
+      // RD-0007 (i === 0) is deliberately left with no phone number at all --
+      // it's the one seeded broadcast recipient (Phase 5) whose SMS delivery
+      // is meant to genuinely fail per simulateBroadcastDelivery's own logic,
+      // rather than a hand-authored 'failed' status the simulator could
+      // never actually produce for a patient with real contact info.
+      phoneIntakeq: i === 0 ? null : `909-555-0${200 + i}`,
       emailIntakeq: `${first.toLowerCase()}.${last.toLowerCase()}.demo@example.com`,
       currentProvider: 'Dr. R. Kunam',
       ratingScales: [{ name: trial.ratingScales[0].name, score: 12 + i, date: '2026-09-01' }],
@@ -414,7 +419,10 @@ export async function seed() {
       filterFormStatus: 'sent',
       recipients: [
         { patientId: 'RD-0003', patientName: 'Linda Cho', deliveryStatus: 'delivered' },
-        { patientId: 'RD-0005', patientName: 'Marcus Webb', deliveryStatus: 'failed' },
+        // A 'both'-channel send only fails when a patient has NEITHER phone
+        // nor email (simulateBroadcastDelivery), and RD-0005 has both --
+        // 'delivered' is what the simulator would actually produce here.
+        { patientId: 'RD-0005', patientName: 'Marcus Webb', deliveryStatus: 'delivered' },
       ],
       recipientCount: 2,
       sentBy: 'Sam Patel',

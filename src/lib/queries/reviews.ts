@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client'
 import { reviews, patients, formSubmissions, formTemplates } from '@/db/schema'
 import { eq, desc, asc, and, gte, lte, SQL } from 'drizzle-orm'
-import { getOrSetCache, invalidateCache, reviewsListCacheKey } from '@/lib/cache'
+import { getOrSetCache, invalidateCacheByPrefix, reviewsListCacheKey } from '@/lib/cache'
 
 export interface ReviewFilters {
   status?: 'sent' | 'completed'
@@ -90,8 +90,11 @@ export async function getAverageExperienceRating(): Promise<number | null> {
 }
 
 export async function invalidateReviewsList() {
-  // Filtered list cache keys are parameterized per filter combination with a
-  // short 30s TTL, so a full key-space scan isn't needed — just drop the
-  // common no-filter view most screens load by default.
-  await invalidateCache(reviewsListCacheKey(JSON.stringify({})))
+  // listReviews() caches per exact filter/sort combination
+  // (reviews:list:{"sortBy":"sentAt","sortDir":"desc"}, etc.) and every real
+  // caller passes sortBy/sortDir, so a single invalidateCache() call for one
+  // specific key (e.g. the no-filter {} shape) never matches what's actually
+  // cached -- it was a total no-op. Drop every cached filter combination by
+  // prefix instead.
+  await invalidateCacheByPrefix(reviewsListCacheKey(''))
 }

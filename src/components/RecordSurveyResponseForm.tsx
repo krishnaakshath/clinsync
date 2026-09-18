@@ -28,11 +28,11 @@ export function RecordSurveyResponseForm({ reviewId }: { reviewId: number }) {
     }
   }
 
-  function ratingField(label: string, value: number, onChange: (v: number) => void) {
+  function ratingField(id: string, label: string, value: number, onChange: (v: number) => void) {
     return (
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
-        <select value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+        <label htmlFor={id} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
+        <select id={id} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full rounded-md border border-border px-3 py-2 text-sm">
           {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       </div>
@@ -42,12 +42,12 @@ export function RecordSurveyResponseForm({ reviewId }: { reviewId: number }) {
   return (
     <div className="space-y-4">
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {ratingField('Overall Experience (1-5)', ratingOverall, setRatingOverall)}
-      {ratingField('Forms Were Clear (1-5)', ratingFormsClarity, setRatingFormsClarity)}
-      {ratingField('Communication Was Easy (1-5)', ratingCommunication, setRatingCommunication)}
+      {ratingField('rating-overall', 'Overall Experience (1-5)', ratingOverall, setRatingOverall)}
+      {ratingField('rating-forms-clarity', 'Forms Were Clear (1-5)', ratingFormsClarity, setRatingFormsClarity)}
+      {ratingField('rating-communication', 'Communication Was Easy (1-5)', ratingCommunication, setRatingCommunication)}
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Comments</label>
-        <textarea value={comments} onChange={(e) => setComments(e.target.value)} rows={3} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+        <label htmlFor="survey-comments" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Comments</label>
+        <textarea id="survey-comments" value={comments} onChange={(e) => setComments(e.target.value)} rows={3} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
       </div>
       <button onClick={save} disabled={saving} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
         {saving ? 'Saving…' : 'Record Response'}
