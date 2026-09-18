@@ -1,6 +1,7 @@
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
+import { listCharges } from '@/lib/queries/charges'
 import { VirtualCardPaymentForm } from '@/components/VirtualCardPaymentForm'
 
 export default async function VirtualCardPaymentPage({
@@ -10,14 +11,23 @@ export default async function VirtualCardPaymentPage({
 }) {
   const session = await requireSessionOrRedirect()
   const { patientId, amountCents } = await searchParams
-  const patients = await listPatientsWithStatus(null)
+  const [patients, charges] = await Promise.all([listPatientsWithStatus(null), listCharges()])
   await logAudit(session, 'viewed virtual card payment form (demo)', patientId ?? null)
+
+  // A payment recorded through this form always has chargeId: null --
+  // computeChargeBalances() (billing-calculations.ts) can only pool it
+  // against a patient's SUBMITTED charges, so a patient with none would
+  // have their payment counted by nothing, anywhere. Restricting the
+  // dropdown to billable patients keeps every payment this form can create
+  // attributable.
+  const billablePatientIds = new Set(charges.filter((c) => c.status === 'submitted').map((c) => c.patientId))
+  const billablePatients = patients.filter((p) => billablePatientIds.has(p.id))
 
   return (
     <div className="max-w-xl">
       <h1 className="mb-6 text-2xl font-bold text-foreground">Virtual Card Payment</h1>
       <VirtualCardPaymentForm
-        patients={patients.map((p) => ({ id: p.id, name: p.nameTebra ?? p.nameIntakeq }))}
+        patients={billablePatients.map((p) => ({ id: p.id, name: p.nameTebra ?? p.nameIntakeq }))}
         initialPatientId={patientId}
         initialAmountCents={amountCents ? Number(amountCents) : undefined}
       />
