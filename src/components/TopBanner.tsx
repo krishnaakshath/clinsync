@@ -13,16 +13,16 @@ export function TopBanner({ userName }: { userName: string }) {
   }
 
   return (
-    <div className="border-b border-border bg-card">
+    <div className="border-b border-sidebar-border bg-sidebar">
       <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-2 text-primary">
+        <div className="flex items-center gap-2 text-sidebar-foreground">
           <ClinsyncLogo className="h-6 w-6" />
-          <span className="text-base font-semibold tracking-tight text-foreground">Clinsync</span>
+          <span className="text-base font-semibold tracking-tight">Clinsync</span>
         </div>
         <div className="flex items-center gap-4">
-          <NotificationPanel />
-          <span className="text-sm font-medium text-foreground">{userName}</span>
-          <button onClick={signOut} className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <NotificationPanel triggerClassName="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+          <span className="text-sm font-medium text-sidebar-foreground">{userName}</span>
+          <button onClick={signOut} className="text-sm font-medium text-sidebar-foreground/70 transition-colors hover:text-sidebar-foreground">
             Sign out
           </button>
         </div>

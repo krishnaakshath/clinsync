@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 
 interface Event { id: number; action: string; timestamp: string }
 
-export function NotificationPanel() {
+export function NotificationPanel({ triggerClassName = 'text-muted-foreground hover:bg-secondary' }: { triggerClassName?: string }) {
   const [open, setOpen] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
 
@@ -17,7 +17,7 @@ export function NotificationPanel() {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-secondary" aria-label="Notifications">
+      <button onClick={() => setOpen(!open)} className={`rounded-md px-2 py-1 text-sm transition-colors ${triggerClassName}`} aria-label="Notifications">
         Notifications{events.length > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 text-xs text-accent-foreground">{events.length}</span>}
       </button>
       {open && (
