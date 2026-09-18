@@ -36,7 +36,7 @@ describe('maybeAutoClassify', () => {
     // itself) comfortably exceed vitest's default 5s test timeout.
     await cleanup()
     await setAutoClassify(true)
-    await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdEncrypted: 'ENC[test]', nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01' })
+    await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01' })
     await getDb().insert(diagnoses).values({ patientId: TEST_PATIENT_ID, code: 'F33.1', description: 'Test diagnosis', source: 'tebra' })
     const [screening] = await getDb().insert(patientTrialScreenings).values({ patientId: TEST_PATIENT_ID, trialId: 'nct06911112', overallStatus: 'yellow' }).returning()
     await getDb().insert(screeningCriteriaResults).values({ screeningId: screening.id, criterionKey: 'test-criterion', criterionText: 'Test criterion', verdict: 'green' })

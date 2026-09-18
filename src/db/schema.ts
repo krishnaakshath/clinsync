@@ -24,8 +24,13 @@ export const trials = pgTable('trials', {
 export const patients = pgTable('patients', {
   id: text('id').primaryKey(),                  // anonymous id "RD-0001"
   dateAdded: timestamp('date_added').defaultNow().notNull(),
-  intakeqClientIdEncrypted: text('intakeq_client_id_encrypted').notNull(),
-  tebraPatientIdEncrypted: text('tebra_patient_id_encrypted'),
+  // Pseudonymous cross-system linkage IDs, wrapped with the `ENC[...]`
+  // string convention -- NOT ciphertext (see the comment in lib/crypto.ts
+  // for why real encryption isn't warranted here). Named `...Ref`, not
+  // `...Encrypted`, so the property name doesn't assert a guarantee this
+  // column doesn't actually provide.
+  intakeqClientIdRef: text('intakeq_client_id_encrypted').notNull(),
+  tebraPatientIdRef: text('tebra_patient_id_encrypted'),
   nameIntakeq: text('name_intakeq').notNull(),
   nameTebra: text('name_tebra'),
   dobIntakeq: date('dob_intakeq').notNull(),
@@ -101,10 +106,10 @@ export const screeningCriteriaResults = pgTable('screening_criteria_results', {
 
 export const identityMatches = pgTable('identity_matches', {
   id: serial('id').primaryKey(),
-  intakeqClientIdEncrypted: text('intakeq_client_id_encrypted').notNull(),
+  intakeqClientIdRef: text('intakeq_client_id_encrypted').notNull(),
   referralName: text('referral_name').notNull(),
   referralDob: date('referral_dob').notNull(),
-  candidateTebraPatientIdEncrypted: text('candidate_tebra_patient_id_encrypted').notNull(),
+  candidateTebraPatientIdRef: text('candidate_tebra_patient_id_encrypted').notNull(),
   candidateName: text('candidate_name').notNull(),
   candidateDob: date('candidate_dob').notNull(),
   confidence: integer('confidence').notNull(), // 0-100
@@ -184,6 +189,19 @@ export const identityVerifications = pgTable('identity_verifications', {
 export const appSettings = pgTable('app_settings', {
   id: serial('id').primaryKey(),
   autoClassifyOnComplete: boolean('auto_classify_on_complete').default(false).notNull(),
+  practiceName: text('practice_name'),
+  practiceSite: text('practice_site'),
+  practiceTimezone: text('practice_timezone').default('America/Los_Angeles'),
+  // Credentials for the real Tebra/IntakeQ APIs, stored so an admin can
+  // provision them here once the vendor issues real access -- this pilot
+  // has a signed BAA but no API access yet, so nothing reads these fields
+  // to make an outbound call today. AES-256-GCM encrypted at rest via
+  // lib/crypto.ts, same as identityVerifications.idNumberEncrypted; never
+  // decrypted for display, only for a future real sync job to consume.
+  intakeqApiKeyEncrypted: text('intakeq_api_key_encrypted'),
+  tebraCustomerKeyEncrypted: text('tebra_customer_key_encrypted'),
+  tebraUserEncrypted: text('tebra_user_encrypted'),
+  tebraPasswordEncrypted: text('tebra_password_encrypted'),
 })
 
 export const appointmentStatusEnum = pgEnum('appointment_status', ['scheduled', 'completed', 'cancelled', 'no_show'])

@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { sql, eq } from 'drizzle-orm'
 import { getDb } from './client'
 import { encryptSensitive } from '../lib/crypto'
 import {
@@ -145,47 +145,130 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
 ]
 
+// A larger, more varied roster than a handful of near-identical demo rows --
+// meant to read like an actual clinic's patient panel (mixed ages, cities,
+// diagnoses, referral sources), not just enough rows to exercise the UI.
 const FILLER_NAMES = [
   'Robert Nguyen', 'Angela Ferraro', 'Devon Okafor', 'Sana Patel', 'Wesley Turner', 'Isabel Marquez',
   'Owen Fitzgerald', 'Grace Kim', 'Tobias Reyes', 'Nadia Suleiman', 'Colin Brantley', 'Fatima Rashid',
+  'Marcus Bellweather', 'Priya Chandrasekaran', 'Diego Salgado', 'Yasmin Haddad', 'Trevor Osei', 'Lena Kowalski',
+  'Anthony Delgado', 'Rina Fujimoto', 'Samuel Okonkwo', 'Chloe Bergstrom', 'Amir Farouk', 'Danielle Whitfield',
+  'Hassan Malik', 'Sophia Papadakis', 'Elijah Cross', 'Mei Lin Tan', 'Gabriel Ontiveros', 'Renee Castellano',
+  'Kwame Asante', 'Ingrid Solheim', 'Julian Restrepo', 'Aaliyah Jefferson', 'Noah Feldman', 'Camille Dubois',
+  'Tariq Abbasi', 'Whitney Sorensen', 'Mateo Villareal', 'Simone Achebe', 'Declan O’Farrell', 'Priyanka Deshmukh',
+  'Zachary Huang', 'Beatriz Nascimento',
+]
+
+const CITY_POOL = [
+  { city: 'Redlands', zip: '92373' }, { city: 'Redlands', zip: '92374' }, { city: 'Highland', zip: '92346' },
+  { city: 'Yucaipa', zip: '92399' }, { city: 'Loma Linda', zip: '92354' }, { city: 'San Bernardino', zip: '92404' },
+  { city: 'Riverside', zip: '92501' }, { city: 'Colton', zip: '92324' }, { city: 'Rialto', zip: '92376' },
+  { city: 'Beaumont', zip: '92223' }, { city: 'Banning', zip: '92220' }, { city: 'Calimesa', zip: '92320' },
+]
+
+const REFERRAL_TYPES = ['Self-referral', 'Provider referral', 'Community outreach', 'Insurance panel referral']
+const AVAILABILITY_OPTIONS = ['Weekday mornings', 'Weekday afternoons', 'Evenings only', 'Flexible', 'Weekends only']
+
+// A broader diagnosis/medication pool than just the two active trials'
+// conditions -- most of a real clinic's panel isn't enrolled in either
+// study, which is exactly why most of these patients get no trial
+// screening row at all (see seedFillerPatients below).
+const GENERAL_DIAGNOSES = [
+  { code: 'F41.1', description: 'Generalized anxiety disorder' },
+  { code: 'F43.10', description: 'Post-traumatic stress disorder' },
+  { code: 'F31.81', description: 'Bipolar II disorder' },
+  { code: 'F41.0', description: 'Panic disorder' },
+  { code: 'F42.2', description: 'Mixed obsessional thoughts and acts' },
+  { code: 'G47.00', description: 'Insomnia, unspecified' },
+  { code: 'F10.20', description: 'Alcohol use disorder, moderate' },
+  { code: 'F60.3', description: 'Borderline personality disorder' },
+]
+
+const GENERAL_MEDICATIONS = [
+  { name: 'Fluoxetine', medicationClass: 'SSRI/SNRI antidepressant', dose: '20mg daily' },
+  { name: 'Escitalopram', medicationClass: 'SSRI/SNRI antidepressant', dose: '10mg daily' },
+  { name: 'Duloxetine', medicationClass: 'SSRI/SNRI antidepressant', dose: '60mg daily' },
+  { name: 'Lamotrigine', medicationClass: 'Mood stabilizer', dose: '100mg daily' },
+  { name: 'Aripiprazole', medicationClass: 'Atypical antipsychotic', dose: '5mg daily' },
+  { name: 'Buspirone', medicationClass: 'Anxiolytic', dose: '15mg twice daily' },
+  { name: 'Hydroxyzine', medicationClass: 'Antihistamine anxiolytic', dose: '25mg as needed' },
+  { name: 'Vyvanse', medicationClass: 'Stimulant', dose: '40mg daily' },
 ]
 
 async function seedFillerPatients() {
   const db = getDb()
   for (let i = 0; i < FILLER_NAMES.length; i++) {
     const id = `RD-${String(7 + i).padStart(4, '0')}`
+
+    // Safe to re-run against an already-populated shared dev DB: skip any id
+    // that already exists (e.g. a real patient a user created by hand
+    // through the app that happens to land on the same anon-id slot) rather
+    // than failing or duplicating.
+    const [existing] = await db.select({ id: patients.id }).from(patients).where(eq(patients.id, id))
+    if (existing) continue
+
+    const [first, last] = FILLER_NAMES[i].split(' ')
+    const location = CITY_POOL[i % CITY_POOL.length]
+    const birthYear = 1955 + (i * 7) % 50 // spreads ages roughly 18-70
+    const birthMonth = String((i % 12) + 1).padStart(2, '0')
+    const birthDay = String(((i * 3) % 27) + 1).padStart(2, '0')
+    const inTrial = i % 3 !== 2 // ~2/3 of the panel is enrolled in one of the two active trials; the rest is general-population patients not part of either study
     const trial = i % 2 === 0 ? MDD_TRIAL : ADHD_TRIAL
     const status: 'green' | 'yellow' | 'red' = ['green', 'green', 'yellow', 'red'][i % 4] as 'green' | 'yellow' | 'red'
-    const [first, last] = FILLER_NAMES[i].split(' ')
 
     await db.insert(patients).values({
       id,
-      intakeqClientIdEncrypted: `enc-iq-${id}`,
-      tebraPatientIdEncrypted: `enc-tb-${id}`,
+      intakeqClientIdRef: `enc-iq-${id}`,
+      tebraPatientIdRef: i % 5 === 4 ? null : `enc-tb-${id}`, // a few unmatched-to-Tebra, like the hero roster's Linda Cho
       nameIntakeq: FILLER_NAMES[i],
-      nameTebra: FILLER_NAMES[i],
-      dobIntakeq: `19${80 + i}-0${(i % 9) + 1}-1${i % 9}`,
-      dobTebra: `19${80 + i}-0${(i % 9) + 1}-1${i % 9}`,
-      cityIntakeq: 'Redlands',
-      zipIntakeq: '92373',
-      phoneIntakeq: `909-555-0${200 + i}`,
-      emailIntakeq: `${first.toLowerCase()}.${last.toLowerCase()}.demo@example.com`,
-      currentProvider: 'Dr. R. Kunam',
-      ratingScales: [{ name: trial.ratingScales[0].name, score: 12 + i, date: '2026-09-01' }],
-      referralType: 'Self-referral',
-      availability: 'Flexible',
+      nameTebra: i % 5 === 4 ? null : FILLER_NAMES[i],
+      dobIntakeq: `${birthYear}-${birthMonth}-${birthDay}`,
+      dobTebra: i % 5 === 4 ? null : `${birthYear}-${birthMonth}-${birthDay}`,
+      cityIntakeq: location.city,
+      zipIntakeq: location.zip,
+      phoneIntakeq: `909-555-0${String(300 + i).padStart(3, '0')}`,
+      emailIntakeq: `${first.toLowerCase()}.${last.toLowerCase().replace(/[^a-z]/g, '')}.demo@example.com`,
+      currentProvider: PROVIDER_ROSTER[i % PROVIDER_ROSTER.length].name,
+      ratingScales: inTrial ? [{ name: trial.ratingScales[0].name, score: 8 + (i % 16), date: '2026-09-01' }] : [],
+      referralType: REFERRAL_TYPES[i % REFERRAL_TYPES.length],
+      availability: AVAILABILITY_OPTIONS[i % AVAILABILITY_OPTIONS.length],
+      commConsentSigned: i % 4 !== 3,
+      commConsentPref: ['Phone', 'Email', 'Text'][i % 3],
     })
 
-    const screening = await db.insert(patientTrialScreenings).values({ patientId: id, trialId: trial.id, overallStatus: status }).returning()
-    await db.insert(screeningCriteriaResults).values({
-      screeningId: screening[0].id,
-      criterionKey: 'diagnosis',
-      criterionText: `Confirmed ${trial.condition} diagnosis`,
-      verdict: status,
-      evidenceQuote: `Dx: ${trial.diagnosisCodes[0].code} ${trial.diagnosisCodes[0].description}`,
-      evidenceSourceDoc: 'Tebra Condition list',
-      evidenceSourceDate: '2026-08-01',
-    })
+    if (inTrial) {
+      await db.insert(diagnoses).values({ patientId: id, code: trial.diagnosisCodes[0].code, description: trial.diagnosisCodes[0].description, source: 'tebra', date: '2026-08-01' })
+      const screening = await db.insert(patientTrialScreenings).values({ patientId: id, trialId: trial.id, overallStatus: status }).returning()
+      await db.insert(screeningCriteriaResults).values({
+        screeningId: screening[0].id,
+        criterionKey: 'diagnosis',
+        criterionText: `Confirmed ${trial.condition} diagnosis`,
+        verdict: status,
+        evidenceQuote: `Dx: ${trial.diagnosisCodes[0].code} ${trial.diagnosisCodes[0].description}`,
+        evidenceSourceDoc: 'Tebra Condition list',
+        evidenceSourceDate: '2026-08-01',
+      })
+    } else {
+      // General-population patient, not part of either active study --
+      // still a real chart with its own diagnosis, so the panel doesn't
+      // read as "trial candidates only."
+      const dx = GENERAL_DIAGNOSES[i % GENERAL_DIAGNOSES.length]
+      await db.insert(diagnoses).values({ patientId: id, code: dx.code, description: dx.description, source: 'tebra', date: '2026-07-15' })
+    }
+
+    // Roughly half the panel has an active medication on file, drawn from a
+    // pool wide enough that the Medications view doesn't look like everyone
+    // is on the same drug.
+    if (i % 2 === 0) {
+      const med = GENERAL_MEDICATIONS[i % GENERAL_MEDICATIONS.length]
+      await db.insert(medicationEpisodes).values({ patientId: id, name: med.name, medicationClass: med.medicationClass, dose: med.dose, startDate: '2026-06-01', status: 'active' })
+    }
+
+    // A handful of allergies, since real charts aren't uniformly blank here.
+    if (i % 6 === 0) {
+      const allergy = [{ allergen: 'Penicillin', reaction: 'Rash' }, { allergen: 'Sulfa drugs', reaction: 'Hives' }, { allergen: 'Latex', reaction: 'Contact dermatitis' }, { allergen: 'Shellfish', reaction: 'Anaphylaxis' }][i % 4]
+      await db.insert(allergies).values({ patientId: id, allergen: allergy.allergen, reaction: allergy.reaction, severity: (['mild', 'moderate', 'severe'] as const)[i % 3] })
+    }
   }
 }
 
@@ -211,6 +294,43 @@ async function seedProvidersAndAppointments() {
     { patientId: 'RD-0011', providerId: farr.id, startsAt: new Date('2026-09-29T13:30:00'), endsAt: new Date('2026-09-29T14:00:00'), visitReason: 'Follow-up visit', status: 'scheduled' },
     { patientId: 'RD-0012', providerId: kunam.id, startsAt: new Date('2026-09-30T11:00:00'), endsAt: new Date('2026-09-30T11:30:00'), visitReason: 'Randomization visit', status: 'scheduled' },
   ])
+}
+
+// Spreads a few appointments across the expanded filler roster (RD-0020+)
+// so the Calendar and the Home dashboard's Upcoming Appointments widget
+// reflect the fuller panel too, not just the original 12 demo patients.
+// Idempotent: skips any patient that already has an appointment on file.
+async function seedAdditionalAppointmentsForExpandedRoster() {
+  const db = getDb()
+  const rosterProviders = await db.select().from(providers)
+  if (rosterProviders.length === 0) return
+
+  const VISIT_REASONS = ['New patient intake', 'Medication review', 'Follow-up visit', 'Screening visit', 'Consent review', 'Baseline rating scale']
+  let dayOffset = 3
+
+  for (let i = 12; i < FILLER_NAMES.length; i++) {
+    const id = `RD-${String(7 + i).padStart(4, '0')}`
+    const [patient] = await db.select({ id: patients.id }).from(patients).where(eq(patients.id, id))
+    if (!patient) continue // this id was skipped in seedFillerPatients (e.g. a real user-created patient already occupies it)
+    if (i % 2 !== 0) continue // spread appointments across roughly half of the new roster, not every patient
+
+    const [existingAppt] = await db.select({ id: appointments.id }).from(appointments).where(eq(appointments.patientId, id))
+    if (existingAppt) continue
+
+    const provider = rosterProviders[i % rosterProviders.length]
+    const startsAt = new Date(`2026-10-${String(1 + (dayOffset % 28)).padStart(2, '0')}T${String(9 + (i % 6)).padStart(2, '0')}:00:00`)
+    const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000)
+    dayOffset += 2
+
+    await db.insert(appointments).values({
+      patientId: id,
+      providerId: provider.id,
+      startsAt,
+      endsAt,
+      visitReason: VISIT_REASONS[i % VISIT_REASONS.length],
+      status: 'scheduled',
+    })
+  }
 }
 
 async function clearExistingData() {
@@ -260,6 +380,11 @@ export async function seed() {
       await seedProvidersAndAppointments()
       console.log('Seeded providers/appointments (patients table was already populated).')
     }
+    // seedFillerPatients() skips any id that already exists, so it's safe to
+    // call again here to top up the roster with any new FILLER_NAMES entries
+    // added since this database was first seeded.
+    await seedFillerPatients()
+    await seedAdditionalAppointmentsForExpandedRoster()
     return
   }
 
@@ -276,8 +401,8 @@ export async function seed() {
   for (const p of HERO_PATIENTS) {
     await db.insert(patients).values({
       id: p.id,
-      intakeqClientIdEncrypted: `enc-iq-${p.id}`,
-      tebraPatientIdEncrypted: p.nameTebra ? `enc-tb-${p.id}` : null,
+      intakeqClientIdRef: `enc-iq-${p.id}`,
+      tebraPatientIdRef: p.nameTebra ? `enc-tb-${p.id}` : null,
       nameIntakeq: p.nameIntakeq,
       nameTebra: p.nameTebra,
       dobIntakeq: p.dobIntakeq,
@@ -310,8 +435,8 @@ export async function seed() {
   await seedProvidersAndAppointments()
 
   await db.insert(identityMatches).values([
-    { intakeqClientIdEncrypted: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdEncrypted: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
-    { intakeqClientIdEncrypted: 'enc-iq-pending-02', referralName: 'Katherine Voss', referralDob: '1982-12-05', candidateTebraPatientIdEncrypted: 'enc-tb-cand-02', candidateName: 'Kathryn Voss', candidateDob: '1982-12-05', confidence: 88, status: 'pending' },
+    { intakeqClientIdRef: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdRef: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
+    { intakeqClientIdRef: 'enc-iq-pending-02', referralName: 'Katherine Voss', referralDob: '1982-12-05', candidateTebraPatientIdRef: 'enc-tb-cand-02', candidateName: 'Kathryn Voss', candidateDob: '1982-12-05', confidence: 88, status: 'pending' },
   ])
 
   // Form templates: one per trial condition, each with a handful of
