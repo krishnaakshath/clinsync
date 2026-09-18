@@ -109,8 +109,8 @@ export function BroadcastWizard({ trials }: { trials: Trial[] }) {
       {step === 1 && (
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Channel</label>
-            <select value={channel} onChange={(e) => setChannel(e.target.value as 'sms' | 'email' | 'both')} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+            <label htmlFor="broadcast-channel" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Channel</label>
+            <select id="broadcast-channel" value={channel} onChange={(e) => setChannel(e.target.value as 'sms' | 'email' | 'both')} className="w-full rounded-md border border-border px-3 py-2 text-sm">
               <option value="sms">SMS</option>
               <option value="email">Email</option>
               <option value="both">SMS and Email</option>
@@ -118,13 +118,13 @@ export function BroadcastWizard({ trials }: { trials: Trial[] }) {
           </div>
           {(channel === 'email' || channel === 'both') && (
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subject</label>
-              <input value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+              <label htmlFor="broadcast-subject" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subject</label>
+              <input id="broadcast-subject" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
             </div>
           )}
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message</label>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+            <label htmlFor="broadcast-message" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message</label>
+            <textarea id="broadcast-message" value={message} onChange={(e) => setMessage(e.target.value)} rows={4} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
             {channel === 'sms' && <p className={`mt-1 text-xs ${messageTooLong ? 'text-destructive' : 'text-muted-foreground'}`}>{message.length}/140 characters</p>}
           </div>
           <div className="flex justify-end">
@@ -142,21 +142,21 @@ export function BroadcastWizard({ trials }: { trials: Trial[] }) {
       {step === 2 && (
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trial</label>
-            <select value={trialId} onChange={(e) => setTrialId(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+            <label htmlFor="broadcast-trial" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trial</label>
+            <select id="broadcast-trial" value={trialId} onChange={(e) => setTrialId(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
               <option value="">All trials</option>
               {trials.map((t) => <option key={t.id} value={t.id}>{t.condition}</option>)}
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Screening Status</label>
-            <select value={overallStatus} onChange={(e) => setOverallStatus(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+            <label htmlFor="broadcast-overall-status" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Screening Status</label>
+            <select id="broadcast-overall-status" value={overallStatus} onChange={(e) => setOverallStatus(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
               {OVERALL_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Form Status</label>
-            <select value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+            <label htmlFor="broadcast-form-status" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Form Status</label>
+            <select id="broadcast-form-status" value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
               {FORM_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
