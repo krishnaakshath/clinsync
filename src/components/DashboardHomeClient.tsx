@@ -12,7 +12,7 @@ export function DashboardHomeClient({ templates, patients }: {
   return (
     <div className="mb-6 flex gap-3">
       <button onClick={() => setOpenModal('form')} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90">Send Form to Client</button>
-      <button onClick={() => setOpenModal('client')} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">Add New Client</button>
+      <button onClick={() => setOpenModal('client')} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">Add New Patient</button>
       {openModal === 'client' && <AddClientModal onClose={() => setOpenModal(null)} />}
       {openModal === 'form' && <SendFormModal templates={templates} patients={patients} onClose={() => setOpenModal(null)} />}
     </div>

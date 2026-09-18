@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listAllTrials } from '@/lib/queries/trials'
 import { PatientsTable } from '@/components/PatientsTable'
+import { AddPatientButton } from '@/components/AddPatientButton'
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ trialId?: string }> }) {
   // Must be the first statement: a final security review proved that relying
@@ -22,7 +23,10 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Patients</h1>
-        <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Download Verification Workbook</a>
+        <div className="flex items-center gap-3">
+          <AddPatientButton />
+          <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Download Verification Workbook</a>
+        </div>
       </div>
 
       <div className="mb-4 flex items-center gap-1 rounded-lg border border-primary/10 bg-card/80 p-1 text-sm backdrop-blur-sm">

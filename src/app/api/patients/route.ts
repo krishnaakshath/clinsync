@@ -12,7 +12,14 @@ const addClientSchema = z.object({
   dobIntakeq: z.string().min(1),
   emailIntakeq: z.string().email().optional(),
   phoneIntakeq: z.string().optional(),
+  cityIntakeq: z.string().optional(),
+  zipIntakeq: z.string().optional(),
+  currentProvider: z.string().optional(),
   referralType: z.string().optional(),
+  availability: z.string().optional(),
+  commConsentSigned: z.boolean().optional(),
+  commConsentPref: z.string().optional(),
+  formNotes: z.string().optional(),
 }).strict()
 
 export async function GET(request: NextRequest) {
