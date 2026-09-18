@@ -102,32 +102,27 @@ function DayView({ date, appointments }: { date: Date; appointments: Appointment
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
 
   if (dayAppointments.length === 0) {
-    return <p className="text-sm text-muted-foreground">No appointments to show.</p>
+    return <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No appointments to show.</p>
   }
 
   return (
-    <table className="w-full border-collapse text-sm">
-      <thead>
-        <tr className="border-b border-border text-left">
-          <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Time</th>
-          <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>
-          <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Provider</th>
-          <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Visit Reason</th>
-          <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {dayAppointments.map((a, i) => (
-          <tr key={a.id} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''}`}>
-            <td className="p-3 text-foreground">{formatTime(a.startsAt)} – {formatTime(a.endsAt)}</td>
-            <td className="p-3"><Link href={`/patients/${a.patientId}`} className="font-medium text-primary hover:underline">{a.patientName}</Link></td>
-            <td className="p-3 text-foreground"><span className="inline-flex items-center gap-2"><ProviderDot colorTag={a.providerColorTag} />{a.providerName}</span></td>
-            <td className="p-3 text-foreground">{a.visitReason}</td>
-            <td className="p-3"><AppointmentStatusSelect appointmentId={a.id} status={a.status} /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="space-y-2">
+      {dayAppointments.map((a) => (
+        <div key={a.id} className="flex items-center justify-between gap-4 rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+          <div className="flex items-center gap-4">
+            <div className="w-24 shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatTime(a.startsAt)}</div>
+            <div>
+              <Link href={`/patients/${a.patientId}`} className="font-medium text-primary hover:underline">{a.patientName}</Link>
+              <p className="text-xs text-muted-foreground">{a.visitReason}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center gap-2 text-sm text-foreground"><ProviderDot colorTag={a.providerColorTag} />{a.providerName}</span>
+            <AppointmentStatusSelect appointmentId={a.id} status={a.status} />
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

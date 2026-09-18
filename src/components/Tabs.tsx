@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react'
 
 export interface TabDef {
   id: string
-  label: string
+  label: ReactNode
   content: ReactNode
 }
 
@@ -17,7 +17,7 @@ export function Tabs({ tabs }: { tabs: TabDef[] }) {
             key={t.id}
             onClick={() => setActive(t.id)}
             aria-current={active === t.id ? 'page' : undefined}
-            className={`rounded-md px-3 py-1.5 font-medium transition-colors ${active === t.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition-colors ${active === t.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {t.label}
           </button>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { FlaskConical, Users } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { listAllTrials } from '@/lib/queries/trials'
 
@@ -10,15 +11,40 @@ export default async function TrialsPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-foreground">Trials & Protocols</h1>
-      <div className="space-y-3">
-        {trials.map((t) => (
-          <Link key={t.id} href={`/trials/${t.id}`} className="group block rounded-xl border border-primary/10 border-l-2 border-l-transparent bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-l-primary hover:bg-primary/5 hover:shadow-md">
-            <p className="text-base font-semibold text-foreground group-hover:text-primary">{t.name}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{t.nctNumber} · {t.condition} · {t.site}</p>
-          </Link>
-        ))}
-        {trials.length === 0 && <p className="text-sm text-muted-foreground">No trials found.</p>}
-      </div>
+      {trials.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No trials found.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {trials.map((t) => (
+            <Link
+              key={t.id}
+              href={`/trials/${t.id}`}
+              className="group flex flex-col gap-3 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+                  <FlaskConical className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-foreground group-hover:text-primary">{t.name}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{t.nctNumber}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-secondary px-2.5 py-1 font-medium text-secondary-foreground">{t.condition}</span>
+                <span className="rounded-full bg-secondary px-2.5 py-1 font-medium text-secondary-foreground">{t.site}</span>
+                <span className="rounded-full bg-secondary px-2.5 py-1 font-medium text-secondary-foreground">Age {t.ageMin}–{t.ageMax}</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 border-t border-border pt-3 text-xs text-muted-foreground">
+                <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{t.studyDrug}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
