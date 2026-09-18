@@ -14,14 +14,14 @@ export default async function IdentityMatchingPage() {
       <h1 className="mb-6 text-2xl font-bold text-foreground">Identity Matching Queue</h1>
       <div className="space-y-4">
         {matches.map((m) => (
-          <div key={m.id} className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-card p-5">
+          <div key={m.id} className="grid grid-cols-2 gap-4 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">IntakeQ Referral</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Intake Referral</p>
               <p className="text-sm">{m.referralName}</p>
               <p className="text-xs text-muted-foreground">DOB {m.referralDob}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Candidate Tebra Chart ({m.confidence}% confidence)</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Candidate Clinical Record ({m.confidence}% confidence)</p>
               <p className="text-sm">{m.candidateName}</p>
               <p className="text-xs text-muted-foreground">DOB {m.candidateDob}</p>
             </div>

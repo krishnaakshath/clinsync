@@ -34,33 +34,33 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         <StatusChip status={patient.overallStatus ?? 'yellow'} />
       </div>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Screening Evidence</h2>
+      <section className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Screening Evidence</h2>
         <div className="space-y-3">
           {patient.criteria.map((c) => <EvidenceCard key={c.id} criterion={c} />)}
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dual-Sourced Fields</h2>
+      <section className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dual-Sourced Fields</h2>
         <div className="grid grid-cols-4 gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Field</span><span>IntakeQ</span><span>Tebra</span><span>Merged (used)</span>
+          <span>Field</span><span>Intake Form</span><span>Clinical Record</span><span>Merged (used)</span>
         </div>
         <ComparisonRow label="Name" intakeq={patient.nameIntakeq} tebra={patient.nameTebra} merged={patient.nameTebra ?? patient.nameIntakeq} />
         <ComparisonRow label="DOB" intakeq={patient.dobIntakeq} tebra={patient.dobTebra} merged={patient.dobTebra ?? patient.dobIntakeq} />
         <ComparisonRow label="Email" intakeq={patient.emailIntakeq} tebra={patient.emailTebra} merged={patient.emailTebra ?? patient.emailIntakeq} />
       </section>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Diagnoses & Medications</h2>
+      <section className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Diagnoses & Medications</h2>
         <ul className="space-y-1.5 text-sm text-foreground">
           {patient.diagnoses.map((d) => <li key={d.id}>{d.code} — {d.description}</li>)}
           {patient.medications.map((m) => <li key={m.id}>{m.name} ({m.medicationClass}), {m.dose}, since {m.startDate} — {m.status}</li>)}
         </ul>
       </section>
 
-      <section className="mt-6">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Allergies</h2>
+      <section className="mt-6 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Allergies</h2>
         {patient.allergies.length === 0 ? (
           <p className="text-sm text-muted-foreground">No known allergies recorded.</p>
         ) : (
@@ -70,8 +70,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         )}
       </section>
 
-      <section className="mt-6">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Identity Verification</h2>
+      <section className="mt-6 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Identity Verification</h2>
         {patient.identityVerification?.verified ? (
           <div className="flex items-center gap-2 text-sm">
             <span className="h-2 w-2 rounded-full bg-emerald-600" aria-hidden="true" />

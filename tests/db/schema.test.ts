@@ -12,5 +12,7 @@ describe('schema', () => {
     expect(schema.identityMatches).toBeDefined()
     expect(schema.auditLog).toBeDefined()
     expect(schema.users).toBeDefined()
+    expect(schema.providers).toBeDefined()
+    expect(schema.appointments).toBeDefined()
   })
 })

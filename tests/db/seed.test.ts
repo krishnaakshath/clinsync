@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments } from '@/db/schema'
+import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments } from '@/db/schema'
 import { seed } from '@/db/seed'
 
 describe('seed', () => {
@@ -45,5 +45,21 @@ describe('seed', () => {
     expect(payments.length).toBeGreaterThanOrEqual(2)
     expect(payments.some((p) => p.result === 'success')).toBe(true)
     expect(payments.some((p) => p.result === 'failed')).toBe(true)
+  })
+
+  it('creates the independent provider roster (not backfilled from currentProvider)', async () => {
+    const rows = await getDb().select().from(providers)
+    expect(rows.length).toBe(5)
+    expect(new Set(rows.map((r) => r.colorTag)).size).toBe(5)
+  })
+
+  it('creates appointments spanning multiple statuses', async () => {
+    const rows = await getDb().select().from(appointments)
+    expect(rows.length).toBeGreaterThanOrEqual(10)
+    const statuses = new Set(rows.map((r) => r.status))
+    expect(statuses.has('scheduled')).toBe(true)
+    expect(statuses.has('completed')).toBe(true)
+    expect(statuses.has('cancelled')).toBe(true)
+    expect(statuses.has('no_show')).toBe(true)
   })
 })
