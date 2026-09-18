@@ -7,6 +7,7 @@ const ITEMS = [
   { href: '/patients', label: 'Patients' },
   { href: '/identity-matching', label: 'Identity Matching' },
   { href: '/trials', label: 'Trials & Protocols' },
+  { href: '/calendar', label: 'Calendar' },
   { href: '/forms', label: 'Form Templates' },
   { href: '/client-forms', label: 'Client Forms' },
   { href: '/audit-log', label: 'Audit Log' },
