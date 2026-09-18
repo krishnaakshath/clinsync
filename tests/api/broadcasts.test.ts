@@ -1,8 +1,21 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterAll } from 'vitest'
 import { GET as listBroadcasts, POST as createBroadcast } from '@/app/api/broadcasts/route'
 import { GET as recipientPreview } from '@/app/api/broadcasts/recipients/route'
+import { getDb } from '@/db/client'
+import { broadcasts } from '@/db/schema'
+import { inArray } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+
+// This suite exercises the real create-broadcast DB path against the shared
+// dev database (not mocked), so every broadcast it creates is tracked here
+// and deleted afterward -- otherwise these rows accumulate permanently,
+// since seed()'s guard against destructive reseeds means a non-empty
+// `broadcasts` table is never cleared between runs.
+const createdBroadcastIds: number[] = []
+afterAll(async () => {
+  if (createdBroadcastIds.length > 0) await getDb().delete(broadcasts).where(inArray(broadcasts.id, createdBroadcastIds))
+})
 
 describe('GET /api/broadcasts', () => {
   it('returns the seeded broadcast history', async () => {
@@ -45,6 +58,7 @@ describe('POST /api/broadcasts', () => {
     const res = await createBroadcast(req as never)
     expect(res.status).toBe(201)
     const body = await res.json()
+    if (body.id) createdBroadcastIds.push(body.id)
     expect(body.recipientCount).toBeGreaterThan(0)
     expect(body.recipients.length).toBe(body.recipientCount)
   })
