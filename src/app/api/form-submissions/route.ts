@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
@@ -32,7 +33,10 @@ export async function POST(request: NextRequest) {
   const parsed = sendFormSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid send-form payload', details: parsed.error.flatten() }, { status: 400 })
 
-  const [created] = await getDb().insert(formSubmissions).values({ ...parsed.data, status: 'sent' }).returning()
+  const accessToken = randomBytes(32).toString('base64url')
+  const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+
+  const [created] = await getDb().insert(formSubmissions).values({ ...parsed.data, status: 'sent', accessToken, tokenExpiresAt }).returning()
   await logAudit(session, 'sent intake form', parsed.data.patientId)
   return NextResponse.json(created, { status: 201 })
 }
