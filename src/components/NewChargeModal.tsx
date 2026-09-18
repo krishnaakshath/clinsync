@@ -31,7 +31,7 @@ export function NewChargeModal({ patients }: { patients: { id: string; name: str
     const res = await fetch('/api/charges', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patientId, providerName, dateOfService, diagnosisCodes: dx, procedureCodes: proc, amountCents }),
+      body: JSON.stringify({ patientId, providerName, dateOfService, diagnosisCodes: dx, procedureCodes: proc }),
     })
     setSaving(false)
     if (res.ok) {

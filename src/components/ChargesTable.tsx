@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { DataGridToolbar, type DataGridFilterField, type DataGridColumn } from '@/components/DataGridToolbar'
 import { NewChargeModal } from '@/components/NewChargeModal'
 import { formatCents } from '@/lib/format'
+import { CHARGE_STATUS_LABELS, nextStatusActions, type ChargeStatus } from '@/lib/charge-status'
 
 type Charge = {
   id: number
@@ -13,21 +14,16 @@ type Charge = {
   providerName: string
   dateOfService: string
   amountCents: number
-  status: 'draft' | 'pending_approval' | 'approved' | 'submitted'
+  status: ChargeStatus
 }
 
-const STATUS_LABELS: Record<Charge['status'], string> = {
-  draft: 'Draft',
-  pending_approval: 'Pending Approval',
-  approved: 'Approved',
-  submitted: 'Submitted',
-}
+const STATUS_LABELS = CHARGE_STATUS_LABELS
 
-const NEXT_STATUS_ACTIONS: Record<Charge['status'], { label: string; next: Charge['status'] }[]> = {
-  draft: [{ label: 'Send for Approval', next: 'pending_approval' }],
-  pending_approval: [{ label: 'Approve', next: 'approved' }, { label: 'Send Back to Draft', next: 'draft' }],
-  approved: [{ label: 'Submit', next: 'submitted' }, { label: 'Send Back for Approval', next: 'pending_approval' }],
-  submitted: [],
+const STATUS_DOT: Record<ChargeStatus, string> = {
+  draft: 'bg-muted-foreground',
+  pending_approval: 'bg-warning',
+  approved: 'bg-primary',
+  submitted: 'bg-success',
 }
 
 const COLUMNS: DataGridColumn[] = [
@@ -111,12 +107,19 @@ export function ChargesTable({ charges, patients }: { charges: Charge[]; patient
                 {show('dateOfService') && <td className="p-3 text-foreground">{c.dateOfService}</td>}
                 {show('patient') && <td className="p-3"><Link href={`/billing/charges/${c.id}`} className="font-medium text-primary hover:underline">{c.patientName}</Link></td>}
                 {show('provider') && <td className="p-3 text-foreground">{c.providerName}</td>}
-                {show('status') && <td className="p-3 text-foreground">{STATUS_LABELS[c.status]}</td>}
+                {show('status') && (
+                  <td className="p-3">
+                    <span className="inline-flex items-center gap-1.5 text-foreground">
+                      <span className={`h-2 w-2 rounded-full ${STATUS_DOT[c.status]}`} aria-hidden="true" />
+                      {STATUS_LABELS[c.status]}
+                    </span>
+                  </td>
+                )}
                 {show('amount') && <td className="p-3 text-foreground">{formatCents(c.amountCents)}</td>}
                 {show('actions') && (
                   <td className="p-3">
                     <div className="flex gap-2">
-                      {NEXT_STATUS_ACTIONS[c.status].map((action) => (
+                      {nextStatusActions(c.status).map((action) => (
                         <button
                           key={action.next}
                           type="button"
