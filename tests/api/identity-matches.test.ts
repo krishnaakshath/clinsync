@@ -89,6 +89,24 @@ describe('POST /api/identity-matches/[id]/confirm', () => {
     expect(response.status).toBe(303)
     expect(response.headers.get('location')).toMatch(/\/identity-matching$/)
   })
+
+  it('rejects a cross-origin form submission (the CSRF attack this queue is exposed to)', async () => {
+    const target = allMatchIds[0]
+    const response = await confirmMatch(
+      new NextRequest('http://localhost/api/identity-matches/x/confirm', { method: 'POST', headers: { origin: 'https://attacker.example' } }),
+      { params: Promise.resolve({ id: String(target) }) }
+    )
+    expect(response.status).toBe(403)
+  })
+
+  it('allows a same-origin form submission through', async () => {
+    const target = allMatchIds[0]
+    const response = await confirmMatch(
+      new NextRequest('http://localhost/api/identity-matches/x/confirm', { method: 'POST', headers: { origin: 'http://localhost', accept: 'application/json' } }),
+      { params: Promise.resolve({ id: String(target) }) }
+    )
+    expect(response.status).toBe(200)
+  })
 })
 
 describe('POST /api/identity-matches/[id]/reject', () => {
@@ -108,5 +126,14 @@ describe('POST /api/identity-matches/[id]/reject', () => {
     )
     const body = await response.json()
     expect(body.status).toBe('rejected')
+  })
+
+  it('rejects a cross-origin form submission (the CSRF attack this queue is exposed to)', async () => {
+    const target = allMatchIds[0]
+    const response = await rejectMatch(
+      new NextRequest('http://localhost/api/identity-matches/x/reject', { method: 'POST', headers: { origin: 'https://attacker.example' } }),
+      { params: Promise.resolve({ id: String(target) }) }
+    )
+    expect(response.status).toBe(403)
   })
 })
