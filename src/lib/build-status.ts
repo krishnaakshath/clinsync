@@ -20,7 +20,7 @@ export const BUILD_PHASES: Phase[] = [
   { name: 'Phase 3 — Billing', total: 13, done: 13, status: 'progress', note: 'All 13 tasks done locally -- pending whole-branch review before merge.' },
   { name: 'Patient Intake Portal', total: 6, done: 6, status: 'merged', note: 'Live — try /intake/<token> after sending a form.' },
   { name: 'Phase 5 — Engagement', total: 9, done: 9, status: 'progress', note: 'All 9 tasks done locally -- pending whole-branch review before merge.' },
-  { name: 'Phase 4 — Reports & Documents', total: 14, done: 0, status: 'blocked', note: 'Queued behind Phase 2/3 schema settling.' },
+  { name: 'Phase 4 — Reports & Documents', total: 14, done: 3, status: 'progress', note: 'Schema reconciled against real Phase 2/3 shapes; report queries landed.' },
   { name: 'Phase 6 — Practice Settings', total: 6, done: 0, status: 'blocked', note: 'Runs last by design.' },
 ]
 
