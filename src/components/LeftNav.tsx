@@ -9,6 +9,9 @@ const ITEMS = [
   { href: '/trials', label: 'Trials & Protocols' },
   { href: '/forms', label: 'Form Templates' },
   { href: '/client-forms', label: 'Client Forms' },
+  { href: '/broadcasts', label: 'Broadcasts' },
+  { href: '/experience-surveys', label: 'Experience Surveys' },
+  { href: '/pipeline-dashboard', label: 'Pipeline Dashboard' },
   { href: '/audit-log', label: 'Audit Log' },
   { href: '/settings', label: 'Settings' },
 ]
