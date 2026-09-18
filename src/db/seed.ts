@@ -33,7 +33,16 @@ const MDD_TRIAL = {
     { code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' },
   ],
   ratingScales: [{ name: 'PHQ-9', description: 'Patient Health Questionnaire-9' }],
-  medicationClasses: [{ className: 'SSRI/SNRI antidepressant', washoutDays: 56, rule: 'On current antidepressant dose for at least 8 weeks' }],
+  medicationClasses: [
+    { className: 'SSRI/SNRI antidepressant', washoutDays: 56, rule: 'On current antidepressant dose for at least 8 weeks', ruleType: 'required_stable' as const },
+    { className: 'NDRI (excluded class)', washoutDays: 0, rule: 'Not currently on an excluded medication class', ruleType: 'washout_exclusion' as const },
+  ],
+  exclusionDiagnoses: [
+    { code: 'F20.9', description: 'Schizophrenia, unspecified' },
+    { code: 'F31.9', description: 'Bipolar disorder, unspecified (manic features exclude MDD-only protocol)' },
+    { code: 'F10.20', description: 'Alcohol use disorder, moderate' },
+  ],
+  minRatingScaleScore: 10,
 }
 
 const ADHD_TRIAL = {
@@ -47,7 +56,12 @@ const ADHD_TRIAL = {
   ageMax: 55,
   diagnosisCodes: [{ code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' }],
   ratingScales: [{ name: 'ASRS-v1.1', description: 'Adult ADHD Self-Report Scale' }],
-  medicationClasses: [{ className: 'Stimulant', washoutDays: 14, rule: 'No stimulant medication within the last 14 days' }],
+  medicationClasses: [{ className: 'Stimulant', washoutDays: 14, rule: 'No stimulant medication within the last 14 days', ruleType: 'washout_exclusion' as const }],
+  exclusionDiagnoses: [
+    { code: 'F20.9', description: 'Schizophrenia, unspecified' },
+    { code: 'F10.20', description: 'Alcohol use disorder, moderate' },
+  ],
+  minRatingScaleScore: 14,
 }
 
 // Independent provider roster — see the Design Decision section in this
@@ -148,6 +162,13 @@ const HERO_PATIENTS: HeroPatient[] = [
 // A larger, more varied roster than a handful of near-identical demo rows --
 // meant to read like an actual clinic's patient panel (mixed ages, cities,
 // diagnoses, referral sources), not just enough rows to exercise the UI.
+// Criterion keys among HERO_PATIENTS' hand-authored demo criteria that are
+// actually exclusion rules -- everything else defaults to inclusion. Only
+// matters for the initial seed's display; the real evaluator (lib/eligibility.ts)
+// tags every criterion it generates directly and supersedes these on the
+// first Refresh/Run Classification.
+const EXCLUSION_CRITERION_KEYS = new Set(['excluded-medication', 'stimulant-washout'])
+
 const FILLER_NAMES = [
   'Robert Nguyen', 'Angela Ferraro', 'Devon Okafor', 'Sana Patel', 'Wesley Turner', 'Isabel Marquez',
   'Owen Fitzgerald', 'Grace Kim', 'Tobias Reyes', 'Nadia Suleiman', 'Colin Brantley', 'Fatima Rashid',
@@ -243,6 +264,7 @@ async function seedFillerPatients() {
         screeningId: screening[0].id,
         criterionKey: 'diagnosis',
         criterionText: `Confirmed ${trial.condition} diagnosis`,
+        criterionType: 'inclusion',
         verdict: status,
         evidenceQuote: `Dx: ${trial.diagnosisCodes[0].code} ${trial.diagnosisCodes[0].description}`,
         evidenceSourceDoc: 'Tebra Condition list',
@@ -427,7 +449,7 @@ export async function seed() {
 
     const screening = await db.insert(patientTrialScreenings).values({ patientId: p.id, trialId: p.trialId, overallStatus: p.overallStatus }).returning()
     for (const c of p.criteria) {
-      await db.insert(screeningCriteriaResults).values({ screeningId: screening[0].id, criterionKey: c.key, criterionText: c.text, verdict: c.verdict, evidenceQuote: c.quote, evidenceSourceDoc: c.sourceDoc, evidenceSourceDate: c.sourceDate })
+      await db.insert(screeningCriteriaResults).values({ screeningId: screening[0].id, criterionKey: c.key, criterionText: c.text, criterionType: EXCLUSION_CRITERION_KEYS.has(c.key) ? 'exclusion' : 'inclusion', verdict: c.verdict, evidenceQuote: c.quote, evidenceSourceDoc: c.sourceDoc, evidenceSourceDate: c.sourceDate })
     }
   }
 

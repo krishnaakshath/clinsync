@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { maybeAutoClassify } from '@/lib/auto-classify'
 import { getDb } from '@/db/client'
-import { appSettings, patients, diagnoses, patientTrialScreenings, screeningCriteriaResults, auditLog } from '@/db/schema'
+import { appSettings, patients, diagnoses, medicationEpisodes, patientTrialScreenings, screeningCriteriaResults, auditLog } from '@/db/schema'
 import { eq, and, gt } from 'drizzle-orm'
 
 const TEST_SESSION = { role: 'crc' as const, name: 'Test Runner' }
@@ -16,9 +16,18 @@ async function setAutoClassify(value: boolean) {
 }
 
 async function cleanup() {
-  await getDb().delete(screeningCriteriaResults).where(eq(screeningCriteriaResults.criterionKey, 'test-criterion'))
+  // regenerateScreeningCriteria (the real eligibility engine) replaces
+  // whatever criteria rows exist with freshly generated ones carrying real
+  // criterionKeys ('age-range', 'diagnosis', ...) -- filtering by a fixed
+  // 'test-criterion' key here would miss those and leave FK-blocking rows
+  // behind, so delete by screeningId instead.
+  const screenings = await getDb().select({ id: patientTrialScreenings.id }).from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, TEST_PATIENT_ID))
+  for (const s of screenings) {
+    await getDb().delete(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, s.id))
+  }
   await getDb().delete(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, TEST_PATIENT_ID))
   await getDb().delete(diagnoses).where(eq(diagnoses.patientId, TEST_PATIENT_ID))
+  await getDb().delete(medicationEpisodes).where(eq(medicationEpisodes.patientId, TEST_PATIENT_ID))
   await getDb().delete(auditLog).where(and(eq(auditLog.patientId, TEST_PATIENT_ID), gt(auditLog.id, 0)))
   await getDb().delete(patients).where(eq(patients.id, TEST_PATIENT_ID))
 }
@@ -36,10 +45,20 @@ describe('maybeAutoClassify', () => {
     // itself) comfortably exceed vitest's default 5s test timeout.
     await cleanup()
     await setAutoClassify(true)
-    await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01' })
+    // A chart that genuinely satisfies every one of nct06911112's real
+    // inclusion/exclusion criteria (see lib/eligibility.ts) -- age in range,
+    // matching diagnosis, no exclusion diagnosis, stable on the required
+    // antidepressant class well past its 56-day minimum, and a qualifying
+    // PHQ-9 score -- so the real evaluator legitimately produces 'green',
+    // proving maybeAutoClassify now recomputes from real data rather than
+    // just re-aggregating whatever criteria rows already existed.
+    await getDb().insert(patients).values({
+      id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01',
+      ratingScales: [{ name: 'PHQ-9', score: 15, date: '2026-08-01' }],
+    })
     await getDb().insert(diagnoses).values({ patientId: TEST_PATIENT_ID, code: 'F33.1', description: 'Test diagnosis', source: 'tebra' })
+    await getDb().insert(medicationEpisodes).values({ patientId: TEST_PATIENT_ID, name: 'Sertraline', medicationClass: 'SSRI/SNRI antidepressant', dose: '100mg daily', startDate: '2026-01-01', status: 'active' })
     const [screening] = await getDb().insert(patientTrialScreenings).values({ patientId: TEST_PATIENT_ID, trialId: 'nct06911112', overallStatus: 'yellow' }).returning()
-    await getDb().insert(screeningCriteriaResults).values({ screeningId: screening.id, criterionKey: 'test-criterion', criterionText: 'Test criterion', verdict: 'green' })
 
     await maybeAutoClassify(TEST_PATIENT_ID, TEST_SESSION)
 

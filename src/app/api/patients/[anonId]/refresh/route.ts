@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/db/client'
-import { patients, patientTrialScreenings, screeningCriteriaResults } from '@/db/schema'
+import { patients, patientTrialScreenings } from '@/db/schema'
 import { eq } from 'drizzle-orm'
-import { evaluateCriteria } from '@/lib/rule-engine'
+import { regenerateScreeningCriteria } from '@/lib/queries/eligibility'
 import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
 import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/lib/cache'
 
-// Re-runs the rule engine against currently stored evidence and updates
-// `chartDataAsOf`. In Plan B this also re-fetches from the real
-// IntakeQ/Tebra connectors before re-evaluating.
+// Re-runs the real inclusion/exclusion rule engine (lib/eligibility.ts)
+// against the patient's current chart data and updates `chartDataAsOf`. In
+// Plan B this also re-fetches from the real IntakeQ/Tebra connectors before
+// re-evaluating.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ anonId: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
@@ -18,9 +19,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const [screening] = await getDb().select().from(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
   if (!screening) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const criteria = await getDb().select().from(screeningCriteriaResults).where(eq(screeningCriteriaResults.screeningId, screening.id))
-  const overallStatus = evaluateCriteria(criteria)
-  await getDb().update(patientTrialScreenings).set({ overallStatus }).where(eq(patientTrialScreenings.id, screening.id))
+  const overallStatus = await regenerateScreeningCriteria(anonId, screening.id, screening.trialId)
   await getDb().update(patients).set({ chartDataAsOf: new Date() }).where(eq(patients.id, anonId))
 
   await invalidateCache(patientDetailCacheKey(anonId))
