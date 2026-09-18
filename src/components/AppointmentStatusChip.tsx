@@ -2,9 +2,9 @@ import type { AppointmentStatus } from '@/lib/queries/appointments'
 
 const CONFIG: Record<AppointmentStatus, { label: string; dotClassName: string; textClassName: string }> = {
   scheduled: { label: 'Scheduled', dotClassName: 'bg-primary', textClassName: 'text-foreground' },
-  completed: { label: 'Completed', dotClassName: 'bg-emerald-600', textClassName: 'text-emerald-800' },
+  completed: { label: 'Completed', dotClassName: 'bg-success', textClassName: 'text-success' },
   cancelled: { label: 'Cancelled', dotClassName: 'bg-muted-foreground', textClassName: 'text-muted-foreground' },
-  no_show: { label: 'No-Show', dotClassName: 'bg-red-600', textClassName: 'text-red-800' },
+  no_show: { label: 'No-Show', dotClassName: 'bg-destructive', textClassName: 'text-destructive' },
 }
 
 export function AppointmentStatusChip({ status }: { status: AppointmentStatus }) {
