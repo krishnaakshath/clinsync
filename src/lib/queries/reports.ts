@@ -86,7 +86,12 @@ export async function listUnsignedNotesReport() {
       noteId: r.submission.id,
       patientId: r.patient.id,
       patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
-      visitDate: r.submission.completedDate,
+      // completedDate is a `timestamp` column -- a real Date on a cache miss
+      // but a plain string after this function's own getOrSetCache Redis
+      // round-trip on a cache hit (the same hazard already fixed once for
+      // patientStatements.sentDate in Phase 3). Normalize to an ISO string
+      // up front so every caller sees one consistent shape either way.
+      visitDate: r.submission.completedDate ? new Date(r.submission.completedDate).toISOString() : null,
       noteType: r.template.name,
       status: 'Unsigned',
       assignedUser: r.patient.currentProvider ?? 'Unassigned',

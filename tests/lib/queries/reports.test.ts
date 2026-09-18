@@ -26,6 +26,17 @@ describe('listUnsignedNotesReport', () => {
     const rows = await listUnsignedNotesReport()
     expect(rows.every((r) => r.status === 'Unsigned')).toBe(true)
   })
+
+  it('normalizes visitDate to a string regardless of cache hit/miss', async () => {
+    // formSubmissions.completedDate is a `timestamp` column -- a real Date
+    // object on a fresh DB read but a plain string after this function's own
+    // Redis round-trip on a cache hit. Calling twice exercises both paths.
+    await listUnsignedNotesReport()
+    const rows = await listUnsignedNotesReport()
+    for (const r of rows) {
+      if (r.visitDate !== null) expect(typeof r.visitDate).toBe('string')
+    }
+  })
 })
 
 describe('listAllEncountersReport', () => {
