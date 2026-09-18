@@ -68,7 +68,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
 
       <div className="space-y-3">
         {questions.map((q, i) => (
-          <div key={q.id} className="rounded-lg border border-border bg-card p-4">
+          <div key={q.id} className="rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
             <div className="mb-2 flex items-center gap-2">
               <span className="text-xs font-semibold text-muted-foreground">{i + 1}.</span>
               <input value={q.label} onChange={(e) => updateQuestion(q.id, { label: e.target.value })} className="flex-1 rounded-md border border-border px-2 py-1 text-sm text-foreground" />

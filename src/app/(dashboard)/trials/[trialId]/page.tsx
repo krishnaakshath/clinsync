@@ -14,20 +14,20 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-bold text-foreground">{trial.name}</h1>
-      <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Diagnosis Codes</h2>
+      <section className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-2 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Diagnosis Codes</h2>
         <ul className="space-y-1.5 text-sm text-foreground">
           {trial.diagnosisCodes.map((d) => <li key={d.code}>{d.code} — {d.description}</li>)}
         </ul>
       </section>
-      <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating Scale(s)</h2>
+      <section className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-2 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating Scale(s)</h2>
         <ul className="space-y-1.5 text-sm text-foreground">
           {trial.ratingScales.map((r) => <li key={r.name}>{r.name} — {r.description}</li>)}
         </ul>
       </section>
-      <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Medication Class Rules</h2>
+      <section className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <h2 className="mb-2 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Medication Class Rules</h2>
         <ul className="space-y-1.5 text-sm text-foreground">
           {trial.medicationClasses.map((m) => <li key={m.className}>{m.className} — {m.rule} ({m.washoutDays} days)</li>)}
         </ul>

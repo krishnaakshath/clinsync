@@ -20,7 +20,7 @@ export default async function FormsPage() {
         <div className="space-y-8">
           {categories.map((category) => (
             <section key={category}>
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{category}</h2>
+              <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{category}</h2>
               <div className="grid grid-cols-3 gap-4">
                 {templates.filter((t) => t.category === category).map((t) => <FormTemplateCard key={t.id} template={t} />)}
                 <CreateFormButton category={category} />
