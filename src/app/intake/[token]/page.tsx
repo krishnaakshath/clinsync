@@ -19,8 +19,9 @@ export default async function IntakePortalPage({ params }: { params: Promise<{ t
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-lg rounded-xl border border-primary/10 bg-card p-8 shadow-sm">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center gap-2">
           <IpmgWordmark className="h-8 w-auto" />
+          <span className="text-xs text-muted-foreground">via Clinsync</span>
         </div>
         <h1 className="mb-1 text-xl font-semibold text-foreground">{data.templateName}</h1>
         <p className="mb-6 text-sm text-muted-foreground">Please answer the questions below. Fields marked with an asterisk are required.</p>
@@ -37,8 +38,9 @@ function PortalMessage({ title, body }: { title: string; body: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl border border-primary/10 bg-card p-8 text-center shadow-sm">
-        <div className="mb-4 flex items-center justify-center">
+        <div className="mb-4 flex flex-col items-center gap-1">
           <IpmgWordmark className="h-8 w-auto" />
+          <span className="text-xs text-muted-foreground">via Clinsync</span>
         </div>
         <h1 className="mb-2 text-lg font-semibold text-foreground">{title}</h1>
         <p className="text-sm text-muted-foreground">{body}</p>

@@ -27,10 +27,11 @@ export function PatientPortalSideNav() {
 
   return (
     <nav className="w-60 shrink-0 overflow-y-auto bg-sidebar p-3">
-      <div className="mb-4 flex items-center rounded-lg bg-white/95 px-2.5 py-2">
+      <div className="mb-1 flex items-center rounded-lg bg-white/95 px-2.5 py-2">
         <IpmgIcon className="h-5 w-auto" />
       </div>
-      <p className="mb-1.5 mt-4 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 first:mt-0">Patient Portal</p>
+      <p className="mb-4 px-2.5 text-[11px] font-medium text-sidebar-foreground/50">Clinsync</p>
+      <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">Patient Portal</p>
       <ul className="space-y-0.5">
         {ITEMS.map((item) => {
           const active = isActive(pathname, item.href)

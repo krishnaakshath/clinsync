@@ -50,7 +50,10 @@ export default function PatientPortalLoginPage() {
           <div className="rounded-lg bg-white/95 px-3 py-2">
             <IpmgIcon className="h-6 w-auto" />
           </div>
-          <span className="text-lg font-semibold tracking-tight">Patient Portal</span>
+          <div>
+            <span className="block text-lg font-semibold tracking-tight">Clinsync</span>
+            <span className="block text-xs text-sidebar-foreground/60">Patient Portal</span>
+          </div>
         </div>
         <div className="relative space-y-8">
           <h2 className="max-w-sm text-3xl font-bold leading-tight">Your care, your records, all in one place.</h2>
@@ -70,8 +73,9 @@ export default function PatientPortalLoginPage() {
 
       <div className="flex w-full flex-1 flex-col items-center justify-center px-4 lg:w-1/2">
         <div className="w-full max-w-sm">
-          <div className="mb-8 flex flex-col gap-1 lg:hidden">
+          <div className="mb-8 flex flex-col gap-1.5 lg:hidden">
             <IpmgWordmark className="h-10 w-auto" />
+            <span className="text-sm font-medium text-muted-foreground">Clinsync Patient Portal</span>
           </div>
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground">Patient Sign In</h1>
