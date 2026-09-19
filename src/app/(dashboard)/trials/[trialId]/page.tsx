@@ -7,10 +7,26 @@ import { listScreeningsForTrial } from '@/lib/queries/trial-screenings'
 import { Tabs } from '@/components/Tabs'
 import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
-import { EvidenceCard } from '@/components/EvidenceCard'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const HEADING = 'mb-2 border-l-2 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+
+// A lighter row than EvidenceCard for the trial-level screening buckets --
+// every criterion listed here already shares its bucket's verdict (all red
+// in "Rejected", all non-green in "Needs verification"), so repeating a
+// full status chip per criterion (as EvidenceCard does, correctly, when
+// verdicts vary within one view) is just visual noise here.
+function CriterionRow({ criterion }: { criterion: { criterionText: string; evidenceQuote: string | null; evidenceSourceDoc: string | null; evidenceSourceDate: string | null } }) {
+  return (
+    <div className="border-t border-border pt-2 first:border-t-0 first:pt-0">
+      <p className="text-sm text-foreground">{criterion.criterionText}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {criterion.evidenceQuote ? `“${criterion.evidenceQuote}”` : 'No evidence available.'}
+        {criterion.evidenceSourceDoc && <> — {criterion.evidenceSourceDoc}{criterion.evidenceSourceDate ? ` · ${criterion.evidenceSourceDate}` : ''}</>}
+      </p>
+    </div>
+  )
+}
 
 export default async function TrialDetailPage({ params }: { params: Promise<{ trialId: string }> }) {
   // Must be the first statement — see the comment in patients/page.tsx.
@@ -126,7 +142,7 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
                     {outstanding.length === 0 ? (
                       <p className="text-xs text-muted-foreground">No criterion detail recorded for this screening.</p>
                     ) : (
-                      outstanding.map((c) => <EvidenceCard key={c.id} criterion={c} />)
+                      outstanding.map((c) => <CriterionRow key={c.id} criterion={c} />)
                     )}
                   </div>
                 </div>
@@ -156,7 +172,7 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
                     {failing.length === 0 ? (
                       <p className="text-xs text-muted-foreground">No criterion detail recorded for this screening.</p>
                     ) : (
-                      failing.map((c) => <EvidenceCard key={c.id} criterion={c} />)
+                      failing.map((c) => <CriterionRow key={c.id} criterion={c} />)
                     )}
                   </div>
                 </div>
