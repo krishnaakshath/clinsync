@@ -94,7 +94,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
                 <MessageThreadView messages={selectedThread} viewerRole="provider" />
               </div>
               <div className="mt-4 border-t border-border pt-4">
-                <MessageComposer patientId={selectedPatientId} />
+                <MessageComposer patientId={selectedPatientId} viewerRole="provider" />
               </div>
             </>
           )}
