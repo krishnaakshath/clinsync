@@ -5,7 +5,14 @@ import { getOrSetCache, patientListCacheKey, patientDetailCacheKey } from '@/lib
 import { listDiscrepanciesForPatient } from '@/lib/queries/discrepancies'
 import type { Verdict } from '@/lib/rule-engine'
 
-export type PatientWithStatus = typeof patients.$inferSelect & { trialId?: string; overallStatus?: Verdict }
+export interface CriteriaSummary {
+  inclusionMet: number
+  inclusionTotal: number
+  exclusionMet: number
+  exclusionTotal: number
+}
+
+export type PatientWithStatus = typeof patients.$inferSelect & { trialId?: string; overallStatus?: Verdict; criteriaSummary?: CriteriaSummary }
 
 /**
  * Shared by the /api/patients route handler and any Server Component that
@@ -27,7 +34,40 @@ export async function listPatientsWithStatus(trialId: string | null): Promise<Pa
       .where(trialId ? eq(patientTrialScreenings.trialId, trialId) : undefined)
       .orderBy(patients.id)
 
-    return rows.map((r) => ({ ...r.patient, trialId: r.screening?.trialId, overallStatus: r.screening?.overallStatus }))
+    // Single grouped query for every screening's criteria results, joined
+    // back to patientId, so the patient list/cards can show a lightweight
+    // "N/M inclusion" readout without an N+1 per-patient criteria lookup.
+    const criteriaRows = await getDb()
+      .select({
+        patientId: patientTrialScreenings.patientId,
+        criterionType: screeningCriteriaResults.criterionType,
+        verdict: screeningCriteriaResults.verdict,
+      })
+      .from(screeningCriteriaResults)
+      .innerJoin(patientTrialScreenings, eq(screeningCriteriaResults.screeningId, patientTrialScreenings.id))
+
+    const summaryByPatient = new Map<string, CriteriaSummary>()
+    for (const row of criteriaRows) {
+      const summary = summaryByPatient.get(row.patientId) ?? { inclusionMet: 0, inclusionTotal: 0, exclusionMet: 0, exclusionTotal: 0 }
+      const met = row.verdict === 'green'
+      // Null criterionType is legacy data written before the column existed
+      // -- the UI (and this rollup) treats it the same as 'inclusion'.
+      if (row.criterionType === 'exclusion') {
+        summary.exclusionTotal += 1
+        if (met) summary.exclusionMet += 1
+      } else {
+        summary.inclusionTotal += 1
+        if (met) summary.inclusionMet += 1
+      }
+      summaryByPatient.set(row.patientId, summary)
+    }
+
+    return rows.map((r) => ({
+      ...r.patient,
+      trialId: r.screening?.trialId,
+      overallStatus: r.screening?.overallStatus,
+      criteriaSummary: summaryByPatient.get(r.patient.id),
+    }))
   })
 }
 

@@ -1,8 +1,9 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { FileText, Stethoscope, ShieldAlert } from 'lucide-react'
 import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
-import { AllergyBadge } from '@/components/AllergyBadge'
 import { RefreshEligibilityButton } from '@/components/RefreshEligibilityButton'
 import { PatientPortalAccessPanel } from '@/components/PatientPortalAccessPanel'
 import { PatientAvatar } from '@/components/PatientAvatar'
@@ -16,14 +17,16 @@ import { getPatientDetail } from '@/lib/queries/patients'
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
-function ComparisonRow({ label, intakeq, tebra, merged }: { label: string; intakeq: string | null; tebra: string | null; merged: string | null }) {
-  const mismatch = intakeq && tebra && intakeq !== tebra
+function SummaryTile({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string }) {
   return (
-    <div className="grid grid-cols-4 gap-2 border-b border-border py-3 text-sm">
-      <span className="font-medium text-muted-foreground">{label}</span>
-      <span className="text-foreground">{intakeq ?? '—'}</span>
-      <span className="text-foreground">{tebra ?? '—'}</span>
-      <span className={mismatch ? 'rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800' : 'text-foreground'}>{merged ?? '—'}</span>
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+        <Icon className="h-4.5 w-4.5" />
+      </span>
+      <div>
+        <p className="text-lg font-bold tabular-nums text-foreground">{value}</p>
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      </div>
     </div>
   )
 }
@@ -40,36 +43,24 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const name = patient.nameTebra ?? patient.nameIntakeq
 
   const overviewTab = (
-    <div className="space-y-6">
-      <section className={SECTION}>
-        <h2 className={SECTION_HEADING}>Dual-Sourced Fields</h2>
-        <div className="grid grid-cols-4 gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Field</span><span>Intake Form</span><span>Clinical Record</span><span>Merged (used)</span>
-        </div>
-        <ComparisonRow label="Name" intakeq={patient.nameIntakeq} tebra={patient.nameTebra} merged={patient.nameTebra ?? patient.nameIntakeq} />
-        <ComparisonRow label="DOB" intakeq={patient.dobIntakeq} tebra={patient.dobTebra} merged={patient.dobTebra ?? patient.dobIntakeq} />
-        <ComparisonRow label="Email" intakeq={patient.emailIntakeq} tebra={patient.emailTebra} merged={patient.emailTebra ?? patient.emailIntakeq} />
-      </section>
-
-      <section className={SECTION}>
-        <h2 className={SECTION_HEADING}>Diagnoses & Medications</h2>
-        <ul className="space-y-1.5 text-sm text-foreground">
-          {patient.diagnoses.map((d) => <li key={d.id}>{d.code} — {d.description}</li>)}
-          {patient.medications.map((m) => <li key={m.id}>{m.name} ({m.medicationClass}), {m.dose}, since {m.startDate} — {m.status}</li>)}
-        </ul>
-      </section>
-
-      <section className={SECTION}>
-        <h2 className={SECTION_HEADING}>Allergies</h2>
-        {patient.allergies.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No known allergies recorded.</p>
-        ) : (
-          <div className="space-y-2">
-            {patient.allergies.map((a) => <AllergyBadge key={a.id} allergen={a.allergen} reaction={a.reaction} severity={a.severity} />)}
-          </div>
-        )}
-      </section>
-    </div>
+    <section className={SECTION}>
+      <h2 className={SECTION_HEADING}>Medical Record Summary</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Dual-sourced demographics, diagnoses, medications, and allergies now live on a dedicated Medical Record page for this patient.
+      </p>
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <SummaryTile icon={Stethoscope} value={patient.diagnoses.length} label="Diagnoses" />
+        <SummaryTile icon={FileText} value={patient.medications.length} label="Medications" />
+        <SummaryTile icon={ShieldAlert} value={patient.allergies.length} label="Allergies" />
+      </div>
+      <Link
+        href={`/patients/${patient.id}/medical-record`}
+        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+      >
+        <FileText className="h-4 w-4" aria-hidden="true" />
+        View Full Medical Record
+      </Link>
+    </section>
   )
 
   const screeningTab = (
