@@ -138,3 +138,7 @@ export function reviewsListCacheKey(filters: string): string {
 export function pipelineDashboardCacheKey(fromISO: string, toISO: string): string {
   return `pipeline-dashboard:${fromISO}:${toISO}`
 }
+
+export function pipelineDashboardTrendCacheKey(fromISO: string, toISO: string): string {
+  return `pipeline-dashboard:trend:${fromISO}:${toISO}`
+}

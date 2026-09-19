@@ -55,6 +55,7 @@ export function AllEncountersReportTable({ rows }: { rows: EncounterReportRow[] 
       matchesFilters={matchesFilters}
       searchFields={['patientName', 'renderingProvider']}
       rowKey={(r) => r.encounterId}
+      getRowHref={(r) => `/patients/${r.patientId}`}
     />
   )
 }

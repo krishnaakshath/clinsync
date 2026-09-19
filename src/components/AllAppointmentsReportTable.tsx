@@ -62,6 +62,7 @@ export function AllAppointmentsReportTable({ rows }: { rows: AppointmentReportRo
       matchesFilters={matchesFilters}
       searchFields={['patientName', 'homePhone', 'mobilePhone']}
       rowKey={(r) => r.id}
+      getRowHref={(r) => `/patients/${r.patientId}`}
     />
   )
 }

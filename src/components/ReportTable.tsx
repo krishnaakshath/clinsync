@@ -2,7 +2,10 @@
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ChevronRight } from 'lucide-react'
 import { DataGridToolbar, type DataGridFilterField } from '@/components/DataGridToolbar'
+
+const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 
 export interface ReportColumn<Row> {
   key: string
@@ -40,12 +43,19 @@ interface ReportTableProps<Row> {
   searchFields: (keyof Row & string)[]
   rowKey: (row: Row) => string | number
   pageSize?: number
+  /**
+   * Optional "go deeper" navigation target for a row (e.g. a patient's detail
+   * page). When provided, rows for which it returns a href become clickable
+   * (cursor-pointer, hover accent, trailing chevron) and route there on
+   * click. Rows for which it returns undefined render exactly as before.
+   */
+  getRowHref?: (row: Row) => string | undefined
 }
 
 const DEFAULT_PAGE_SIZE = 25
 
 export function ReportTable<Row>({
-  rows, columns, filterFields, matchesFilters, searchFields, rowKey, pageSize = DEFAULT_PAGE_SIZE,
+  rows, columns, filterFields, matchesFilters, searchFields, rowKey, pageSize = DEFAULT_PAGE_SIZE, getRowHref,
 }: ReportTableProps<Row>) {
   const router = useRouter()
   const [search, setSearch] = useState('')
@@ -72,7 +82,7 @@ export function ReportTable<Row>({
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
 
   return (
-    <div>
+    <div className={SECTION}>
       <DataGridToolbar
         searchValue={search}
         onSearchChange={(value) => { setPage(0); setSearch(value) }}
@@ -87,32 +97,47 @@ export function ReportTable<Row>({
       />
 
       {filteredRows.length === 0 ? (
-        <p className="mt-6 text-sm text-muted-foreground">No results found.</p>
+        <p className="mt-6 rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No results found.</p>
       ) : (
         <>
-          <table className="mt-4 w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                {shownColumns.map((c) => (
-                  <th key={c.key} className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((row, i) => (
-                <tr key={rowKey(row)} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''} hover:bg-secondary`}>
+          <div className="mt-4 overflow-hidden rounded-lg border border-border">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border bg-secondary/40 text-left">
                   {shownColumns.map((c) => (
-                    <td key={c.key} className="p-3 text-foreground">{c.render(row)}</td>
+                    <th key={c.key} className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</th>
                   ))}
+                  {getRowHref && <th className="p-3" aria-hidden="true" />}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pageRows.map((row, i) => {
+                  const href = getRowHref?.(row)
+                  return (
+                    <tr
+                      key={rowKey(row)}
+                      onClick={href ? () => router.push(href) : undefined}
+                      className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''} transition-colors hover:bg-secondary ${href ? 'cursor-pointer' : ''}`}
+                    >
+                      {shownColumns.map((c) => (
+                        <td key={c.key} className="p-3 text-foreground">{c.render(row)}</td>
+                      ))}
+                      {getRowHref && (
+                        <td className="p-3 text-muted-foreground">
+                          {href && <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
           <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
             <span>Rows per page: {pageSize} · {start + 1}–{Math.min(start + pageSize, filteredRows.length)} of {filteredRows.length}</span>
             <div className="flex gap-2">
-              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="rounded-md border border-border px-2 py-1 disabled:opacity-30">Previous</button>
-              <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="rounded-md border border-border px-2 py-1 disabled:opacity-30">Next</button>
+              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="rounded-md border border-border px-2 py-1 transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent">Previous</button>
+              <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="rounded-md border border-border px-2 py-1 transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent">Next</button>
             </div>
           </div>
         </>
