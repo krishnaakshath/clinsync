@@ -10,22 +10,22 @@ import type { Role } from '@/lib/auth'
 export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; bullets: string[] }> = {
   crc: {
     label: 'Clinical Research Coordinator',
-    summary: 'Runs day-to-day pre-screening: reviews patients, resolves identity matches, and manages intake forms.',
+    summary: 'Runs day-to-day pre-screening and practice operations: reviews patients, resolves identity matches, manages intake forms, and handles billing.',
     bullets: [
-      'View and search the Patients workbook across all trials',
-      'Review and confirm/reject Identity Matching Queue candidates',
-      'Send and track intake forms, and view Trials & Protocols',
-      'Manage Calendar, Broadcasts, and Experience Surveys',
-      'View Reports, Documents, and the Audit Log',
+      'View and search the Patients workbook across all trials, Workbook, and Identity Matching',
+      'Send and track intake forms via Form Templates and Client Forms',
+      'Manage Calendar, Billing, Broadcasts, Experience Surveys, and the Pipeline Dashboard',
+      'View Reports and Documents',
     ],
   },
   pi: {
     label: 'Principal Investigator',
-    summary: 'Same operational access as a Research Coordinator, used to make clinical eligibility calls from the evidence Clinsync surfaces.',
+    summary: 'A focused, clinical-only view for making eligibility calls from the evidence Clinsync surfaces — practice operations (billing, forms administration, broadcasts, reports) are the coordinator\'s and admin\'s tools, not shown here.',
     bullets: [
-      'Everything a Research Coordinator can do',
       'View "My Patients" — the panel of patients currently assigned to them',
       'Review screening evidence to confirm or overturn an eligibility verdict',
+      'View the Patients workbook, Trials & Protocols, and Calendar',
+      'Message patients directly',
     ],
   },
   admin: {
