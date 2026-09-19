@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments, documents, faxes } from '@/db/schema'
+import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments, documents, faxes, broadcasts, reviews } from '@/db/schema'
 import { seed } from '@/db/seed'
 
 describe('seed', () => {
@@ -77,5 +77,20 @@ describe('documents and faxes seed data', () => {
     expect(rows.length).toBeGreaterThanOrEqual(8)
     expect(rows.some((f) => f.deliveryStatus === 'delivered')).toBe(true)
     expect(rows.some((f) => f.deliveryStatus === 'failed')).toBe(true)
+  })
+})
+
+describe('broadcasts and reviews seed data', () => {
+  it('creates the seeded broadcasts with recipient snapshots', async () => {
+    const rows = await getDb().select().from(broadcasts)
+    expect(rows.length).toBeGreaterThanOrEqual(4)
+    expect(rows.every((r) => Array.isArray(r.recipients) && r.recipients.length === r.recipientCount)).toBe(true)
+  })
+
+  it('creates the seeded pre-screening experience surveys, including at least one still-sent response', async () => {
+    const rows = await getDb().select().from(reviews)
+    expect(rows.length).toBeGreaterThanOrEqual(3)
+    expect(rows.some((r) => r.status === 'sent')).toBe(true)
+    expect(rows.some((r) => r.status === 'completed' && r.ratingOverall !== null)).toBe(true)
   })
 })

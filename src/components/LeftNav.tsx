@@ -29,6 +29,9 @@ const BILLING_ITEMS = [
 const TRAILING_ITEMS = [
   { href: '/reports', label: 'Reports' },
   { href: '/documents', label: 'Documents' },
+  { href: '/broadcasts', label: 'Broadcasts' },
+  { href: '/experience-surveys', label: 'Experience Surveys' },
+  { href: '/pipeline-dashboard', label: 'Pipeline Dashboard' },
   { href: '/audit-log', label: 'Audit Log' },
   { href: '/build-status', label: 'Build Progress' },
   { href: '/settings', label: 'Settings' },
