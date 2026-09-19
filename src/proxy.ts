@@ -16,4 +16,8 @@ export async function proxy(request: NextRequest) {
 // (lib/patient-session.ts, a distinct cookie), not this staff session --
 // without this exclusion every patient-portal request would get redirected
 // to the staff /login page before patient-portal's own auth check ever runs.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|intake|patient-portal).*)'] }
+// icon is excluded because it's the app's generated favicon (src/app/icon.tsx)
+// -- browsers request it directly, with no session cookie, on every page
+// including /login itself, so gating it here would leave the browser tab
+// with a broken icon for anyone not currently signed in.
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|intake|patient-portal).*)'] }
