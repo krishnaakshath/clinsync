@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { faxes, patients } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
 import { getOrSetCache, faxesListCacheKey } from '@/lib/cache'
 
 export async function listFaxes() {
@@ -9,6 +9,9 @@ export async function listFaxes() {
       .select({ fax: faxes, patient: patients })
       .from(faxes)
       .leftJoin(patients, eq(faxes.patientId, patients.id))
+      // Stable order -- see the comment in documents.ts's listDocuments()
+      // for why an unordered query here is a real bug, not just tidiness.
+      .orderBy(desc(faxes.faxDate), desc(faxes.id))
 
     return rows.map((r) => ({
       ...r.fax,

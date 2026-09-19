@@ -4,6 +4,19 @@ import type { NextConfig } from "next";
 // audits. HSTS only matters in production (over HTTP in dev it's a no-op,
 // but sending it there is still harmless).
 const nextConfig: NextConfig = {
+  experimental: {
+    // Neon's HTTP driver (@neondatabase/serverless via drizzle-orm/neon-http)
+    // issues its queries as `fetch()` calls under the hood. Next's dev-only
+    // Server Components HMR fetch cache (on by default) was caching those
+    // query responses across `router.refresh()` calls -- which explicitly
+    // do NOT bust it (only a full navigation/reload does) -- so every
+    // status-changing action across the app (charge approvals, "Mark
+    // Processed", etc.) appeared to silently do nothing until a hard
+    // reload, even though the mutation succeeded server-side. Disabling it
+    // trades a little dev-server query traffic for actions actually
+    // showing their effect immediately, which matters a lot live in a demo.
+    serverComponentsHmrCache: false,
+  },
   async headers() {
     return [
       {
