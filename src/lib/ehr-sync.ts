@@ -156,6 +156,16 @@ export async function confirmIdentityMatch(matchId: number): Promise<{ patientId
   const [match] = await db.select().from(identityMatches).where(eq(identityMatches.id, matchId))
   if (!match || match.status !== 'pending') return null
 
+  // A match row can end up back at 'pending' after already being acted on
+  // (e.g. a bug, a manual DB edit) -- re-confirming it must never create a
+  // second chart for someone who already has one. Mark it confirmed and
+  // point at the existing patient instead of inserting a duplicate.
+  const [existingPatient] = await db.select({ id: patients.id }).from(patients).where(eq(patients.intakeqClientIdRef, match.intakeqClientIdRef))
+  if (existingPatient) {
+    await db.update(identityMatches).set({ status: 'confirmed' }).where(eq(identityMatches.id, matchId))
+    return { patientId: existingPatient.id }
+  }
+
   const intakeqId = unwrapRef(match.intakeqClientIdRef)
   const tebraId = unwrapRef(match.candidateTebraPatientIdRef)
   const [client, tebraPatient] = await Promise.all([intakeq.getClient(intakeqId), tebra.getPatientById(tebraId)])
