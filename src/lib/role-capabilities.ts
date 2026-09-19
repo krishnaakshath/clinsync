@@ -25,6 +25,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'View "My Patients" — the panel of patients currently assigned to them',
       'Review screening evidence to confirm or overturn an eligibility verdict',
       'View the Patients workbook, Trials & Protocols, and Calendar',
+      'Review a patient\'s actual submitted answers in Client Forms',
       'Message patients directly',
     ],
   },
