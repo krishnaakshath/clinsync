@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { trials, patients, identityMatches, providers, appointments } from '@/db/schema'
+import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments, documents, faxes } from '@/db/schema'
 import { seed } from '@/db/seed'
 
 describe('seed', () => {
@@ -25,6 +25,28 @@ describe('seed', () => {
     expect(rows.filter((r) => r.status === 'pending').length).toBeGreaterThanOrEqual(2)
   })
 
+  it('creates charges covering every status in the workflow', async () => {
+    const rows = await getDb().select().from(charges)
+    expect(rows.length).toBeGreaterThanOrEqual(11)
+    const statuses = new Set(rows.map((r) => r.status))
+    expect(statuses).toEqual(new Set(['draft', 'pending_approval', 'approved', 'submitted']))
+  })
+
+  it('creates insurance claims covering rejected/denied/waiting/needs-investigation/paid', async () => {
+    const rows = await getDb().select().from(insuranceClaims)
+    const statuses = new Set(rows.map((r) => r.status))
+    expect(statuses).toEqual(new Set(['rejected', 'denied', 'waiting_adjudication', 'needs_investigation', 'paid']))
+  })
+
+  it('creates patient statements and mock payments', async () => {
+    const statements = await getDb().select().from(patientStatements)
+    const payments = await getDb().select().from(mockPayments)
+    expect(statements.length).toBeGreaterThanOrEqual(4)
+    expect(payments.length).toBeGreaterThanOrEqual(2)
+    expect(payments.some((p) => p.result === 'success')).toBe(true)
+    expect(payments.some((p) => p.result === 'failed')).toBe(true)
+  })
+
   it('creates the independent provider roster (not backfilled from currentProvider)', async () => {
     const rows = await getDb().select().from(providers)
     expect(rows.length).toBe(5)
@@ -39,5 +61,21 @@ describe('seed', () => {
     expect(statuses.has('completed')).toBe(true)
     expect(statuses.has('cancelled')).toBe(true)
     expect(statuses.has('no_show')).toBe(true)
+  })
+})
+
+describe('documents and faxes seed data', () => {
+  it('seeds documents with a mix of New/Processed statuses', async () => {
+    const rows = await getDb().select().from(documents)
+    expect(rows.length).toBeGreaterThanOrEqual(10)
+    expect(rows.some((d) => d.status === 'new')).toBe(true)
+    expect(rows.some((d) => d.status === 'processed')).toBe(true)
+  })
+
+  it('seeds faxes with a mix of simulated delivered/failed statuses', async () => {
+    const rows = await getDb().select().from(faxes)
+    expect(rows.length).toBeGreaterThanOrEqual(8)
+    expect(rows.some((f) => f.deliveryStatus === 'delivered')).toBe(true)
+    expect(rows.some((f) => f.deliveryStatus === 'failed')).toBe(true)
   })
 })
