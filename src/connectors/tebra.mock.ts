@@ -19,6 +19,15 @@ export async function searchPatient(name: string, dob: string): Promise<FHIRPati
   return PATIENTS.filter((p) => `${p.firstName} ${p.lastName}`.toLowerCase() === name.toLowerCase() && p.birthDate === dob)
 }
 
+export async function getPatientById(tebraPatientId: string): Promise<FHIRPatient | null> {
+  return PATIENTS.find((p) => p.tebraPatientId === tebraPatientId) ?? null
+}
+
+/** Every patient Tebra has on file -- the "pull all patients" side of a sync. */
+export async function listPatients(): Promise<FHIRPatient[]> {
+  return PATIENTS
+}
+
 export async function getActiveMedications(patientId: string): Promise<MedicationRequestResult[]> {
   return (MEDICATIONS[patientId] ?? []).filter((m) => m.status === 'active')
 }

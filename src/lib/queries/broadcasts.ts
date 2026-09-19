@@ -114,3 +114,19 @@ export async function getBroadcast(id: number) {
 export async function invalidateBroadcastsList() {
   await invalidateCache(broadcastsListCacheKey())
 }
+
+/**
+ * Broadcasts are stored with a snapshotted `recipients` jsonb array rather
+ * than a join table (see the schema comment), so "which broadcasts did this
+ * patient get" is a full-table scan filtered in application code -- the same
+ * pattern `listBroadcastRecipientCandidates` above already uses for its
+ * formStatus filter. Only ever fetched from the patient portal, where the
+ * broadcast list is small enough that this is fine. A failed delivery never
+ * reached the patient, so it's excluded here even though it's on the row.
+ */
+export async function listBroadcastsForPatient(patientId: string) {
+  const rows = await getDb().select().from(broadcasts).orderBy(desc(broadcasts.sentAt))
+  return rows
+    .filter((b) => b.recipients.some((r) => r.patientId === patientId && r.deliveryStatus === 'delivered'))
+    .map((b) => ({ id: b.id, subject: b.subject, message: b.message, channel: b.channel, sentAt: b.sentAt }))
+}

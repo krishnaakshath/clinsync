@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Pill, Stethoscope, CalendarCheck, FileText, MessageSquare, ArrowRight } from 'lucide-react'
+import { Pill, Stethoscope, CalendarCheck, FileText, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
+import { listBroadcastsForPatient } from '@/lib/queries/broadcasts'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
@@ -40,6 +41,7 @@ export default async function PatientPortalOverviewPage() {
   const data = await getPatientPortalData(session.patientId)
   if (!data) notFound()
 
+  const broadcasts = await listBroadcastsForPatient(session.patientId)
   await logPatientPortalAction('viewed patient portal overview', session.patientId)
 
   const nextAppointment = data.upcomingAppointments[0]
@@ -49,12 +51,13 @@ export default async function PatientPortalOverviewPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-foreground">Overview</h1>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
         <SummaryTile icon={Stethoscope} value={data.currentProvider ?? 'Unassigned'} label="Care team" color="primary" />
         <SummaryTile icon={Pill} value={data.activeMedications.length} label="Current meds" color="sky" href="/patient-portal/medications" />
         <SummaryTile icon={FileText} value={formsToComplete.length} label="Forms to complete" color="amber" href="/patient-portal/forms" />
         <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="emerald" href="/patient-portal/appointments" />
         <SummaryTile icon={MessageSquare} value={data.unreadMessageCount} label="New messages" color="violet" href="/patient-portal/messages" />
+        <SummaryTile icon={Megaphone} value={broadcasts.length} label="Announcements" color="sky" href="/patient-portal/broadcasts" />
       </div>
 
       {(nextAppointment || formsToComplete.length > 0) && (

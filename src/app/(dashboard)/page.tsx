@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { FileClock, ClipboardCheck, LayoutTemplate, Clock, Users, Star } from 'lucide-react'
+import { FileClock, ClipboardCheck, LayoutTemplate, Clock, Users, Star, Send, CheckCircle2, Fingerprint, Sparkles, ArrowRight } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getDashboardData } from '@/lib/queries/dashboard'
@@ -10,12 +10,24 @@ import { DashboardHomeClient } from '@/components/DashboardHomeClient'
 import { DashboardAppointmentsTable } from '@/components/DashboardAppointmentsTable'
 import { PatientsByMonthChart } from '@/components/PatientsByMonthChart'
 import { ScreeningBreakdownChart } from '@/components/ScreeningBreakdownChart'
+import { PatientAvatar } from '@/components/PatientAvatar'
 
-const EVENT_DOT: Record<string, string> = {
-  'sent intake form': 'bg-sky-600',
-  'completed intake form': 'bg-emerald-600',
-  'verified identity': 'bg-primary',
-  'ran classification': 'bg-accent',
+const FORM_STATUS_STYLE: Record<string, string> = {
+  sent: 'bg-amber-500/10 text-amber-700',
+  partial: 'bg-sky-500/10 text-sky-700',
+  completed: 'bg-emerald-500/10 text-emerald-700',
+}
+
+const EVENT_ICON: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
+  'sent intake form': { icon: Send, color: 'bg-sky-500/10 text-sky-700' },
+  'completed intake form': { icon: CheckCircle2, color: 'bg-emerald-500/10 text-emerald-700' },
+  'verified identity': { icon: Fingerprint, color: 'bg-primary/10 text-primary' },
+  'ran classification': { icon: Sparkles, color: 'bg-accent/10 text-accent' },
+}
+const EVENT_ICON_FALLBACK = { icon: Clock, color: 'bg-muted text-muted-foreground' }
+
+function EmptyRow({ text }: { text: string }) {
+  return <p className="py-6 text-center text-sm text-muted-foreground">{text}</p>
 }
 
 const CARD_SURFACE = 'rounded-xl border border-primary/10 bg-card/80 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
@@ -151,12 +163,18 @@ export default async function DashboardHomePage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className={`${CARD_SURFACE} p-5`}>
           <SectionHeading>Latest Forms Received</SectionHeading>
-          {data.latestForms.length === 0 ? <p className="text-sm text-muted-foreground">No records found.</p> : (
-            <ul className="space-y-2">
+          {data.latestForms.length === 0 ? <EmptyRow text="No forms received yet." /> : (
+            <ul className="divide-y divide-border">
               {data.latestForms.map((f) => (
-                <li key={f.id} className="text-sm">
-                  <Link href={`/client-forms/${f.id}`} className="font-medium text-primary hover:underline">{f.patientName}</Link>
-                  <span className="text-muted-foreground"> — {f.templateName}</span>
+                <li key={f.id}>
+                  <Link href={`/client-forms/${f.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:bg-secondary/40 -mx-2 px-2 rounded-lg">
+                    <PatientAvatar name={f.patientName} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{f.patientName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{f.templateName}</p>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -165,12 +183,18 @@ export default async function DashboardHomePage() {
 
         <section className={`${CARD_SURFACE} p-5`}>
           <SectionHeading>Pending Forms</SectionHeading>
-          {data.pendingForms.length === 0 ? <p className="text-sm text-muted-foreground">No records found.</p> : (
-            <ul className="space-y-2">
+          {data.pendingForms.length === 0 ? <EmptyRow text="No pending forms." /> : (
+            <ul className="divide-y divide-border">
               {data.pendingForms.map((f) => (
-                <li key={f.id} className="text-sm">
-                  <Link href={`/client-forms/${f.id}`} className="font-medium text-primary hover:underline">{f.patientName}</Link>
-                  <span className="text-muted-foreground"> — {f.templateName} ({f.status})</span>
+                <li key={f.id}>
+                  <Link href={`/client-forms/${f.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:bg-secondary/40 -mx-2 px-2 rounded-lg">
+                    <PatientAvatar name={f.patientName} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{f.patientName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{f.templateName}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${FORM_STATUS_STYLE[f.status] ?? 'bg-muted text-muted-foreground'}`}>{f.status}</span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -179,31 +203,46 @@ export default async function DashboardHomePage() {
 
         <section className={`${CARD_SURFACE} p-5`}>
           <SectionHeading>Pending Classifications</SectionHeading>
-          {data.pendingClassification.length === 0 ? <p className="text-sm text-muted-foreground">No records found.</p> : (
-            <ul className="space-y-2">
-              {data.pendingClassification.map((p) => (
-                <li key={p.id} className="text-sm">
-                  <Link href={`/patients/${p.id}`} className="font-medium text-primary hover:underline">{p.nameTebra ?? p.nameIntakeq}</Link>
-                  <span className="text-muted-foreground"> — intake complete, not yet classified</span>
-                </li>
-              ))}
+          {data.pendingClassification.length === 0 ? <EmptyRow text="Everything's been classified." /> : (
+            <ul className="divide-y divide-border">
+              {data.pendingClassification.map((p) => {
+                const name = p.nameTebra ?? p.nameIntakeq
+                return (
+                  <li key={p.id}>
+                    <Link href={`/patients/${p.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:bg-secondary/40 -mx-2 px-2 rounded-lg">
+                      <PatientAvatar name={name} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                        <p className="truncate text-xs text-muted-foreground">Intake complete, awaiting classification</p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>
 
         <section className={`${CARD_SURFACE} p-5`}>
-          <div className="mb-3 flex items-center justify-between">
-            <SectionHeading>Latest Account Events</SectionHeading>
-          </div>
-          {data.recentEvents.length === 0 ? <p className="text-sm text-muted-foreground">No records found.</p> : (
-            <ul className="space-y-2">
-              {data.recentEvents.map((e) => (
-                <li key={e.id} className="flex items-center gap-2 text-sm">
-                  <span className={`h-2 w-2 rounded-full ${EVENT_DOT[e.action] ?? 'bg-muted-foreground'}`} aria-hidden="true" />
-                  <span className="text-foreground">{e.action}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(e.timestamp).toLocaleString()}</span>
-                </li>
-              ))}
+          <SectionHeading>Latest Account Events</SectionHeading>
+          {data.recentEvents.length === 0 ? <EmptyRow text="No recent activity." /> : (
+            <ul className="divide-y divide-border">
+              {data.recentEvents.map((e) => {
+                const { icon: Icon, color } = EVENT_ICON[e.action] ?? EVENT_ICON_FALLBACK
+                return (
+                  <li key={e.id} className="flex items-center gap-3 py-2.5">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${color}`} aria-hidden="true">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-foreground">{e.action}</p>
+                      <p className="text-xs text-muted-foreground">{e.userName}</p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">{new Date(e.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>

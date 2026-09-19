@@ -1,12 +1,14 @@
-import { Building2, Plug, SlidersHorizontal, UserCircle2, Users } from 'lucide-react'
+import { Building2, Plug, SlidersHorizontal, UserCircle2, Users, IdCard } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { getSettingsSummary } from '@/lib/queries/settings'
 import { listAllProviders } from '@/lib/queries/providers'
+import { listAllUsers } from '@/lib/queries/users'
 import { ROLE_CAPABILITIES } from '@/lib/role-capabilities'
 import { AutoClassifyToggle } from '@/components/AutoClassifyToggle'
 import { PracticeInfoForm } from '@/components/PracticeInfoForm'
 import { EhrConnectionsForm } from '@/components/EhrConnectionsForm'
 import { ProviderProfilesPanel } from '@/components/settings/ProviderProfilesPanel'
+import { StaffManagementPanel } from '@/components/settings/StaffManagementPanel'
 import { Tabs } from '@/components/Tabs'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
@@ -18,6 +20,7 @@ export default async function SettingsPage() {
   const session = await requireSessionOrRedirect()
   const settings = await getSettingsSummary()
   const providers = await listAllProviders()
+  const staff = await listAllUsers()
   const isAdmin = session.role === 'admin'
   const capabilities = ROLE_CAPABILITIES[session.role]
 
@@ -43,6 +46,13 @@ export default async function SettingsPage() {
     <section className={SECTION}>
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Provider roster</h2>
       <ProviderProfilesPanel providers={providers} isAdmin={isAdmin} />
+    </section>
+  )
+
+  const staffTab = (
+    <section className={SECTION}>
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Staff accounts</h2>
+      <StaffManagementPanel staff={staff} isAdmin={isAdmin} />
     </section>
   )
 
@@ -77,6 +87,7 @@ export default async function SettingsPage() {
         { id: 'ehr', label: <><Plug className="h-4 w-4" aria-hidden="true" />EHR Connections</>, content: ehrTab },
         { id: 'classification', label: <><SlidersHorizontal className="h-4 w-4" aria-hidden="true" />Classification</>, content: classificationTab },
         { id: 'providers', label: <><Users className="h-4 w-4" aria-hidden="true" />Providers</>, content: providersTab },
+        { id: 'staff', label: <><IdCard className="h-4 w-4" aria-hidden="true" />Staff</>, content: staffTab },
         { id: 'account', label: <><UserCircle2 className="h-4 w-4" aria-hidden="true" />Account</>, content: accountTab },
       ]} />
     </div>

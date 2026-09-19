@@ -16,12 +16,15 @@ type Icon = React.ComponentType<{ className?: string }>
 // Role-scoped navigation: a Principal Investigator's job here is making
 // clinical eligibility calls, not running practice operations, so they get
 // a trimmed, clinical-only nav (Home/My Patients/Patients/Trials/Calendar/
-// Messages, plus their own Account tab in Settings) -- no Workbook,
-// Identity Matching, Form Templates, Client Forms, Billing, or the
-// Operations group (Reports/Documents/Broadcasts/Experience Surveys/
-// Pipeline Dashboard), which are the coordinator's and admin's tools.
-// Admin and CRC both keep full operational access -- see
-// src/lib/role-capabilities.ts, which this must stay consistent with.
+// Client Forms/Messages, plus their own Account tab in Settings) -- no
+// Workbook, Identity Matching, Form Templates (building/editing form
+// structures is a coordinator/admin task), Billing, or the Operations
+// group (Reports/Documents/Broadcasts/Experience Surveys/Pipeline
+// Dashboard), which are the coordinator's and admin's tools. Client Forms
+// stays visible to PI -- reviewing a patient's actual submitted answers is
+// clinical review, not practice administration. Admin and CRC both keep
+// full operational access -- see src/lib/role-capabilities.ts, which this
+// must stay consistent with.
 const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/', label: 'Home', icon: LayoutDashboard },
   { href: '/doctor', label: 'My Patients', icon: Stethoscope, roles: ['pi'] as Role[] },
@@ -31,7 +34,7 @@ const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc'] as Role[] },
-  { href: '/client-forms', label: 'Client Forms', icon: FileSignature, roles: ['admin', 'crc'] as Role[] },
+  { href: '/client-forms', label: 'Client Forms', icon: FileSignature },
   { href: '/messages', label: 'Messages', icon: MessageSquare },
 ]
 
