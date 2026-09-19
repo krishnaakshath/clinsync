@@ -26,40 +26,44 @@ export default async function BroadcastsPage({ searchParams }: { searchParams: P
       {activeTab === 'send' ? (
         <BroadcastWizard trials={trials.map((t) => ({ id: t.id, condition: t.condition }))} />
       ) : broadcasts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No records found.</p>
+        <div className="rounded-xl border border-primary/10 bg-card/80 p-8 text-center shadow-sm backdrop-blur-sm">
+          <p className="text-sm text-muted-foreground">No records found.</p>
+        </div>
       ) : (
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border text-left">
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sent</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Channel</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trial</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recipients</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Delivered</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Failed</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sent By</th>
-            </tr>
-          </thead>
-          <tbody>
-            {broadcasts.map((b, i) => {
-              const delivered = b.recipients.filter((r) => r.deliveryStatus === 'delivered').length
-              const failed = b.recipients.length - delivered
-              return (
-                <tr key={b.id} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''} hover:bg-secondary`}>
-                  <td className="p-3 text-muted-foreground">{new Date(b.sentAt).toLocaleDateString()}</td>
-                  <td className="p-3 capitalize text-foreground">{b.channel === 'both' ? 'SMS + Email' : b.channel}</td>
-                  <td className="p-3"><Link href={`/broadcasts/${b.id}`} className="font-medium text-primary hover:underline">{b.message.length > 60 ? `${b.message.slice(0, 60)}…` : b.message}</Link></td>
-                  <td className="p-3 text-foreground">{b.trialCondition ?? 'All trials'}</td>
-                  <td className="p-3 text-foreground">{b.recipientCount}</td>
-                  <td className="p-3 text-emerald-800">{delivered}</td>
-                  <td className="p-3 text-red-800">{failed}</td>
-                  <td className="p-3 text-muted-foreground">{b.sentBy}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <div className="overflow-hidden rounded-xl border border-primary/10 bg-card/80 shadow-sm backdrop-blur-sm">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-secondary/40 text-left">
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sent</th>
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Channel</th>
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message</th>
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trial</th>
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recipients</th>
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Delivered</th>
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Failed</th>
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sent By</th>
+              </tr>
+            </thead>
+            <tbody>
+              {broadcasts.map((b, i) => {
+                const delivered = b.recipients.filter((r) => r.deliveryStatus === 'delivered').length
+                const failed = b.recipients.length - delivered
+                return (
+                  <tr key={b.id} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''} transition-colors hover:bg-secondary`}>
+                    <td className="p-3 text-muted-foreground">{new Date(b.sentAt).toLocaleDateString()}</td>
+                    <td className="p-3 capitalize text-foreground">{b.channel === 'both' ? 'SMS + Email' : b.channel}</td>
+                    <td className="p-3"><Link href={`/broadcasts/${b.id}`} className="font-medium text-primary hover:underline">{b.message.length > 60 ? `${b.message.slice(0, 60)}…` : b.message}</Link></td>
+                    <td className="p-3 text-foreground">{b.trialCondition ?? 'All trials'}</td>
+                    <td className="p-3 text-foreground">{b.recipientCount}</td>
+                    <td className="p-3 text-success">{delivered}</td>
+                    <td className="p-3 text-destructive">{failed}</td>
+                    <td className="p-3 text-muted-foreground">{b.sentBy}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

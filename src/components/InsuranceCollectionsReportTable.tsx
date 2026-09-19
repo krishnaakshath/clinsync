@@ -70,6 +70,7 @@ export function InsuranceCollectionsReportTable({ rows }: { rows: InsuranceColle
         matchesFilters={matchesFilters}
         searchFields={['patientName', 'payerName']}
         rowKey={(r) => r.id}
+        getRowHref={(r) => `/patients/${r.patientId}`}
       />
     </div>
   )

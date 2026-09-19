@@ -43,6 +43,7 @@ export function UnsignedNotesReportTable({ rows }: { rows: UnsignedNoteRow[] }) 
       matchesFilters={matchesFilters}
       searchFields={['patientName', 'noteType']}
       rowKey={(r) => r.noteId}
+      getRowHref={(r) => `/patients/${r.patientId}`}
     />
   )
 }

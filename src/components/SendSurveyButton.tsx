@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Send, Info } from 'lucide-react'
 
 interface Candidate { formSubmissionId: number; patientId: string; patientName: string; templateName: string; completedDate: Date | null }
 
@@ -42,17 +43,30 @@ export function SendSurveyButton({ candidates }: { candidates: Candidate[] }) {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90">
+      <button
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90"
+      >
+        <Send className="h-4 w-4" aria-hidden="true" />
         Send Survey
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border border-border bg-card p-4 shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-primary/10 bg-card/95 p-4 shadow-lg backdrop-blur-sm">
           {candidates.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No completed intakes are eligible for a survey right now.</p>
+            <div className="flex gap-2 rounded-md border border-primary/15 bg-primary/5 p-3 text-sm text-foreground">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <p>No completed intakes are eligible for a survey right now — every completed intake already has one sent.</p>
+            </div>
           ) : (
             <>
               <label htmlFor="survey-candidate" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</label>
-              <select id="survey-candidate" value={selected ?? ''} onChange={(e) => setSelected(Number(e.target.value))} className="mb-3 w-full rounded-md border border-border px-3 py-2 text-sm">
+              <select
+                id="survey-candidate"
+                value={selected ?? ''}
+                onChange={(e) => setSelected(Number(e.target.value))}
+                className="mb-3 w-full rounded-md border border-border bg-card px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+              >
                 {candidates.map((c) => <option key={c.formSubmissionId} value={c.formSubmissionId}>{c.patientName} — {c.templateName}</option>)}
               </select>
               {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
