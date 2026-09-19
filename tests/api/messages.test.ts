@@ -134,4 +134,44 @@ describe('POST /api/messages/[patientId]', () => {
     expect(typeof body.senderName).toBe('string')
     expect(body.senderName.length).toBeGreaterThan(0)
   })
+
+  it('attributes to the patient, not staff, when both sessions are present and the patient portal composer asserts actingAs: patient', async () => {
+    // Regression test: a browser holding both cookies at once (e.g. staff
+    // testing the patient portal in the same browser -- exactly how this
+    // was found) used to always attribute to the staff session regardless
+    // of which UI actually sent the request. MessageComposer now sends
+    // `actingAs` based on which surface it renders in.
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(patientSession.getPatientSession).mockResolvedValue({ patientId: STAFF_PATIENT_ID })
+    const res = await POST(req({ body: 'Sent from the patient portal composer.', actingAs: 'patient' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
+    const body = await res.json()
+    createdIds.push(body.id)
+    expect(res.status).toBe(201)
+    expect(body.senderRole).toBe('patient')
+    expect(body.senderName).not.toBe('Test Admin')
+  })
+
+  it('still prefers staff by default when actingAs is omitted and both sessions are present', async () => {
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(patientSession.getPatientSession).mockResolvedValue({ patientId: STAFF_PATIENT_ID })
+    const res = await POST(req({ body: 'Sent from the staff inbox composer.' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
+    const body = await res.json()
+    createdIds.push(body.id)
+    expect(res.status).toBe(201)
+    expect(body.senderRole).toBe('provider')
+    expect(body.senderName).toBe('Test Admin')
+  })
+
+  it('rejects actingAs: patient for a patient session that does not match this thread\'s patientId', async () => {
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(patientSession.getPatientSession).mockResolvedValue({ patientId: OTHER_PATIENT_ID })
+    // actingAs: 'patient' is only a hint -- it must still be a real,
+    // matching patient session, so this falls through to the staff session
+    // rather than being honored for a mismatched patientId.
+    const res = await POST(req({ body: 'hello', actingAs: 'patient' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
+    const body = await res.json()
+    createdIds.push(body.id)
+    expect(res.status).toBe(201)
+    expect(body.senderRole).toBe('provider')
+  })
 })

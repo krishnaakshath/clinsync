@@ -6,10 +6,14 @@ import { Send } from 'lucide-react'
 /**
  * Posts to /api/messages/[patientId] -- works from either the doctor-side
  * inbox (a staff session) or the patient portal (a patient session acting
- * on their own thread); the route itself resolves which kind of session is
- * calling. See src/app/api/messages/[patientId]/route.ts.
+ * on their own thread). `viewerRole` tells the route which of the two a
+ * browser holding BOTH cookies at once (e.g. staff testing the patient
+ * portal in the same browser) should act as here -- the route still fully
+ * re-validates that a real, matching session exists before honoring it,
+ * this is only a disambiguation hint, never a trust decision by itself.
+ * See src/app/api/messages/[patientId]/route.ts.
  */
-export function MessageComposer({ patientId }: { patientId: string }) {
+export function MessageComposer({ patientId, viewerRole }: { patientId: string; viewerRole: 'provider' | 'patient' }) {
   const router = useRouter()
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
@@ -22,7 +26,7 @@ export function MessageComposer({ patientId }: { patientId: string }) {
     const res = await fetch(`/api/messages/${patientId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, actingAs: viewerRole }),
     })
     setSending(false)
     if (res.ok) {

@@ -28,7 +28,7 @@ export default async function PatientPortalMessagesPage() {
           <MessageThreadView messages={messages} viewerRole="patient" />
         </div>
         <div className="mt-4 border-t border-border pt-4">
-          <MessageComposer patientId={identity.id} />
+          <MessageComposer patientId={identity.id} viewerRole="patient" />
         </div>
       </section>
     </div>
