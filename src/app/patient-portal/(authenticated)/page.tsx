@@ -1,15 +1,9 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Download, Pill, Stethoscope, CalendarCheck, FileText, ArrowRight, MessageSquare } from 'lucide-react'
+import { Pill, Stethoscope, CalendarCheck, FileText, MessageSquare, ArrowRight } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
-import { listMessagesForPatient, markReadByPatient } from '@/lib/queries/messages'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
-import { PatientPortalSignOutButton } from '@/components/PatientPortalSignOutButton'
-import { PatientAvatar } from '@/components/PatientAvatar'
-import { Tabs } from '@/components/Tabs'
-import { MessageThreadView } from '@/components/MessageThreadView'
-import { MessageComposer } from '@/components/MessageComposer'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -22,48 +16,72 @@ const TILE_COLOR: Record<string, string> = {
   violet: 'bg-violet-500/10 text-violet-700',
 }
 
-const FORM_STATUS_STYLE: Record<string, string> = {
-  sent: 'bg-amber-500/10 text-amber-700',
-  partial: 'bg-sky-500/10 text-sky-700',
-  completed: 'bg-emerald-500/10 text-emerald-700',
-}
-
-const FORM_STATUS_LABEL: Record<string, string> = {
-  sent: 'Needs your response',
-  partial: 'In progress',
-  completed: 'Completed',
-}
-
-function SummaryTile({ icon: Icon, value, label, color }: { icon: React.ComponentType<{ className?: string }>; value: string | number; label: string; color: keyof typeof TILE_COLOR }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card/80 p-3.5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+// Each tile links to the page it summarizes -- a real, functional
+// navigation shortcut, not a decorative stat, matching how the report
+// tables elsewhere in the app made rows clickable rather than inert.
+function SummaryTile({ icon: Icon, value, label, color, href }: { icon: React.ComponentType<{ className?: string }>; value: string | number; label: string; color: keyof typeof TILE_COLOR; href?: string }) {
+  const content = (
+    <>
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TILE_COLOR[color]}`} aria-hidden="true">
         <Icon className="h-5 w-5" />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="truncate text-base font-bold text-foreground">{value}</p>
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       </div>
-    </div>
+    </>
   )
+  const className = 'flex items-center gap-3 rounded-xl border border-primary/10 bg-card/80 p-3.5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
+  return href ? <Link href={href} className={`${className} hover:-translate-y-0.5`}>{content}</Link> : <div className={className}>{content}</div>
 }
 
-export default async function PatientPortalPage() {
+export default async function PatientPortalOverviewPage() {
   const session = await requirePatientSessionOrRedirect()
   const data = await getPatientPortalData(session.patientId)
   if (!data) notFound()
 
-  await logPatientPortalAction('viewed patient portal home', session.patientId)
+  await logPatientPortalAction('viewed patient portal overview', session.patientId)
 
-  // Loaded alongside the other tabs' data (forms/meds/appointments are all
-  // fetched up front too, regardless of which tab is active -- see Tabs),
-  // rather than lazily on tab click. Marking read here mirrors the
-  // provider-side inbox marking a thread read once its page is loaded.
-  const patientMessages = await listMessagesForPatient(session.patientId)
-  await markReadByPatient(session.patientId)
+  const nextAppointment = data.upcomingAppointments[0]
+  const formsToComplete = data.forms.filter((f) => f.status !== 'completed')
 
-  const overviewTab = (
+  return (
     <div className="space-y-6">
+      <h1 className="text-xl font-bold text-foreground">Overview</h1>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <SummaryTile icon={Stethoscope} value={data.currentProvider ?? 'Unassigned'} label="Care team" color="primary" />
+        <SummaryTile icon={Pill} value={data.activeMedications.length} label="Current meds" color="sky" href="/patient-portal/medications" />
+        <SummaryTile icon={FileText} value={formsToComplete.length} label="Forms to complete" color="amber" href="/patient-portal/forms" />
+        <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="emerald" href="/patient-portal/appointments" />
+        <SummaryTile icon={MessageSquare} value={data.unreadMessageCount} label="New messages" color="violet" href="/patient-portal/messages" />
+      </div>
+
+      {(nextAppointment || formsToComplete.length > 0) && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {nextAppointment && (
+            <Link href="/patient-portal/appointments" className={`${SECTION} group flex items-center justify-between transition-all duration-200 hover:border-primary/25 hover:shadow-md`}>
+              <div>
+                <h2 className={HEADING}>Your next visit</h2>
+                <p className="text-sm font-medium text-foreground">{nextAppointment.visitReason} with {nextAppointment.providerName}</p>
+                <p className="text-xs text-muted-foreground">{new Date(nextAppointment.startsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
+          )}
+          {formsToComplete.length > 0 && (
+            <Link href="/patient-portal/forms" className={`${SECTION} group flex items-center justify-between transition-all duration-200 hover:border-primary/25 hover:shadow-md`}>
+              <div>
+                <h2 className={HEADING}>Needs your attention</h2>
+                <p className="text-sm font-medium text-foreground">{formsToComplete.length} form{formsToComplete.length === 1 ? '' : 's'} waiting on you</p>
+                <p className="text-xs text-muted-foreground">{formsToComplete[0].templateName}{formsToComplete.length > 1 ? ` and ${formsToComplete.length - 1} more` : ''}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
+          )}
+        </div>
+      )}
+
       <section className={SECTION}>
         <h2 className={HEADING}>Your care team</h2>
         <p className="text-sm text-foreground">{data.currentProvider ?? 'Not yet assigned'}</p>
@@ -78,160 +96,6 @@ export default async function PatientPortalPage() {
           </ul>
         )}
       </section>
-    </div>
-  )
-
-  const medicationsTab = (
-    <div className="space-y-6">
-      <section className={SECTION}>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className={HEADING}>Current medications</h2>
-          <a href="/api/patient-portal/medications-export" className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
-            <Download className="h-3.5 w-3.5" aria-hidden="true" />
-            Download summary
-          </a>
-        </div>
-        {data.activeMedications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No current medications on file.</p>
-        ) : (
-          <ul className="space-y-2 text-sm text-foreground">
-            {data.activeMedications.map((m) => (
-              <li key={m.id} className="border-b border-border pb-2 last:border-0 last:pb-0">
-                <span className="font-medium">{m.name}</span> ({m.medicationClass}) — {m.dose ?? 'dose not on file'}
-                <span className="block text-xs text-muted-foreground">Started {m.startDate}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className={SECTION}>
-        <h2 className={HEADING}>Past medications</h2>
-        {data.pastMedications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No past medications on file.</p>
-        ) : (
-          <ul className="space-y-2 text-sm text-foreground">
-            {data.pastMedications.map((m) => (
-              <li key={m.id} className="border-b border-border pb-2 last:border-0 last:pb-0">
-                <span className="font-medium">{m.name}</span> ({m.medicationClass}) — {m.dose ?? 'dose not on file'}
-                <span className="block text-xs text-muted-foreground">{m.startDate} to {m.stopDate ?? 'unknown'}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
-  )
-
-  const formsTab = (
-    <div className="space-y-6">
-      <section className={SECTION}>
-        <h2 className={HEADING}>Your forms</h2>
-        {data.forms.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No forms have been sent to you yet.</p>
-        ) : (
-          <ul className="space-y-2 text-sm text-foreground">
-            {data.forms.map((f) => (
-              <li key={f.id} className="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{f.templateName}</p>
-                  <p className="text-xs text-muted-foreground">Sent {new Date(f.sentDate).toLocaleDateString()}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${FORM_STATUS_STYLE[f.status]}`}>{FORM_STATUS_LABEL[f.status]}</span>
-                  {f.status !== 'completed' && f.accessToken && (
-                    <Link href={`/intake/${f.accessToken}`} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                      {f.status === 'sent' ? 'Start' : 'Continue'}
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Link>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
-  )
-
-  const appointmentsTab = (
-    <div className="space-y-6">
-      <section className={SECTION}>
-        <h2 className={HEADING}>Upcoming appointments</h2>
-        {data.upcomingAppointments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No upcoming appointments.</p>
-        ) : (
-          <ul className="space-y-2 text-sm text-foreground">
-            {data.upcomingAppointments.map((a) => (
-              <li key={a.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                <span>{a.visitReason} with {a.providerName}</span>
-                <span className="text-xs text-muted-foreground">{new Date(a.startsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className={SECTION}>
-        <h2 className={HEADING}>Past visits</h2>
-        {data.pastAppointments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No past visits on file.</p>
-        ) : (
-          <ul className="space-y-2 text-sm text-foreground">
-            {data.pastAppointments.map((a) => (
-              <li key={a.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                <span>{a.visitReason} with {a.providerName}</span>
-                <span className="text-xs text-muted-foreground">{new Date(a.startsAt).toLocaleDateString()}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
-  )
-
-  const messagesTab = (
-    <div className="space-y-6">
-      <section className={`${SECTION} flex min-h-[380px] flex-col`}>
-        <h2 className={HEADING}>Messages with your care team</h2>
-        <div className="flex-1 overflow-y-auto pr-1">
-          <MessageThreadView messages={patientMessages} viewerRole="patient" />
-        </div>
-        <div className="mt-4 border-t border-border pt-4">
-          <MessageComposer patientId={data.id} />
-        </div>
-      </section>
-    </div>
-  )
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
-        <div className="flex items-center gap-4">
-          <PatientAvatar name={data.name} size="lg" />
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Welcome, {data.name}</h1>
-            <p className="font-mono text-xs text-muted-foreground">DOB {data.dob} · Patient ID {data.id}</p>
-          </div>
-        </div>
-        <PatientPortalSignOutButton />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <SummaryTile icon={Stethoscope} value={data.currentProvider ?? 'Unassigned'} label="Care team" color="primary" />
-        <SummaryTile icon={Pill} value={data.activeMedications.length} label="Current meds" color="sky" />
-        <SummaryTile icon={FileText} value={data.forms.filter((f) => f.status !== 'completed').length} label="Forms to complete" color="amber" />
-        <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="emerald" />
-        <SummaryTile icon={MessageSquare} value={data.unreadMessageCount} label="New messages" color="violet" />
-      </div>
-
-      <Tabs tabs={[
-        { id: 'overview', label: 'Overview', content: overviewTab },
-        { id: 'forms', label: <><FileText className="h-4 w-4" aria-hidden="true" />Forms</>, content: formsTab },
-        { id: 'medications', label: <><Pill className="h-4 w-4" aria-hidden="true" />Medications</>, content: medicationsTab },
-        { id: 'appointments', label: <><CalendarCheck className="h-4 w-4" aria-hidden="true" />Appointments</>, content: appointmentsTab },
-        { id: 'messages', label: <><MessageSquare className="h-4 w-4" aria-hidden="true" />Messages</>, content: messagesTab },
-      ]} />
     </div>
   )
 }

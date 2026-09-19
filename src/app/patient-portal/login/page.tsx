@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileText, Pill, MessageSquare } from 'lucide-react'
-import { ClinsyncLogo } from '@/components/ClinsyncLogo'
+import { IpmgIcon, IpmgWordmark } from '@/components/IpmgLogo'
 
 const HIGHLIGHTS = [
   { icon: FileText, text: 'Fill out and track any forms your care team has sent you' },
@@ -46,9 +46,11 @@ export default function PatientPortalLoginPage() {
           style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '28px 28px' }}
           aria-hidden="true"
         />
-        <div className="relative flex items-center gap-2.5">
-          <ClinsyncLogo className="h-7 w-7" />
-          <span className="text-lg font-semibold tracking-tight">Clinsync Patient Portal</span>
+        <div className="relative flex items-center gap-3">
+          <div className="rounded-lg bg-white/95 px-3 py-2">
+            <IpmgIcon className="h-6 w-auto" />
+          </div>
+          <span className="text-lg font-semibold tracking-tight">Patient Portal</span>
         </div>
         <div className="relative space-y-8">
           <h2 className="max-w-sm text-3xl font-bold leading-tight">Your care, your records, all in one place.</h2>
@@ -69,10 +71,7 @@ export default function PatientPortalLoginPage() {
       <div className="flex w-full flex-1 flex-col items-center justify-center px-4 lg:w-1/2">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col gap-1 lg:hidden">
-            <div className="mb-3 flex items-center gap-2 text-foreground">
-              <ClinsyncLogo className="h-7 w-7 text-primary" />
-              <span className="text-lg font-semibold tracking-tight">Clinsync Patient Portal</span>
-            </div>
+            <IpmgWordmark className="h-10 w-auto" />
           </div>
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground">Patient Sign In</h1>

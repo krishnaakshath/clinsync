@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ShieldCheck, Users, FlaskConical } from 'lucide-react'
-import { ClinsyncLogo } from '@/components/ClinsyncLogo'
+import { IpmgIcon } from '@/components/IpmgLogo'
 
 const HIGHLIGHTS = [
   { icon: FlaskConical, text: 'Automated inclusion/exclusion screening against live trial criteria' },
@@ -46,8 +46,10 @@ export default function LoginPage() {
           style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '28px 28px' }}
           aria-hidden="true"
         />
-        <div className="relative flex items-center gap-2.5">
-          <ClinsyncLogo className="h-7 w-7" />
+        <div className="relative flex items-center gap-3">
+          <div className="rounded-lg bg-white/95 px-3 py-2">
+            <IpmgIcon className="h-6 w-auto" />
+          </div>
           <span className="text-lg font-semibold tracking-tight">Clinsync</span>
         </div>
         <div className="relative space-y-8">
@@ -69,8 +71,8 @@ export default function LoginPage() {
       <div className="flex w-full flex-1 flex-col items-center justify-center px-4 lg:w-1/2">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col gap-1 lg:hidden">
-            <div className="mb-3 flex items-center gap-2 text-foreground">
-              <ClinsyncLogo className="h-7 w-7 text-primary" />
+            <div className="mb-3 flex items-center gap-2.5 text-foreground">
+              <IpmgIcon className="h-6 w-auto" />
               <span className="text-lg font-semibold tracking-tight">Clinsync</span>
             </div>
           </div>

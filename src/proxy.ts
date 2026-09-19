@@ -20,4 +20,8 @@ export async function proxy(request: NextRequest) {
 // -- browsers request it directly, with no session cookie, on every page
 // including /login itself, so gating it here would leave the browser tab
 // with a broken icon for anyone not currently signed in.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|intake|patient-portal).*)'] }
+// branding is excluded because it's static logo assets (public/branding/*)
+// referenced directly by <img> tags on unauthenticated pages (both login
+// screens, the intake portal) -- without this exclusion those requests hit
+// this same staff-session gate and redirect to /login, breaking the image.
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal).*)'] }
