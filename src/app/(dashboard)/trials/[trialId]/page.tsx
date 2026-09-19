@@ -1,9 +1,13 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { FlaskConical, CheckCircle2, XCircle } from 'lucide-react'
+import { FlaskConical, CheckCircle2, XCircle, Users } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { listAllTrials } from '@/lib/queries/trials'
+import { listScreeningsForTrial } from '@/lib/queries/trial-screenings'
 import { Tabs } from '@/components/Tabs'
 import { BackLink } from '@/components/BackLink'
+import { StatusChip } from '@/components/StatusChip'
+import { EvidenceCard } from '@/components/EvidenceCard'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const HEADING = 'mb-2 border-l-2 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -19,6 +23,11 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
 
   const requiredStableMeds = trial.medicationClasses.filter((m) => m.ruleType === 'required_stable')
   const washoutMeds = trial.medicationClasses.filter((m) => m.ruleType === 'washout_exclusion')
+
+  const screenedPatients = await listScreeningsForTrial(trial.id)
+  const passedPatients = screenedPatients.filter((p) => p.overallStatus === 'green')
+  const needsVerificationPatients = screenedPatients.filter((p) => p.overallStatus === 'yellow')
+  const rejectedPatients = screenedPatients.filter((p) => p.overallStatus === 'red')
 
   const inclusionTab = (
     <div className="space-y-4">
@@ -77,8 +86,90 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
     </div>
   )
 
+  const patientsTab = (
+    <div className="space-y-4">
+      <section className={SECTION}>
+        <h3 className={`${HEADING} border-emerald-500/50`}>Passed ({passedPatients.length})</h3>
+        {passedPatients.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No patients have passed screening for this trial yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {passedPatients.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-secondary/40 px-3 py-2">
+                <Link href={`/patients/${p.id}`} className="text-sm font-medium text-foreground hover:underline">
+                  {p.name} <span className="font-mono text-xs text-muted-foreground">({p.id})</span>
+                </Link>
+                <StatusChip status={p.overallStatus} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <h3 className={`${HEADING} border-amber-500/50`}>Needs verification ({needsVerificationPatients.length})</h3>
+        {needsVerificationPatients.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No patients currently need verification for this trial.</p>
+        ) : (
+          <div className="space-y-4">
+            {needsVerificationPatients.map((p) => {
+              const outstanding = p.criteria.filter((c) => c.verdict !== 'green')
+              return (
+                <div key={p.id} className="rounded-md border border-border bg-secondary/40 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <Link href={`/patients/${p.id}`} className="text-sm font-medium text-foreground hover:underline">
+                      {p.name} <span className="font-mono text-xs text-muted-foreground">({p.id})</span>
+                    </Link>
+                    <StatusChip status={p.overallStatus} />
+                  </div>
+                  <div className="space-y-2">
+                    {outstanding.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No criterion detail recorded for this screening.</p>
+                    ) : (
+                      outstanding.map((c) => <EvidenceCard key={c.id} criterion={c} />)
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <h3 className={`${HEADING} border-red-500/50`}>Rejected / excluded ({rejectedPatients.length})</h3>
+        {rejectedPatients.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No patients have been excluded from this trial.</p>
+        ) : (
+          <div className="space-y-4">
+            {rejectedPatients.map((p) => {
+              const failing = p.criteria.filter((c) => c.verdict === 'red')
+              return (
+                <div key={p.id} className="rounded-md border border-border bg-secondary/40 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <Link href={`/patients/${p.id}`} className="text-sm font-medium text-foreground hover:underline">
+                      {p.name} <span className="font-mono text-xs text-muted-foreground">({p.id})</span>
+                    </Link>
+                    <StatusChip status={p.overallStatus} />
+                  </div>
+                  <div className="space-y-2">
+                    {failing.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No criterion detail recorded for this screening.</p>
+                    ) : (
+                      failing.map((c) => <EvidenceCard key={c.id} criterion={c} />)
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <BackLink href="/trials" label="Back to Trials" />
       <div className={`${SECTION} flex items-center gap-4`}>
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
@@ -108,6 +199,7 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
       <Tabs tabs={[
         { id: 'inclusion', label: <><CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />Inclusion criteria</>, content: inclusionTab },
         { id: 'exclusion', label: <><XCircle className="h-4 w-4 text-red-700" aria-hidden="true" />Exclusion criteria</>, content: exclusionTab },
+        { id: 'patients', label: <><Users className="h-4 w-4 text-primary" aria-hidden="true" />Screening results ({screenedPatients.length})</>, content: patientsTab },
       ]} />
     </div>
   )
