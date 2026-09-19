@@ -1,5 +1,7 @@
 # Clinsync — IPMG Research Pre-Screening Workbook
 
+**Live:** [clinsync-phi.vercel.app](https://clinsync-phi.vercel.app)
+
 A pilot build for a client engagement (Symbiosys Technologies → Inland
 Psychiatric Medical Group), demonstrating the product ahead of real
 IntakeQ/Tebra API credentials. All patient data is fictional, seeded from

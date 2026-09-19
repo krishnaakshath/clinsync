@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Clinsync — IPMG Pre-Screening Workbook",
+  title: "Clinsync",
   description: "Research pre-screening workbook combining intake referrals and clinical chart data.",
 };
 
