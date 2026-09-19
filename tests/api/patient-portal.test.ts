@@ -4,7 +4,7 @@
 // project's default jsdom test environment hits the same cross-realm
 // Uint8Array false-positive documented in tests/lib/auth.test.ts. Force
 // plain Node here too.
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
@@ -34,10 +34,22 @@ function loginReq(body: unknown) {
 }
 
 describe('POST /api/patients/[anonId]/portal-password', () => {
+  // This file previously unconditionally nulled RD-0001's portalPasswordHash
+  // after every test -- since RD-0001 is a real seeded patient (Maria
+  // Alvarez), that silently destroyed any real portal credential an admin
+  // had genuinely issued for demo/verification purposes, every single time
+  // this suite ran. Snapshot the real value up front and restore exactly
+  // that, the same pattern already used in tests/api/settings.test.ts.
+  let originalPortalPasswordHash: string | null
+  beforeAll(async () => {
+    const [row] = await getDb().select({ portalPasswordHash: patients.portalPasswordHash }).from(patients).where(eq(patients.id, TEST_PATIENT_ID))
+    originalPortalPasswordHash = row.portalPasswordHash
+  })
+  afterAll(async () => {
+    await getDb().update(patients).set({ portalPasswordHash: originalPortalPasswordHash }).where(eq(patients.id, TEST_PATIENT_ID))
+  })
   afterEach(async () => {
-    // Always leave RD-0001 with no portal password when this file is done --
-    // it's a real seeded patient other tests/UIs read.
-    await getDb().update(patients).set({ portalPasswordHash: null }).where(eq(patients.id, TEST_PATIENT_ID))
+    await getDb().update(patients).set({ portalPasswordHash: originalPortalPasswordHash }).where(eq(patients.id, TEST_PATIENT_ID))
   })
 
   it('returns 401 when there is no authenticated session', async () => {
