@@ -3,6 +3,7 @@ import { FlaskConical, CheckCircle2, XCircle } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { listAllTrials } from '@/lib/queries/trials'
 import { Tabs } from '@/components/Tabs'
+import { BackLink } from '@/components/BackLink'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const HEADING = 'mb-2 border-l-2 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -78,6 +79,7 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
 
   return (
     <div className="max-w-2xl space-y-6">
+      <BackLink href="/trials" label="Back to Trials" />
       <div className={`${SECTION} flex items-center gap-4`}>
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
           <FlaskConical className="h-6 w-6" />

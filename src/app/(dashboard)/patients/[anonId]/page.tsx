@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
 import { AllergyBadge } from '@/components/AllergyBadge'
@@ -137,6 +138,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="max-w-4xl space-y-6">
+      <BackLink href="/patients" label="Back to Patients" />
       <div className={`${SECTION} flex items-center justify-between`}>
         <div className="flex items-center gap-4">
           <PatientAvatar name={name} size="lg" />
