@@ -6,6 +6,7 @@ import { and, eq, ne } from 'drizzle-orm'
 import { getIntakePortalData, getSubmissionPatientIdByToken } from '@/lib/queries/intake-portal'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
+import { recordFormChartDiscrepancies } from '@/lib/queries/discrepancies'
 
 // Deliberately NOT requireSession()-gated -- a referred patient has no staff
 // account. Authorization here is possession of the unguessable token itself,
@@ -50,6 +51,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   await invalidateCache(patientDetailCacheKey(patientId))
   await logPatientPortalAction(parsed.data.complete ? 'completed intake form via patient portal' : 'saved partial progress via patient portal', patientId)
+
+  if (parsed.data.complete) {
+    const discrepancyCount = await recordFormChartDiscrepancies(updated[0].id)
+    if (discrepancyCount > 0) await logPatientPortalAction(`form answers flagged ${discrepancyCount} discrepancy(ies) against chart data`, patientId)
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -2,6 +2,7 @@ import { getDb } from '@/db/client'
 import { patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { getOrSetCache, patientListCacheKey, patientDetailCacheKey } from '@/lib/cache'
+import { listDiscrepanciesForPatient } from '@/lib/queries/discrepancies'
 import type { Verdict } from '@/lib/rule-engine'
 
 export type PatientWithStatus = typeof patients.$inferSelect & { trialId?: string; overallStatus?: Verdict }
@@ -61,6 +62,8 @@ export async function getPatientDetail(anonId: string) {
       .from(identityVerifications)
       .where(eq(identityVerifications.patientId, anonId))
 
-    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null, portalConfigured: !!patient.portalPasswordHash }
+    const discrepancies = await listDiscrepanciesForPatient(anonId)
+
+    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null, portalConfigured: !!patient.portalPasswordHash, discrepancies }
   })
 }
