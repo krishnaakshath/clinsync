@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Pencil } from 'lucide-react'
 
 // colorTag stores a design-system chart token name (e.g. "chart-1"), not a
@@ -22,6 +23,7 @@ export interface ProviderRow {
 }
 
 function ProviderRowItem({ provider, isAdmin }: { provider: ProviderRow; isAdmin: boolean }) {
+  const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(provider.name)
   const [saving, setSaving] = useState(false)
@@ -38,6 +40,12 @@ function ProviderRowItem({ provider, isAdmin }: { provider: ProviderRow; isAdmin
     setSaving(false)
     if (!res.ok) { setError('Could not save.'); return }
     setEditing(false)
+    // provider.name is a prop from the server-rendered roster -- without
+    // this, the row immediately snaps back to displaying the pre-edit name
+    // (props haven't changed) even though the rename was persisted, making
+    // a successful save look like it silently failed until the next full
+    // page load.
+    router.refresh()
   }
 
   return (

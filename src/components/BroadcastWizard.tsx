@@ -232,7 +232,7 @@ export function BroadcastWizard({ trials }: { trials: Trial[] }) {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message</p>
             <p className="mt-1 text-sm text-foreground">{message}</p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Channel</p>
-            <p className="mt-1 text-sm capitalize text-foreground">{channel === 'both' ? 'SMS and Email' : channel}</p>
+            <p className="mt-1 text-sm text-foreground">{channel === 'both' ? 'SMS and Email' : channel === 'sms' ? 'SMS' : 'Email'}</p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recipients</p>
             <p className="mt-1 text-sm text-foreground">{candidates.length} patient{candidates.length === 1 ? '' : 's'}</p>
             <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-sm text-muted-foreground">
