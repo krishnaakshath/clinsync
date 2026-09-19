@@ -4,19 +4,31 @@ import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { setPatientPortalPassword, revokePatientPortalAccess } from '@/lib/queries/patient-portal'
 
+// Explicit product decision for the pilot: every patient portal account
+// uses this same fixed password rather than a per-patient randomly
+// generated one, for demo convenience. Deliberately weaker than random
+// generation (a shared, guessable-alongside-sequential-patient-IDs
+// credential) -- acceptable for local/dev demoing, never for a deployment
+// that could hold real patient data, so it's hard-gated to non-production:
+// NODE_ENV === 'production' always falls back to the original per-patient
+// CSPRNG generator below, regardless of this constant.
+const FIXED_PORTAL_PASSWORD = 'Pressword@69420'
+
 // Handed to a patient on paper or read aloud at checkout, not pasted from a
 // password manager -- so it needs to be transcribable without ambiguity,
 // but it's still a real PHI-guarding credential and needs real entropy.
-// A word-list + short-digit scheme (an earlier version of this function)
-// only had ~16.5 bits of entropy (10 words x 9000 digit values), brute-
-// forceable well within the rate limiter's tolerance over time. This
-// charset excludes visually-ambiguous characters (0/O, 1/I/L) and draws 12
-// characters from a 31-symbol alphabet: ~5 bits/char x 12 = ~59 bits.
+// This charset excludes visually-ambiguous characters (0/O, 1/I/L) and
+// draws 12 characters from a 31-symbol alphabet: ~5 bits/char x 12 = ~59
+// bits. Only reachable in production (see generatePortalPassword below).
 const UNAMBIGUOUS_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
-function generatePortalPassword(): string {
+function generateRandomPortalPassword(): string {
   const chars = Array.from({ length: 12 }, () => UNAMBIGUOUS_CHARS[randomInt(UNAMBIGUOUS_CHARS.length)])
   return `${chars.slice(0, 4).join('')}-${chars.slice(4, 8).join('')}-${chars.slice(8, 12).join('')}`
+}
+
+function generatePortalPassword(): string {
+  return process.env.NODE_ENV === 'production' ? generateRandomPortalPassword() : FIXED_PORTAL_PASSWORD
 }
 
 // Admin-only: generates a new hospital-issued portal password for this
