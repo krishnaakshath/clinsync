@@ -4,6 +4,7 @@ import { LogOut } from 'lucide-react'
 import { NotificationPanel } from '@/components/NotificationPanel'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 import { GlobalSearch } from '@/components/GlobalSearch'
+import { PatientAvatar } from '@/components/PatientAvatar'
 
 export function TopBanner({ userName }: { userName: string }) {
   const router = useRouter()
@@ -24,7 +25,10 @@ export function TopBanner({ userName }: { userName: string }) {
         <GlobalSearch />
         <div className="flex items-center gap-4">
           <NotificationPanel triggerClassName="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
-          <span className="text-sm font-medium text-sidebar-foreground">{userName}</span>
+          <div className="flex items-center gap-2">
+            <PatientAvatar name={userName} size="sm" />
+            <span className="text-sm font-medium text-sidebar-foreground">{userName}</span>
+          </div>
           <button
             onClick={signOut}
             title="Sign out of your account"

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Bell } from 'lucide-react'
 
 interface Event { id: number; action: string; timestamp: string }
 
@@ -17,8 +18,9 @@ export function NotificationPanel({ triggerClassName = 'text-muted-foreground ho
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className={`rounded-md px-2 py-1 text-sm transition-colors ${triggerClassName}`} aria-label="Notifications">
-        Notifications{events.length > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 text-xs text-accent-foreground">{events.length}</span>}
+      <button onClick={() => setOpen(!open)} className={`relative rounded-md p-2 transition-colors ${triggerClassName}`} aria-label="Notifications">
+        <Bell className="h-4.5 w-4.5" aria-hidden="true" />
+        {events.length > 0 && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-accent" aria-hidden="true" />}
       </button>
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border border-border bg-card p-3 shadow-lg">

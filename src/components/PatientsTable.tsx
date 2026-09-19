@@ -1,10 +1,16 @@
 'use client'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Search, Stethoscope, Calendar, Tag } from 'lucide-react'
+import { Search, FileText } from 'lucide-react'
 import { StatusChip } from '@/components/StatusChip'
-import { SourceTag } from '@/components/SourceTag'
 import { PatientAvatar } from '@/components/PatientAvatar'
+
+export interface CriteriaSummaryLike {
+  inclusionMet: number
+  inclusionTotal: number
+  exclusionMet: number
+  exclusionTotal: number
+}
 
 export interface PatientRow {
   id: string
@@ -16,55 +22,69 @@ export interface PatientRow {
   currentProvider: string | null
   referralType: string | null
   lastCommunication: string | null
+  criteriaSummary?: CriteriaSummaryLike
 }
 
-const STATUS_BORDER: Record<string, string> = {
-  green: 'border-l-success',
-  yellow: 'border-l-warning',
-  red: 'border-l-destructive',
+function CriteriaReadout({ summary }: { summary?: CriteriaSummaryLike }) {
+  if (!summary || (summary.inclusionTotal === 0 && summary.exclusionTotal === 0)) {
+    return <span>No screening evidence yet</span>
+  }
+  return (
+    <span>
+      <span className="font-medium text-foreground">{summary.inclusionMet}/{summary.inclusionTotal}</span> inclusion
+      {summary.exclusionTotal > 0 && (
+        <>
+          {' · '}
+          <span className="font-medium text-foreground">{summary.exclusionMet}/{summary.exclusionTotal}</span> exclusion
+        </>
+      )}
+    </span>
+  )
 }
 
+// Minimal by design: name + status dominate, everything else is a single
+// muted line so the card reads as one clear hierarchy rather than a grid of
+// competing icons/labels. The card body navigates to the patient detail page
+// via a "stretched link" (an absolutely-positioned Link filling the card) so
+// the whole surface is clickable; "Medical Record" is a separate, real
+// sibling Link stacked above it (never nested inside another anchor) that
+// opens a dedicated page for that one action.
 function PatientCard({ patient }: { patient: PatientRow }) {
   const name = patient.nameTebra ?? patient.nameIntakeq
   const dob = patient.dobTebra ?? patient.dobIntakeq
-  const borderClass = STATUS_BORDER[patient.overallStatus ?? 'yellow']
 
   return (
-    <Link
-      href={`/patients/${patient.id}`}
-      className={`group flex flex-col gap-3 rounded-xl border border-primary/10 border-l-4 ${borderClass} bg-card/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3">
+    <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/30">
+      <Link href={`/patients/${patient.id}`} className="absolute inset-0" aria-label={`View ${name}`}>
+        <span className="sr-only">View {name}</span>
+      </Link>
+
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <PatientAvatar name={name} />
-          <div>
-            <p className="font-semibold text-foreground group-hover:text-primary">{name}</p>
-            <p className="font-mono text-xs text-muted-foreground">{patient.id}</p>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-foreground group-hover:text-primary">{name}</p>
+            <p className="truncate text-xs text-muted-foreground">{patient.id} · {dob}</p>
           </div>
         </div>
         <StatusChip status={patient.overallStatus ?? 'yellow'} />
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border pt-3 text-xs">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>{dob}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Stethoscope className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">{patient.currentProvider ?? '—'}</span>
-        </div>
-        <div className="col-span-2 flex items-center gap-1.5 text-muted-foreground">
-          <Tag className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">{patient.referralType ?? '—'}</span>
-        </div>
-      </div>
+      <p className="relative text-xs text-muted-foreground">
+        <CriteriaReadout summary={patient.criteriaSummary} />
+      </p>
 
-      <div className="flex items-center justify-between border-t border-border pt-2 text-[10px]">
-        <SourceTag source="tebra" />
-        <span className="text-muted-foreground">Last contact: {patient.lastCommunication ?? '—'}</span>
+      <div className="relative flex items-center justify-between gap-2 border-t border-border pt-3">
+        <p className="truncate text-xs text-muted-foreground">{patient.currentProvider ?? 'Unassigned'}</p>
+        <Link
+          href={`/patients/${patient.id}/medical-record`}
+          className="relative inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+        >
+          <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+          Medical Record
+        </Link>
       </div>
-    </Link>
+    </div>
   )
 }
 
@@ -91,7 +111,7 @@ export function PatientsTable({ patients }: { patients: PatientRow[] }) {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or anon #…"
             aria-label="Search patients"
-            className="w-full rounded-lg border border-primary/15 bg-card/80 py-2 pl-9 pr-3 text-sm text-foreground backdrop-blur-sm transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none"
           />
           {search && (
             <button
@@ -108,7 +128,7 @@ export function PatientsTable({ patients }: { patients: PatientRow[] }) {
       {filtered.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No patients match &quot;{search}&quot;.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((p) => <PatientCard key={p.id} patient={p} />)}
         </div>
       )}

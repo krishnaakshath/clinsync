@@ -51,6 +51,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
         currentProvider: p.currentProvider,
         referralType: p.referralType,
         lastCommunication: p.lastCommunication,
+        criteriaSummary: p.criteriaSummary,
       }))} />
     </div>
   )
