@@ -194,7 +194,6 @@ export default async function DashboardHomePage() {
         <section className={`${CARD_SURFACE} p-5`}>
           <div className="mb-3 flex items-center justify-between">
             <SectionHeading>Latest Account Events</SectionHeading>
-            <Link href="/audit-log" className="text-xs font-medium text-primary hover:underline">View Audit Log</Link>
           </div>
           {data.recentEvents.length === 0 ? <p className="text-sm text-muted-foreground">No records found.</p> : (
             <ul className="space-y-2">
