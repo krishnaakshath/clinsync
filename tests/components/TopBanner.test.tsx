@@ -7,10 +7,10 @@ vi.mock('next/navigation', () => ({
 }))
 
 describe('TopBanner', () => {
-  it('shows the product name', () => {
-    render(<TopBanner userName="Jamie Ruiz" />)
-    expect(screen.getByText('Clinsync')).toBeInTheDocument()
-  })
+  // The logo/product name moved into LeftNav so the whole app shell reads
+  // as "logo in the sidebar", matching the pattern requested for the
+  // patient portal too -- TopBanner is now identity/actions only (search,
+  // notifications, signed-in user, sign out).
   it('shows the signed-in user name', () => {
     render(<TopBanner userName="Jamie Ruiz" />)
     expect(screen.getByText('Jamie Ruiz')).toBeInTheDocument()

@@ -1,23 +1,25 @@
-import { ClinsyncLogo } from '@/components/ClinsyncLogo'
+import { notFound } from 'next/navigation'
+import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
+import { getPatientPortalIdentity } from '@/lib/queries/patient-portal'
+import { PatientPortalSideNav } from '@/components/PatientPortalSideNav'
+import { PatientPortalTopBar } from '@/components/PatientPortalTopBar'
 
-export default function PatientPortalLayout({ children }: { children: React.ReactNode }) {
+// Same shell shape as the staff app's (dashboard) layout -- a persistent
+// left sidebar (logo + nav) plus a slim top identity bar -- so the
+// patient-facing portal reads as the same product instead of a
+// separately-designed one.
+export default async function PatientPortalLayout({ children }: { children: React.ReactNode }) {
+  const session = await requirePatientSessionOrRedirect()
+  const identity = await getPatientPortalIdentity(session.patientId)
+  if (!identity) notFound()
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Same dark-sidebar identity treatment as the staff app shell's
-          TopBanner, so the patient-facing portal reads as part of the same
-          product instead of a plain, unbranded strip. */}
-      <div className="relative overflow-hidden border-b border-sidebar-border bg-sidebar px-6 py-4 shadow-sm">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '28px 28px' }}
-          aria-hidden="true"
-        />
-        <div className="relative mx-auto flex max-w-4xl items-center gap-2.5 text-sidebar-foreground" title="Clinsync Patient Portal">
-          <ClinsyncLogo className="h-6 w-6" />
-          <span className="text-base font-semibold tracking-tight">Clinsync Patient Portal</span>
-        </div>
+    <div className="flex min-h-screen">
+      <PatientPortalSideNav />
+      <div className="flex flex-1 flex-col">
+        <PatientPortalTopBar name={identity.name} dob={identity.dob} patientId={identity.id} />
+        <main className="flex-1 overflow-auto bg-background p-6">{children}</main>
       </div>
-      <main className="mx-auto max-w-4xl p-6">{children}</main>
     </div>
   )
 }

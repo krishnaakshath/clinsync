@@ -2,7 +2,6 @@
 import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { NotificationPanel } from '@/components/NotificationPanel'
-import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { PatientAvatar } from '@/components/PatientAvatar'
 
@@ -18,10 +17,6 @@ export function TopBanner({ userName }: { userName: string }) {
   return (
     <div className="border-b border-sidebar-border bg-sidebar">
       <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-2 text-sidebar-foreground" title="Clinsync — IPMG Pre-Screening Workbook">
-          <ClinsyncLogo className="h-6 w-6" />
-          <span className="text-base font-semibold tracking-tight">Clinsync</span>
-        </div>
         <GlobalSearch />
         <div className="flex items-center gap-4">
           <NotificationPanel triggerClassName="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />

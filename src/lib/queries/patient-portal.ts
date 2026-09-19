@@ -69,6 +69,22 @@ export async function getPatientPortalData(patientId: string) {
   }
 }
 
+/**
+ * Just enough to render the persistent portal shell's identity bar (name,
+ * DOB, ID) -- used by the (authenticated) layout, which needs this on
+ * every page but not the full diagnoses/meds/appointments/forms payload
+ * getPatientPortalData() fetches for whichever single page is active.
+ */
+export async function getPatientPortalIdentity(patientId: string) {
+  const [patient] = await getDb().select({ id: patients.id, nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq, dobTebra: patients.dobTebra, dobIntakeq: patients.dobIntakeq }).from(patients).where(eq(patients.id, patientId))
+  if (!patient) return null
+  return {
+    id: patient.id,
+    name: patient.nameTebra ?? patient.nameIntakeq,
+    dob: patient.dobTebra ?? patient.dobIntakeq,
+  }
+}
+
 export async function verifyPatientPortalCredentials(patientId: string, password: string): Promise<boolean> {
   const [patient] = await getDb().select({ portalPasswordHash: patients.portalPasswordHash }).from(patients).where(eq(patients.id, patientId))
   if (!patient?.portalPasswordHash) return false
