@@ -1,5 +1,5 @@
 import { getDb } from '@/db/client'
-import { patients, diagnoses, medicationEpisodes, appointments, providers } from '@/db/schema'
+import { patients, diagnoses, medicationEpisodes, appointments, providers, formSubmissions, formTemplates } from '@/db/schema'
 import { eq, desc, asc, gte, lt, and } from 'drizzle-orm'
 import { hashPassword, verifyPassword } from '@/lib/password'
 
@@ -38,6 +38,18 @@ export async function getPatientPortalData(patientId: string) {
     .orderBy(desc(appointments.startsAt))
     .limit(10)
 
+  // Forms sent to this patient were previously only reachable through a
+  // separate, out-of-band token link (e.g. texted/emailed by staff) --
+  // never surfaced anywhere inside the portal itself, so a patient who
+  // lost or never received that link had no way to find or fill a form
+  // they'd been sent. Surface every submission by access token instead.
+  const forms = await getDb()
+    .select({ id: formSubmissions.id, status: formSubmissions.status, sentDate: formSubmissions.sentDate, accessToken: formSubmissions.accessToken, templateName: formTemplates.name })
+    .from(formSubmissions)
+    .innerJoin(formTemplates, eq(formSubmissions.templateId, formTemplates.id))
+    .where(eq(formSubmissions.patientId, patientId))
+    .orderBy(desc(formSubmissions.sentDate))
+
   return {
     id: patient.id,
     name: patient.nameTebra ?? patient.nameIntakeq,
@@ -49,6 +61,7 @@ export async function getPatientPortalData(patientId: string) {
     pastMedications: meds.filter((m) => m.status === 'inactive'),
     upcomingAppointments: upcoming,
     pastAppointments: past,
+    forms,
   }
 }
 
