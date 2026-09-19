@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { GET, PUT } from '@/app/api/intake/[token]/route'
 import { POST as sendForm } from '@/app/api/form-submissions/route'
 import { getDb } from '@/db/client'
-import { formSubmissions, formTemplates } from '@/db/schema'
+import { formSubmissions, formTemplates, formChartDiscrepancies } from '@/db/schema'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -11,10 +11,19 @@ vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc',
 // the actual POST route -- this file was previously missing cleanup
 // entirely, and most of its tests call it, so a single run left 5-6 junk
 // "sent"/"completed" submissions on RD-0001 every time.
+//
+// Completing a submission now also runs the form-vs-chart discrepancy
+// check (lib/form-chart-discrepancy.ts) -- RD-0001 (Maria Alvarez) has a
+// real active SSRI/SNRI medication on her seeded chart, and these tests'
+// answers never fill in the "Currently taking antidepressants?" question,
+// so every completed-submission test here would otherwise leave a real,
+// uncleaned discrepancy row behind too. Delete discrepancies before
+// submissions (FK: formChartDiscrepancies.formSubmissionId -> formSubmissions.id).
 const createdIds: number[] = []
 afterEach(async () => {
   while (createdIds.length > 0) {
     const id = createdIds.pop()!
+    await getDb().delete(formChartDiscrepancies).where(eq(formChartDiscrepancies.formSubmissionId, id))
     await getDb().delete(formSubmissions).where(eq(formSubmissions.id, id))
   }
 })

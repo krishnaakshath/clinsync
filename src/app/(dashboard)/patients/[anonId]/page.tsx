@@ -6,6 +6,7 @@ import { RefreshEligibilityButton } from '@/components/RefreshEligibilityButton'
 import { PatientPortalAccessPanel } from '@/components/PatientPortalAccessPanel'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { PatientQuickGlance } from '@/components/PatientQuickGlance'
+import { DiscrepancyList } from '@/components/DiscrepancyList'
 import { Tabs } from '@/components/Tabs'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -114,6 +115,20 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section className={SECTION}>
+        <h2 className={SECTION_HEADING}>Form vs. Chart Discrepancies</h2>
+        <p className="mb-3 text-xs text-muted-foreground">Dual verification between what the patient self-reported on their intake form and what their actual chart shows.</p>
+        <DiscrepancyList discrepancies={patient.discrepancies.map((d) => ({
+          id: d.id,
+          questionLabel: d.questionLabel,
+          patientAnswer: d.patientAnswer,
+          chartFinding: d.chartFinding,
+          resolved: d.resolved,
+          resolvedBy: d.resolvedBy,
+          createdAt: d.createdAt.toString(),
+        }))} />
+      </section>
+
+      <section className={SECTION}>
         <h2 className={SECTION_HEADING}>Patient Portal Access</h2>
         <PatientPortalAccessPanel anonId={patient.id} initialConfigured={patient.portalConfigured} isAdmin={session.role === 'admin'} />
       </section>
@@ -149,7 +164,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       <Tabs tabs={[
         { id: 'overview', label: 'Overview', content: overviewTab },
         { id: 'screening', label: 'Screening', content: screeningTab },
-        { id: 'identity', label: 'Identity & Portal', content: identityAndPortalTab },
+        { id: 'identity', label: 'Verification', content: identityAndPortalTab },
       ]} />
     </div>
   )

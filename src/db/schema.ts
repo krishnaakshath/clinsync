@@ -182,6 +182,12 @@ export const formTemplates = pgTable('form_templates', {
     hipaaSensitive: boolean
     required: boolean
     autofillField?: 'name' | 'dob' | 'email' | 'phone' | null
+    // Tags a question as self-reporting something checkable against the
+    // patient's actual chart -- e.g. "Currently taking antidepressants?"
+    // against medicationEpisodes. Optional; most questions (free-text
+    // symptom descriptions, consent checkboxes) have nothing to compare
+    // against and simply omit this.
+    compareToChart?: { type: 'medication_active'; medicationClass: string } | null
   }[]>().notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -197,6 +203,26 @@ export const formSubmissions = pgTable('form_submissions', {
   answers: jsonb('answers').$type<Record<string, string>>().default({}),
   accessToken: text('access_token').unique(),
   tokenExpiresAt: timestamp('token_expires_at'),
+})
+
+// Dual verification between what a patient self-reports on an intake form
+// and what their actual chart (diagnoses/medications, sourced from Tebra/
+// IntakeQ) shows -- distinct from the existing Dual-Sourced Fields
+// comparison, which only checks demographic fields (name/DOB/email)
+// between the two source systems, never clinical content. Populated when a
+// form submission is marked completed; see lib/form-chart-discrepancy.ts.
+export const formChartDiscrepancies = pgTable('form_chart_discrepancies', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  formSubmissionId: integer('form_submission_id').notNull().references(() => formSubmissions.id),
+  questionId: text('question_id').notNull(),
+  questionLabel: text('question_label').notNull(),
+  patientAnswer: text('patient_answer').notNull(),
+  chartFinding: text('chart_finding').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  resolved: boolean('resolved').default(false).notNull(),
+  resolvedBy: text('resolved_by'),
+  resolvedAt: timestamp('resolved_at'),
 })
 
 export const allergies = pgTable('allergies', {
