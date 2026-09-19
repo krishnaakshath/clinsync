@@ -14,11 +14,15 @@ export default async function PatientPortalLayout({ children }: { children: Reac
   if (!identity) notFound()
 
   return (
-    <div className="flex min-h-screen">
+    // h-screen + overflow-hidden (not min-h-screen), same reasoning as the
+    // staff (dashboard) layout: without a height bound here, a tall page
+    // scrolls the whole browser window and carries the sidebar away with
+    // it instead of leaving it pinned while only the content scrolls.
+    <div className="flex h-screen overflow-hidden">
       <PatientPortalSideNav />
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-hidden">
         <PatientPortalTopBar name={identity.name} dob={identity.dob} patientId={identity.id} />
-        <main className="flex-1 overflow-auto bg-background p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-background p-6">{children}</main>
       </div>
     </div>
   )
