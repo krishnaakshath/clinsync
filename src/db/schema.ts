@@ -432,3 +432,24 @@ export const faxes = pgTable('faxes', {
   sentToFaxNumber: text('sent_to_fax_number').notNull(),
   patientId: text('patient_id').references(() => patients.id),
 })
+
+// A flat, single-thread-per-patient message log -- deliberately not a
+// generic multi-party inbox, since that's how the rest of this app already
+// models the doctor<->patient relationship (`patients.currentProvider` is
+// free text; there's no formal doctor-assignment table). `senderName` is
+// captured at send time (the staff member's display name, or the patient's
+// own name) rather than resolved later from the current session/patient
+// record, so the thread still reads correctly if either changes afterward.
+// Any staff role (not just 'pi') may send as the provider side of the
+// thread -- in real clinics the CRC often coordinates patient communication
+// on the doctor's behalf, same reasoning as broadcasts.sentBy.
+export const messages = pgTable('messages', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  senderRole: text('sender_role', { enum: ['provider', 'patient'] }).notNull(),
+  senderName: text('sender_name').notNull(),
+  body: text('body').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  readByPatientAt: timestamp('read_by_patient_at'),
+  readByProviderAt: timestamp('read_by_provider_at'),
+})

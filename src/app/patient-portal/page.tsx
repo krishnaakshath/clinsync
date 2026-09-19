@@ -1,12 +1,15 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Download, Pill, Stethoscope, CalendarCheck, FileText, ArrowRight } from 'lucide-react'
+import { Download, Pill, Stethoscope, CalendarCheck, FileText, ArrowRight, MessageSquare } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
+import { listMessagesForPatient, markReadByPatient } from '@/lib/queries/messages'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { PatientPortalSignOutButton } from '@/components/PatientPortalSignOutButton'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { Tabs } from '@/components/Tabs'
+import { MessageThreadView } from '@/components/MessageThreadView'
+import { MessageComposer } from '@/components/MessageComposer'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -16,6 +19,7 @@ const TILE_COLOR: Record<string, string> = {
   sky: 'bg-sky-500/10 text-sky-700',
   emerald: 'bg-emerald-500/10 text-emerald-700',
   amber: 'bg-amber-500/10 text-amber-700',
+  violet: 'bg-violet-500/10 text-violet-700',
 }
 
 const FORM_STATUS_STYLE: Record<string, string> = {
@@ -50,6 +54,13 @@ export default async function PatientPortalPage() {
   if (!data) notFound()
 
   await logPatientPortalAction('viewed patient portal home', session.patientId)
+
+  // Loaded alongside the other tabs' data (forms/meds/appointments are all
+  // fetched up front too, regardless of which tab is active -- see Tabs),
+  // rather than lazily on tab click. Marking read here mirrors the
+  // provider-side inbox marking a thread read once its page is loaded.
+  const patientMessages = await listMessagesForPatient(session.patientId)
+  await markReadByPatient(session.patientId)
 
   const overviewTab = (
     <div className="space-y-6">
@@ -179,6 +190,20 @@ export default async function PatientPortalPage() {
     </div>
   )
 
+  const messagesTab = (
+    <div className="space-y-6">
+      <section className={`${SECTION} flex min-h-[380px] flex-col`}>
+        <h2 className={HEADING}>Messages with your care team</h2>
+        <div className="flex-1 overflow-y-auto pr-1">
+          <MessageThreadView messages={patientMessages} viewerRole="patient" />
+        </div>
+        <div className="mt-4 border-t border-border pt-4">
+          <MessageComposer patientId={data.id} />
+        </div>
+      </section>
+    </div>
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
@@ -192,11 +217,12 @@ export default async function PatientPortalPage() {
         <PatientPortalSignOutButton />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <SummaryTile icon={Stethoscope} value={data.currentProvider ?? 'Unassigned'} label="Care team" color="primary" />
         <SummaryTile icon={Pill} value={data.activeMedications.length} label="Current meds" color="sky" />
         <SummaryTile icon={FileText} value={data.forms.filter((f) => f.status !== 'completed').length} label="Forms to complete" color="amber" />
         <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="emerald" />
+        <SummaryTile icon={MessageSquare} value={data.unreadMessageCount} label="New messages" color="violet" />
       </div>
 
       <Tabs tabs={[
@@ -204,6 +230,7 @@ export default async function PatientPortalPage() {
         { id: 'forms', label: <><FileText className="h-4 w-4" aria-hidden="true" />Forms</>, content: formsTab },
         { id: 'medications', label: <><Pill className="h-4 w-4" aria-hidden="true" />Medications</>, content: medicationsTab },
         { id: 'appointments', label: <><CalendarCheck className="h-4 w-4" aria-hidden="true" />Appointments</>, content: appointmentsTab },
+        { id: 'messages', label: <><MessageSquare className="h-4 w-4" aria-hidden="true" />Messages</>, content: messagesTab },
       ]} />
     </div>
   )

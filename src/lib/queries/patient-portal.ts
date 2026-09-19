@@ -2,6 +2,7 @@ import { getDb } from '@/db/client'
 import { patients, diagnoses, medicationEpisodes, appointments, providers, formSubmissions, formTemplates } from '@/db/schema'
 import { eq, desc, asc, gte, lt, and } from 'drizzle-orm'
 import { hashPassword, verifyPassword } from '@/lib/password'
+import { getUnreadCountForPatient } from '@/lib/queries/messages'
 
 /**
  * Everything a patient is allowed to see about themselves through the
@@ -50,6 +51,8 @@ export async function getPatientPortalData(patientId: string) {
     .where(eq(formSubmissions.patientId, patientId))
     .orderBy(desc(formSubmissions.sentDate))
 
+  const unreadMessageCount = await getUnreadCountForPatient(patientId)
+
   return {
     id: patient.id,
     name: patient.nameTebra ?? patient.nameIntakeq,
@@ -62,6 +65,7 @@ export async function getPatientPortalData(patientId: string) {
     upcomingAppointments: upcoming,
     pastAppointments: past,
     forms,
+    unreadMessageCount,
   }
 }
 
