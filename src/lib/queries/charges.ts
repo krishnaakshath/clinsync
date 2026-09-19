@@ -28,7 +28,12 @@ export async function listCharges() {
       .select({ charge: charges, patient: patients })
       .from(charges)
       .innerJoin(patients, eq(charges.patientId, patients.id))
-      .orderBy(desc(charges.dateOfService))
+      // Seed/demo data has many charges sharing the same dateOfService, and
+      // Postgres doesn't guarantee tie order is stable across statements --
+      // an UPDATE (e.g. an Approve click) can silently reshuffle which row
+      // shows up where, making the table look like it "did nothing" or
+      // changed the wrong row. desc(id) breaks ties deterministically.
+      .orderBy(desc(charges.dateOfService), desc(charges.id))
     return rows.map((r) => ({ ...r.charge, patientName: r.patient.nameTebra ?? r.patient.nameIntakeq }))
   })
 }

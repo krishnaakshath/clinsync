@@ -19,6 +19,10 @@ const STATUS_LABELS: Record<AppointmentReportRow['status'], string> = {
   scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No Show',
 }
 
+const STATUS_DOT: Record<AppointmentReportRow['status'], string> = {
+  scheduled: 'bg-primary', completed: 'bg-success', cancelled: 'bg-muted-foreground', no_show: 'bg-destructive',
+}
+
 const FILTER_FIELDS: DataGridFilterField[] = [
   { key: 'patientName', label: 'Patient' },
   { key: 'status', label: 'Status', options: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })) },
@@ -37,6 +41,16 @@ const COLUMNS: ReportColumn<AppointmentReportRow>[] = [
   // timezone (the exact bug class already found and fixed once in Task 3).
   { key: 'apptDate', label: 'Appt Date', render: (r) => r.apptDate },
   { key: 'apptTime', label: 'Time', render: (r) => r.apptTime },
+  {
+    key: 'status',
+    label: 'Status',
+    render: (r) => (
+      <span className="inline-flex items-center gap-1.5 text-foreground">
+        <span className={`h-2 w-2 rounded-full ${STATUS_DOT[r.status]}`} aria-hidden="true" />
+        {STATUS_LABELS[r.status]}
+      </span>
+    ),
+  },
   { key: 'patientName', label: 'Patient', render: (r) => r.patientName },
   { key: 'dob', label: 'DOB', render: (r) => r.dob },
   { key: 'homePhone', label: 'Home Phone', render: (r) => r.homePhone },

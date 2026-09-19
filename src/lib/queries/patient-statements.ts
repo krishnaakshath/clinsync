@@ -9,7 +9,9 @@ export async function listPatientStatements() {
       .select({ statement: patientStatements, patient: patients })
       .from(patientStatements)
       .innerJoin(patients, eq(patientStatements.patientId, patients.id))
-      .orderBy(desc(patientStatements.sentDate))
+      // Tiebreak on id so rows sharing a sentDate keep a stable order across
+      // requests (Postgres doesn't guarantee tie order otherwise).
+      .orderBy(desc(patientStatements.sentDate), desc(patientStatements.id))
     // `sentDate` is normalized to an ISO string here (rather than left as the
     // Date object Drizzle returns) so its shape is identical on a cache hit
     // and a cache miss -- getOrSetCache round-trips through Redis as JSON,

@@ -3,7 +3,7 @@ import {
   appointments, providers, patients, formSubmissions, formTemplates,
   patientTrialScreenings, insuranceClaims, charges,
 } from '@/db/schema'
-import { eq, and, notInArray } from 'drizzle-orm'
+import { eq, and, notInArray, desc } from 'drizzle-orm'
 import {
   getOrSetCache,
   allAppointmentsReportCacheKey,
@@ -44,6 +44,10 @@ export async function listAllAppointmentsReport() {
       .from(appointments)
       .innerJoin(patients, eq(appointments.patientId, patients.id))
       .leftJoin(providers, eq(appointments.providerId, providers.id))
+      // No ORDER BY here previously meant Postgres could return rows in any
+      // (and not even stable) order -- see the identical fix and rationale
+      // in queries/documents.ts's listDocuments().
+      .orderBy(desc(appointments.startsAt), desc(appointments.id))
 
     return rows.map((r) => ({
       id: r.appointment.id,
@@ -81,6 +85,7 @@ export async function listUnsignedNotesReport() {
           screenedPatientIds.length > 0 ? notInArray(formSubmissions.patientId, screenedPatientIds) : undefined
         )
       )
+      .orderBy(desc(formSubmissions.completedDate), desc(formSubmissions.id))
 
     return rows.map((r) => ({
       noteId: r.submission.id,
@@ -115,6 +120,7 @@ export async function listAllEncountersReport() {
       .innerJoin(patients, eq(appointments.patientId, patients.id))
       .leftJoin(providers, eq(appointments.providerId, providers.id))
       .where(eq(appointments.status, 'completed'))
+      .orderBy(desc(appointments.startsAt), desc(appointments.id))
 
     const allCharges = await getDb().select().from(charges)
     const allClaims = await getDb().select().from(insuranceClaims)
@@ -148,6 +154,7 @@ export async function listInsuranceCollectionsReport() {
       .from(insuranceClaims)
       .innerJoin(patients, eq(insuranceClaims.patientId, patients.id))
       .innerJoin(charges, eq(insuranceClaims.chargeId, charges.id))
+      .orderBy(desc(insuranceClaims.submittedDate), desc(insuranceClaims.id))
 
     return rows.map((r) => ({
       id: r.claim.id,

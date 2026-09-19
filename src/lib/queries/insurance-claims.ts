@@ -10,7 +10,9 @@ export async function listInsuranceClaims() {
       .from(insuranceClaims)
       .innerJoin(charges, eq(insuranceClaims.chargeId, charges.id))
       .innerJoin(patients, eq(insuranceClaims.patientId, patients.id))
-      .orderBy(desc(insuranceClaims.submittedDate))
+      // Tiebreak on id so rows sharing a submittedDate keep a stable order
+      // across requests (Postgres doesn't guarantee tie order otherwise).
+      .orderBy(desc(insuranceClaims.submittedDate), desc(insuranceClaims.id))
     return rows.map((r) => ({
       ...r.claim,
       patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
