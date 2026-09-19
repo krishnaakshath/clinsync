@@ -36,12 +36,12 @@ const FORM_STATUS_LABEL: Record<string, string> = {
 
 function SummaryTile({ icon: Icon, value, label, color }: { icon: React.ComponentType<{ className?: string }>; value: string | number; label: string; color: keyof typeof TILE_COLOR }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TILE_COLOR[color]}`} aria-hidden="true">
-        <Icon className="h-4.5 w-4.5" />
+    <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card/80 p-3.5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TILE_COLOR[color]}`} aria-hidden="true">
+        <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-foreground">{value}</p>
+        <p className="truncate text-base font-bold text-foreground">{value}</p>
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       </div>
     </div>
@@ -206,7 +206,7 @@ export default async function PatientPortalPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
+      <div className="flex items-center justify-between rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
         <div className="flex items-center gap-4">
           <PatientAvatar name={data.name} size="lg" />
           <div>
