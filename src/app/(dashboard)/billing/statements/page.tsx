@@ -1,0 +1,18 @@
+import { requireSessionOrRedirect } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
+import { listPatientStatements } from '@/lib/queries/patient-statements'
+import { PatientStatementsTable } from '@/components/PatientStatementsTable'
+
+export default async function PatientStatementsPage() {
+  const session = await requireSessionOrRedirect()
+  const statements = await listPatientStatements()
+  await logAudit(session, 'viewed patient statements activity', null)
+
+  return (
+    <div>
+      <h1 className="mb-6 text-2xl font-bold text-foreground">Patient Statements</h1>
+      <p className="mb-4 text-sm text-muted-foreground">Activity log of statements sent to patients.</p>
+      <PatientStatementsTable statements={statements} />
+    </div>
+  )
+}

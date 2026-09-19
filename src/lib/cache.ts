@@ -54,10 +54,62 @@ export function dashboardCacheKey(): string {
   return 'dashboard:data'
 }
 
+export function chargesListCacheKey(): string {
+  return 'charges:list'
+}
+
+export function chargeDetailCacheKey(id: number): string {
+  return `charges:detail:${id}`
+}
+
+export function insuranceClaimsListCacheKey(): string {
+  return 'insurance-claims:list'
+}
+
+export function patientStatementsListCacheKey(): string {
+  return 'patient-statements:list'
+}
+
+export function patientCollectionsListCacheKey(): string {
+  return 'patient-collections:list'
+}
+
+export function arDashboardCacheKey(): string {
+  return 'billing:ar-dashboard'
+}
+
+export function billingAnalyticsCacheKey(): string {
+  return 'billing:analytics'
+}
+
 export function providersListCacheKey(): string {
   return 'providers:list'
 }
 
 export function workbookListCacheKey(): string {
   return 'workbook:list'
+}
+
+export function documentsListCacheKey(): string {
+  return 'documents:list:all'
+}
+
+export function faxesListCacheKey(): string {
+  return 'faxes:list:all'
+}
+
+export function allAppointmentsReportCacheKey(): string {
+  return 'reports:appointments:all'
+}
+
+export function unsignedNotesReportCacheKey(): string {
+  return 'reports:notes:unsigned'
+}
+
+export function allEncountersReportCacheKey(): string {
+  return 'reports:encounters:all'
+}
+
+export function insuranceCollectionsReportCacheKey(): string {
+  return 'reports:claims:insurance-collections'
 }
