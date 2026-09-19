@@ -293,6 +293,45 @@ export const formChartDiscrepancies = pgTable('form_chart_discrepancies', {
   resolvedAt: timestamp('resolved_at'),
 })
 
+export const broadcastChannelEnum = pgEnum('broadcast_channel', ['sms', 'email', 'both'])
+// Distinct from Phase 1's formSubmissionStatusEnum: a broadcast filter also
+// needs to express "patients with no form submission at all", which isn't a
+// real formSubmissions.status value — so this is its own enum, not a reuse
+// or modification of Phase 1's.
+export const broadcastFormStatusFilterEnum = pgEnum('broadcast_form_status_filter', ['sent', 'partial', 'completed', 'none'])
+export const surveyStatusEnum = pgEnum('survey_status', ['sent', 'completed'])
+
+export const broadcasts = pgTable('broadcasts', {
+  id: serial('id').primaryKey(),
+  subject: text('subject'),                    // required by the API when channel includes email; null for sms-only sends
+  message: text('message').notNull(),
+  channel: broadcastChannelEnum('channel').notNull(),
+  filterTrialId: text('filter_trial_id').references(() => trials.id),
+  filterOverallStatus: verdictEnum('filter_overall_status'),
+  filterFormStatus: broadcastFormStatusFilterEnum('filter_form_status'),
+  // Snapshot of exactly who this broadcast went to and whether each
+  // recipient's simulated delivery succeeded, captured at send time so
+  // history remains accurate even if a patient's contact info changes later.
+  recipients: jsonb('recipients').$type<{ patientId: string; patientName: string; deliveryStatus: 'delivered' | 'failed' }[]>().notNull(),
+  recipientCount: integer('recipient_count').notNull(),
+  sentBy: text('sent_by').notNull(),
+  sentAt: timestamp('sent_at').defaultNow().notNull(),
+})
+
+export const reviews = pgTable('reviews', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  formSubmissionId: integer('form_submission_id').notNull().references(() => formSubmissions.id),
+  status: surveyStatusEnum('status').default('sent').notNull(),
+  sentAt: timestamp('sent_at').defaultNow().notNull(),
+  respondedAt: timestamp('responded_at'),
+  ratingOverall: integer('rating_overall'),          // 1-5, set only once status = 'completed'
+  ratingFormsClarity: integer('rating_forms_clarity'), // 1-5
+  ratingCommunication: integer('rating_communication'), // 1-5
+  comments: text('comments'),
+  sentBy: text('sent_by').notNull(),
+})
+
 export const allergies = pgTable('allergies', {
   id: serial('id').primaryKey(),
   patientId: text('patient_id').notNull().references(() => patients.id),
