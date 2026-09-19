@@ -78,9 +78,10 @@ export function LeftNav({ role }: { role: Role }) {
 
   return (
     <nav className="w-60 shrink-0 overflow-y-auto bg-sidebar p-3">
-      <div className="mb-4 flex items-center rounded-lg bg-white/95 px-2.5 py-2">
+      <div className="mb-1 flex items-center rounded-lg bg-white/95 px-2.5 py-2">
         <IpmgIcon className="h-5 w-auto" />
       </div>
+      <p className="mb-4 px-2.5 text-[11px] font-medium text-sidebar-foreground/50">Clinsync</p>
       <GroupLabel>Workspace</GroupLabel>
       <ul className="space-y-0.5">
         {items.map((item) => (
