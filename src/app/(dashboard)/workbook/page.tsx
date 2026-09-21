@@ -22,7 +22,7 @@ export default async function WorkbookPage() {
           Download Full Workbook
         </a>
       </div>
-      <WorkbookTable rows={rows} />
+      <WorkbookTable rows={rows} isAdmin={session.role === 'admin'} />
     </div>
   )
 }

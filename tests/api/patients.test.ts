@@ -8,7 +8,7 @@ import * as tebra from '@/connectors/tebra.mock'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 import { GET as listPatients, POST as createPatient } from '@/app/api/patients/route'
-import { GET as getPatient } from '@/app/api/patients/[anonId]/route'
+import { GET as getPatient, DELETE as deletePatientRoute } from '@/app/api/patients/[anonId]/route'
 import { POST as refreshPatient } from '@/app/api/patients/[anonId]/refresh/route'
 
 // The global setup mock (vitest.setup.ts) stubs `next/headers` so `getSession()`
@@ -147,4 +147,45 @@ describe('POST /api/patients/[anonId]/refresh', () => {
     const response = await refreshPatient(new NextRequest('http://localhost/api/patients/RD-9999/refresh', { method: 'POST' }), { params: Promise.resolve({ anonId: 'RD-9999' }) })
     expect(response.status).toBe(404)
   })
+})
+
+describe('DELETE /api/patients/[anonId]', () => {
+  async function createTestPatient(): Promise<string> {
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin' })
+    const res = await createPatient(new NextRequest('http://localhost/api/patients', { method: 'POST', body: JSON.stringify({ name: 'Delete Route Test', dob: '1993-03-03' }) }))
+    const body = await res.json()
+    return body.id
+  }
+
+  it('returns 401 when there is no authenticated session', async () => {
+    vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
+    const response = await deletePatientRoute(new NextRequest('http://localhost/api/patients/RD-0001', { method: 'DELETE' }), { params: Promise.resolve({ anonId: 'RD-0001' }) })
+    expect(response.status).toBe(401)
+  })
+
+  it('rejects a non-admin session -- deleting a chart is an admin-only action', async () => {
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
+    const response = await deletePatientRoute(new NextRequest('http://localhost/api/patients/RD-0001', { method: 'DELETE' }), { params: Promise.resolve({ anonId: 'RD-0001' }) })
+    expect(response.status).toBe(403)
+  })
+
+  it('returns 404 for an unknown anonymous id', async () => {
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin' })
+    const response = await deletePatientRoute(new NextRequest('http://localhost/api/patients/RD-9999/delete-test', { method: 'DELETE' }), { params: Promise.resolve({ anonId: 'RD-9999-delete-test' }) })
+    expect(response.status).toBe(404)
+  })
+
+  it('permanently removes the patient as an admin', async () => {
+    const id = await createTestPatient()
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin' })
+    const response = await deletePatientRoute(new NextRequest(`http://localhost/api/patients/${id}`, { method: 'DELETE' }), { params: Promise.resolve({ anonId: id }) })
+    expect(response.status).toBe(200)
+
+    const [row] = await getDb().select().from(patients).where(eq(patients.id, id))
+    expect(row).toBeUndefined()
+    // deletePatient() clears 17 tables as separate sequential round-trips
+    // (see its own comment on why none of these FKs cascade at the DB
+    // level) -- slower than a single-query test even with nothing to
+    // delete in most of them, so this needs more than the default 5s.
+  }, 15000)
 })

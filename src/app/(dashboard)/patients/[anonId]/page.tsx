@@ -10,6 +10,7 @@ import { PatientAvatar } from '@/components/PatientAvatar'
 import { PatientQuickGlance } from '@/components/PatientQuickGlance'
 import { DiscrepancyList } from '@/components/DiscrepancyList'
 import { Tabs } from '@/components/Tabs'
+import { DeletePatientButton } from '@/components/DeletePatientButton'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
@@ -139,6 +140,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {session.role === 'admin' && <DeletePatientButton patientId={patient.id} patientName={name} />}
           {patient.overallStatus && <RefreshEligibilityButton anonId={patient.id} />}
           <StatusChip status={patient.overallStatus ?? 'yellow'} />
         </div>

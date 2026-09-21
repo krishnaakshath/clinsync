@@ -642,6 +642,10 @@ export async function seed() {
   await db.insert(identityMatches).values([
     { intakeqClientIdRef: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdRef: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
     { intakeqClientIdRef: 'enc-iq-pending-02', referralName: 'Katherine Voss', referralDob: '1982-12-05', candidateTebraPatientIdRef: 'enc-tb-cand-02', candidateName: 'Kathryn Voss', candidateDob: '1982-12-05', confidence: 88, status: 'pending' },
+    { intakeqClientIdRef: 'enc-iq-pending-03', referralName: 'Nathaniel Cross', referralDob: '1975-04-18', candidateTebraPatientIdRef: 'enc-tb-cand-03', candidateName: 'Nathaniel R. Cross', candidateDob: '1975-04-18', confidence: 91, status: 'pending' },
+    { intakeqClientIdRef: 'enc-iq-pending-04', referralName: 'Priyanka Raghavan', referralDob: '1989-09-02', candidateTebraPatientIdRef: 'enc-tb-cand-04', candidateName: 'Priyanka Raghavann', candidateDob: '1989-09-02', confidence: 68, status: 'pending' },
+    { intakeqClientIdRef: 'enc-iq-pending-05', referralName: 'Samuel Whitfield', referralDob: '1966-11-23', candidateTebraPatientIdRef: 'enc-tb-cand-05', candidateName: 'Sam Whitfield', candidateDob: '1966-11-23', confidence: 76, status: 'pending' },
+    { intakeqClientIdRef: 'enc-iq-pending-06', referralName: 'Isabella Marchetti', referralDob: '1993-02-14', candidateTebraPatientIdRef: 'enc-tb-cand-06', candidateName: 'Isabela Marchetti', candidateDob: '1993-02-14', confidence: 84, status: 'pending' },
   ])
 
   // Form templates: one per trial condition, each with a handful of
