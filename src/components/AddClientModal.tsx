@@ -10,17 +10,10 @@ interface NewPatientForm {
   city: string
   zip: string
   currentProvider: string
-  referralType: string
-  availability: string
-  commConsentSigned: boolean
-  commConsentPref: string
-  formNotes: string
 }
 
 const EMPTY_FORM: NewPatientForm = {
-  name: '', dob: '', email: '', phone: '', city: '', zip: '',
-  currentProvider: '', referralType: '', availability: '',
-  commConsentSigned: false, commConsentPref: '', formNotes: '',
+  name: '', dob: '', email: '', phone: '', city: '', zip: '', currentProvider: '',
 }
 
 export function AddClientModal({ onClose }: { onClose: () => void }) {
@@ -40,18 +33,13 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nameIntakeq: form.name,
-        dobIntakeq: form.dob,
-        emailIntakeq: form.email || undefined,
-        phoneIntakeq: form.phone || undefined,
-        cityIntakeq: form.city || undefined,
-        zipIntakeq: form.zip || undefined,
+        name: form.name,
+        dob: form.dob,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        city: form.city || undefined,
+        zip: form.zip || undefined,
         currentProvider: form.currentProvider || undefined,
-        referralType: form.referralType || undefined,
-        availability: form.availability || undefined,
-        commConsentSigned: form.commConsentSigned || undefined,
-        commConsentPref: form.commConsentPref || undefined,
-        formNotes: form.formNotes || undefined,
       }),
     })
     setSubmitting(false)
@@ -70,7 +58,10 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-card p-6 shadow-lg">
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Add New Patient</h2>
+        <h2 className="mb-1 text-lg font-semibold text-foreground">Add New Patient</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          This creates a new chart in Tebra -- Clinsync doesn&apos;t store patient records of its own.
+        </p>
 
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Basic info</p>
@@ -85,22 +76,8 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
             <input value={form.zip} onChange={(e) => update('zip', e.target.value)} placeholder="Zip (optional)" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
           </div>
 
-          <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Referral &amp; care details</p>
+          <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Care details</p>
           <input value={form.currentProvider} onChange={(e) => update('currentProvider', e.target.value)} placeholder="Current provider (optional)" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
-          <div className="grid grid-cols-2 gap-3">
-            <input value={form.referralType} onChange={(e) => update('referralType', e.target.value)} placeholder="Referral type (optional)" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
-            <input value={form.availability} onChange={(e) => update('availability', e.target.value)} placeholder="Availability (optional)" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
-          </div>
-
-          <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Communication consent</p>
-          <label className="flex items-center gap-2 text-sm text-foreground">
-            <input type="checkbox" checked={form.commConsentSigned} onChange={(e) => update('commConsentSigned', e.target.checked)} />
-            Consent signed
-          </label>
-          <input value={form.commConsentPref} onChange={(e) => update('commConsentPref', e.target.value)} placeholder="Preferred contact method (optional)" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
-
-          <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
-          <textarea value={form.formNotes} onChange={(e) => update('formNotes', e.target.value)} placeholder="Form notes (optional)" rows={2} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
         </div>
 
         {error && <p className="mt-3 text-sm text-destructive">{error}</p>}

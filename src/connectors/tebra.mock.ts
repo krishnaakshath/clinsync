@@ -28,6 +28,20 @@ export async function listPatients(): Promise<FHIRPatient[]> {
   return PATIENTS
 }
 
+let nextPatientNum = PATIENTS.length + 1
+
+/**
+ * Registers a brand-new patient chart in Tebra -- the actual clinical
+ * record of a patient always originates here, never as a row typed
+ * directly into Clinsync's own database. See the "Add New Patient" flow,
+ * which calls this instead of inserting into `patients` itself.
+ */
+export async function createPatient(data: Omit<FHIRPatient, 'tebraPatientId'>): Promise<FHIRPatient> {
+  const patient: FHIRPatient = { tebraPatientId: `tebra-${String(nextPatientNum++).padStart(3, '0')}`, ...data }
+  PATIENTS.push(patient)
+  return patient
+}
+
 export async function getActiveMedications(patientId: string): Promise<MedicationRequestResult[]> {
   return (MEDICATIONS[patientId] ?? []).filter((m) => m.status === 'active')
 }

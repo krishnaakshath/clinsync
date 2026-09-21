@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
 import { patients } from '@/db/schema'
+import * as tebra from '@/connectors/tebra.mock'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 import { GET as listPatients, POST as createPatient } from '@/app/api/patients/route'
@@ -86,42 +87,46 @@ describe('POST /api/patients', () => {
 
   it('returns 401 when there is no authenticated session', async () => {
     vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
-    const response = await createPatient(req({ nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01' }))
+    const response = await createPatient(req({ name: 'Test Patient', dob: '1990-01-01' }))
     expect(response.status).toBe(401)
   })
 
   it('rejects a payload missing the required name or DOB', async () => {
-    const response = await createPatient(req({ nameIntakeq: 'Test Patient' }))
+    const response = await createPatient(req({ name: 'Test Patient' }))
     expect(response.status).toBe(400)
   })
 
   it('rejects a payload with an unexpected extra field', async () => {
-    const response = await createPatient(req({ nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01', ssn: '123-45-6789' }))
+    const response = await createPatient(req({ name: 'Test Patient', dob: '1990-01-01', ssn: '123-45-6789' }))
     expect(response.status).toBe(400)
   })
 
-  it('creates a patient with the full set of optional intake fields', async () => {
+  it('creates the chart in Tebra first, then mirrors it into a new patient row', async () => {
     const response = await createPatient(req({
-      nameIntakeq: 'Test Patient',
-      dobIntakeq: '1990-01-01',
-      emailIntakeq: 'test.patient@example.com',
-      phoneIntakeq: '555-0100',
-      cityIntakeq: 'Riverside',
-      zipIntakeq: '92501',
+      name: 'Test Patient',
+      dob: '1990-01-01',
+      email: 'test.patient@example.com',
+      phone: '555-0100',
+      city: 'Riverside',
+      zip: '92501',
       currentProvider: 'Dr. Kunam',
-      referralType: 'Self-referral',
-      availability: 'Weekday mornings',
-      commConsentSigned: true,
-      commConsentPref: 'email',
-      formNotes: 'Prefers email contact.',
     }))
     expect(response.status).toBe(201)
     const body = await response.json()
     createdIds.push(body.id)
     expect(body.id).toMatch(/^RD-\d{4}$/)
-    expect(body.cityIntakeq).toBe('Riverside')
+    // Tebra is the system of record here -- the chart is filed under
+    // nameTebra/dobTebra, with nameIntakeq/dobIntakeq mirrored only to
+    // satisfy the schema's NOT NULL pair, not fabricated intake answers.
+    expect(body.nameTebra).toBe('Test Patient')
+    expect(body.nameIntakeq).toBe('Test Patient')
+    expect(body.cityTebra).toBe('Riverside')
     expect(body.currentProvider).toBe('Dr. Kunam')
-    expect(body.commConsentSigned).toBe(true)
+    expect(body.tebraPatientIdRef).toMatch(/^ENC\[tebra-/)
+    expect(body.intakeqClientIdRef).toMatch(/^ENC\[no-intake-/)
+
+    const tebraPatients = await tebra.listPatients()
+    expect(tebraPatients.some((p) => `${p.firstName} ${p.lastName}` === 'Test Patient' && p.birthDate === '1990-01-01')).toBe(true)
   })
 })
 
