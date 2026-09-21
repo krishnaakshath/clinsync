@@ -1,10 +1,30 @@
 import { notFound } from 'next/navigation'
+import { CalendarClock } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
+import { AppointmentStatusChip } from '@/components/AppointmentStatusChip'
+import type { AppointmentStatus } from '@/lib/queries/appointments'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+
+function AppointmentRow({ visitReason, providerName, status, dateLabel }: { visitReason: string; providerName: string; status: AppointmentStatus; dateLabel: string }) {
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-2.5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
+        <CalendarClock className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground">{visitReason}</p>
+        <p className="truncate text-xs text-muted-foreground">with {providerName} · {dateLabel}</p>
+      </div>
+      <div className="shrink-0">
+        <AppointmentStatusChip status={status} />
+      </div>
+    </li>
+  )
+}
 
 export default async function PatientPortalAppointmentsPage() {
   const session = await requirePatientSessionOrRedirect()
@@ -22,12 +42,15 @@ export default async function PatientPortalAppointmentsPage() {
         {data.upcomingAppointments.length === 0 ? (
           <p className="text-sm text-muted-foreground">No upcoming appointments.</p>
         ) : (
-          <ul className="space-y-2 text-sm text-foreground">
+          <ul className="space-y-2">
             {data.upcomingAppointments.map((a) => (
-              <li key={a.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                <span>{a.visitReason} with {a.providerName}</span>
-                <span className="text-xs text-muted-foreground">{new Date(a.startsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-              </li>
+              <AppointmentRow
+                key={a.id}
+                visitReason={a.visitReason}
+                providerName={a.providerName}
+                status={a.status}
+                dateLabel={new Date(a.startsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+              />
             ))}
           </ul>
         )}
@@ -38,12 +61,15 @@ export default async function PatientPortalAppointmentsPage() {
         {data.pastAppointments.length === 0 ? (
           <p className="text-sm text-muted-foreground">No past visits on file.</p>
         ) : (
-          <ul className="space-y-2 text-sm text-foreground">
+          <ul className="space-y-2">
             {data.pastAppointments.map((a) => (
-              <li key={a.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0 last:pb-0">
-                <span>{a.visitReason} with {a.providerName}</span>
-                <span className="text-xs text-muted-foreground">{new Date(a.startsAt).toLocaleDateString()}</span>
-              </li>
+              <AppointmentRow
+                key={a.id}
+                visitReason={a.visitReason}
+                providerName={a.providerName}
+                status={a.status}
+                dateLabel={new Date(a.startsAt).toLocaleDateString()}
+              />
             ))}
           </ul>
         )}
