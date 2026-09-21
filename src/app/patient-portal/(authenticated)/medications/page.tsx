@@ -1,11 +1,25 @@
 import { notFound } from 'next/navigation'
-import { Download } from 'lucide-react'
+import { Download, Pill } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+
+function MedicationRow({ name, medicationClass, dose, dateRange }: { name: string; medicationClass: string; dose: string | null; dateRange: string }) {
+  return (
+    <li className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2.5">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
+        <Pill className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">{name} <span className="font-normal text-muted-foreground">({medicationClass})</span></p>
+        <p className="text-xs text-muted-foreground">{dose ?? 'Dose not on file'} · {dateRange}</p>
+      </div>
+    </li>
+  )
+}
 
 export default async function PatientPortalMedicationsPage() {
   const session = await requirePatientSessionOrRedirect()
@@ -29,12 +43,9 @@ export default async function PatientPortalMedicationsPage() {
         {data.activeMedications.length === 0 ? (
           <p className="text-sm text-muted-foreground">No current medications on file.</p>
         ) : (
-          <ul className="space-y-2 text-sm text-foreground">
+          <ul className="space-y-2">
             {data.activeMedications.map((m) => (
-              <li key={m.id} className="border-b border-border pb-2 last:border-0 last:pb-0">
-                <span className="font-medium">{m.name}</span> ({m.medicationClass}) — {m.dose ?? 'dose not on file'}
-                <span className="block text-xs text-muted-foreground">Started {m.startDate}</span>
-              </li>
+              <MedicationRow key={m.id} name={m.name} medicationClass={m.medicationClass} dose={m.dose} dateRange={`Started ${m.startDate}`} />
             ))}
           </ul>
         )}
@@ -45,12 +56,9 @@ export default async function PatientPortalMedicationsPage() {
         {data.pastMedications.length === 0 ? (
           <p className="text-sm text-muted-foreground">No past medications on file.</p>
         ) : (
-          <ul className="space-y-2 text-sm text-foreground">
+          <ul className="space-y-2">
             {data.pastMedications.map((m) => (
-              <li key={m.id} className="border-b border-border pb-2 last:border-0 last:pb-0">
-                <span className="font-medium">{m.name}</span> ({m.medicationClass}) — {m.dose ?? 'dose not on file'}
-                <span className="block text-xs text-muted-foreground">{m.startDate} to {m.stopDate ?? 'unknown'}</span>
-              </li>
+              <MedicationRow key={m.id} name={m.name} medicationClass={m.medicationClass} dose={m.dose} dateRange={`${m.startDate} to ${m.stopDate ?? 'unknown'}`} />
             ))}
           </ul>
         )}
