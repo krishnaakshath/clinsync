@@ -1,8 +1,10 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Search, Trash2 } from 'lucide-react'
 import type { WorkbookRow } from '@/lib/queries/workbook'
+import { DeletePatientDialog, type DeleteTarget } from '@/components/DeletePatientDialog'
 
 // Columns match the source 30-heading workbook verbatim and in order (see
 // src/lib/queries/workbook.ts). This is an internal, staff-only operational
@@ -49,10 +51,24 @@ function cellValue(row: WorkbookRow, key: string): string {
   return String(value)
 }
 
-export function WorkbookTable({ rows }: { rows: WorkbookRow[] }) {
+export function WorkbookTable({ rows, isAdmin }: { rows: WorkbookRow[]; isAdmin: boolean }) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMNS.map((c) => c.key as string))
   const [columnsPanelOpen, setColumnsPanelOpen] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: WorkbookRow } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    window.addEventListener('click', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [contextMenu])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -124,7 +140,11 @@ export function WorkbookTable({ rows }: { rows: WorkbookRow[] }) {
             </thead>
             <tbody>
               {filtered.map((r, i) => (
-                <tr key={r.id} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''} hover:bg-secondary`}>
+                <tr
+                  key={r.id}
+                  className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''} hover:bg-secondary`}
+                  onContextMenu={isAdmin ? (e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: r }) } : undefined}
+                >
                   {COLUMNS.filter((c) => show(c.key as string)).map((c) =>
                     c.key === 'id' ? (
                       <td key={c.key} className="whitespace-nowrap p-3"><Link href={`/patients/${r.id}`} className="font-medium text-primary hover:underline">{r.id}</Link></td>
@@ -139,6 +159,31 @@ export function WorkbookTable({ rows }: { rows: WorkbookRow[] }) {
         </div>
       )}
       <p className="mt-3 text-xs text-muted-foreground">{filtered.length} of {rows.length} patient{rows.length === 1 ? '' : 's'}</p>
+
+      {contextMenu && (
+        <div
+          className="fixed z-50 w-48 rounded-md border border-border bg-card py-1 shadow-lg"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteTarget({ id: contextMenu.row.id, name: contextMenu.row.patientName })
+              setContextMenu(null)
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            Delete Patient
+          </button>
+        </div>
+      )}
+
+      <DeletePatientDialog
+        target={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={() => router.refresh()}
+      />
     </div>
   )
 }
