@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   if (!mfaState?.mfaSecretEncrypted || mfaState.mfaEnabled) return NextResponse.json({ error: 'No enrollment in progress' }, { status: 400 })
 
   const secretBase32 = decryptSensitive(mfaState.mfaSecretEncrypted)
-  if (!verifyMfaCode(secretBase32, parsed.data.code)) return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
+  if (!(await verifyMfaCode(secretBase32, parsed.data.code, session.patientId))) return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
 
   await enablePatientMfa(session.patientId)
   await logPatientPortalAction('enabled MFA', session.patientId)

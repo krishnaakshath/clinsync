@@ -108,6 +108,7 @@ describe('patient login without MFA enabled', () => {
 
 describe('patient login with MFA enabled', () => {
   const secret = new OTPAuth.Secret({ size: 20 })
+  let usedCode: string
 
   beforeAll(async () => {
     await setPatientMfaSecret(TEST_PATIENT_ID, encryptSensitive(secret.base32))
@@ -121,9 +122,21 @@ describe('patient login with MFA enabled', () => {
 
     const pendingCookie = res.cookies.get('clinsync_pending_patient_mfa')?.value
     const totp = new OTPAuth.TOTP({ issuer: 'Clinsync', label: 'x', algorithm: 'SHA1', digits: 6, period: 30, secret })
-    const verifyRes = await loginMfa(mfaReq({ code: totp.generate() }, `clinsync_pending_patient_mfa=${pendingCookie}`))
+    usedCode = totp.generate()
+    const verifyRes = await loginMfa(mfaReq({ code: usedCode }, `clinsync_pending_patient_mfa=${pendingCookie}`))
     expect(verifyRes.status).toBe(200)
     expect(verifyRes.cookies.get('clinsync_patient_session')).toBeTruthy()
+  })
+
+  it('rejects replaying the code that just logged in, on a fresh password step', async () => {
+    // RFC 6238 §5.2: the code from the test above is still inside its
+    // validity window, but it's been consumed -- a second login presenting
+    // it must fail even with a correct password and a valid pending cookie.
+    const res = await login(req({ patientId: TEST_PATIENT_ID, password: TEST_PASSWORD }))
+    const pendingCookie = res.cookies.get('clinsync_pending_patient_mfa')?.value
+    const replayRes = await loginMfa(mfaReq({ code: usedCode }, `clinsync_pending_patient_mfa=${pendingCookie}`))
+    expect(replayRes.status).toBe(401)
+    expect(replayRes.cookies.get('clinsync_patient_session')).toBeFalsy()
   })
 
   it('rejects a wrong code', async () => {

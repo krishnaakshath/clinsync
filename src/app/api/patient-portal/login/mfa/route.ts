@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   if (!mfaState?.mfaSecretEncrypted) return NextResponse.json({ error: 'Your login session expired. Please sign in again.' }, { status: 401 })
 
   const secretBase32 = decryptSensitive(mfaState.mfaSecretEncrypted)
-  if (!verifyMfaCode(secretBase32, parsed.data.code)) {
+  if (!(await verifyMfaCode(secretBase32, parsed.data.code, pending.patientId))) {
     return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
   }
 
