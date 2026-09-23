@@ -114,3 +114,48 @@ export async function checkPatientLoginRateLimit(ip: string, patientId: string):
   ])
   return { allowed: perIp.success && global.success }
 }
+
+// Separate bucket from the password-check limiter above -- same reasoning as
+// checkStaffMfaRateLimit: a correct password shouldn't share a counter with
+// brute-forcing the 6-digit TOTP code that comes after it.
+let _patientMfaLimiter: Ratelimit | null = null
+function getPatientMfaLimiter() {
+  if (!_patientMfaLimiter) {
+    _patientMfaLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(5, '60 s'),
+      prefix: 'ratelimit:mfa-verify-patient',
+    })
+  }
+  return _patientMfaLimiter
+}
+
+// A second, IP-independent bucket keyed on identity alone -- same defense as
+// checkStaffMfaRateLimit's global bucket, against the identical threat model:
+// the per-IP limiter above trusts the client-supplied `x-forwarded-for`
+// header (see getClientIp in the login routes), so an attacker can get a
+// fresh 5-attempt budget on every single guess just by sending a different
+// spoofed IP each time. This catches sustained TOTP guessing against one
+// patient account regardless of how many (real or spoofed) IPs it comes
+// from. Slower and wider than the per-IP bucket -- it's the backstop, not
+// the primary defense, and shouldn't lock out a patient's own handful of
+// mistyped codes.
+let _patientMfaGlobalLimiter: Ratelimit | null = null
+function getPatientMfaGlobalLimiter() {
+  if (!_patientMfaGlobalLimiter) {
+    _patientMfaGlobalLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(10, '600 s'),
+      prefix: 'ratelimit:mfa-verify-patient-global',
+    })
+  }
+  return _patientMfaGlobalLimiter
+}
+
+export async function checkPatientMfaRateLimit(ip: string, patientId: string): Promise<{ allowed: boolean }> {
+  const [perIp, global] = await Promise.all([
+    getPatientMfaLimiter().limit(`${ip}:${patientId}`),
+    getPatientMfaGlobalLimiter().limit(patientId),
+  ])
+  return { allowed: perIp.success && global.success }
+}

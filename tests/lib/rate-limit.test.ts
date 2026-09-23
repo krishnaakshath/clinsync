@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { checkLoginRateLimit, checkPatientLoginRateLimit, checkStaffMfaRateLimit } from '@/lib/rate-limit'
+import { checkLoginRateLimit, checkPatientLoginRateLimit, checkStaffMfaRateLimit, checkPatientMfaRateLimit } from '@/lib/rate-limit'
 
 describe('checkLoginRateLimit', () => {
   it('allows the first few attempts for a fresh ip+email key', async () => {
@@ -105,6 +105,43 @@ describe('checkStaffMfaRateLimit', () => {
       expect(allowed).toBe(true)
     }
     const eleventh = await checkStaffMfaRateLimit('203.0.116.99', identity)
+    expect(eleventh.allowed).toBe(false)
+  })
+})
+
+describe('checkPatientMfaRateLimit', () => {
+  it('allows the first few attempts for a fresh ip+patientId key', async () => {
+    const patientId = `rl-test-patient-mfa-${Date.now()}-${Math.random()}`
+    const first = await checkPatientMfaRateLimit('203.0.117.1', patientId)
+    expect(first.allowed).toBe(true)
+  })
+
+  it('blocks after the window is exhausted for one ip+patientId key', async () => {
+    const ip = '203.0.117.2'
+    const patientId = `rl-test-patient-mfa-${Date.now()}`
+    for (let i = 0; i < 5; i++) {
+      const { allowed } = await checkPatientMfaRateLimit(ip, patientId)
+      expect(allowed).toBe(true)
+    }
+    const sixth = await checkPatientMfaRateLimit(ip, patientId)
+    expect(sixth.allowed).toBe(false)
+  })
+
+  it('blocks sustained TOTP guessing against one patient id even when spread across many source IPs', async () => {
+    // Regression test for the same Critical finding as checkStaffMfaRateLimit
+    // (Task 5): a single-bucket limiter keyed solely on `${ip}:${patientId}`
+    // is trivially bypassed since getClientIp trusts the client-supplied
+    // x-forwarded-for header -- an attacker gets a fresh 5-attempt budget on
+    // every single 6-digit code guess just by sending a different (spoofed)
+    // IP each time. Each individual IP below never exceeds its own
+    // 5-per-60s bucket, but the IP-independent global bucket (10 per 600s,
+    // keyed on patientId alone) still catches it.
+    const patientId = `rl-test-patient-mfa-distributed-${Date.now()}`
+    for (let i = 0; i < 10; i++) {
+      const { allowed } = await checkPatientMfaRateLimit(`203.0.118.${i}`, patientId)
+      expect(allowed).toBe(true)
+    }
+    const eleventh = await checkPatientMfaRateLimit('203.0.118.99', patientId)
     expect(eleventh.allowed).toBe(false)
   })
 })
