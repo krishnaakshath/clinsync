@@ -87,6 +87,8 @@ export const patients = pgTable('patients', {
   oldRecs: text('old_recs'),
   outsideMedsConfirmation: text('outside_meds_confirmation'),
   chartDataAsOf: timestamp('chart_data_as_of').defaultNow().notNull(),
+  mfaSecretEncrypted: text('mfa_secret_encrypted'),
+  mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
 })
 
 export const diagnoses = pgTable('diagnoses', {
@@ -163,6 +165,8 @@ export const users = pgTable('users', {
   // row here. Set for any other user this pilot provisions a real login
   // for (pi/crc demo accounts). Same scrypt scheme as lib/password.ts.
   passwordHash: text('password_hash'),
+  mfaSecretEncrypted: text('mfa_secret_encrypted'),
+  mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
 })
 
 export const chargeStatusEnum = pgEnum('charge_status', ['draft', 'pending_approval', 'approved', 'submitted'])
@@ -367,6 +371,11 @@ export const appSettings = pgTable('app_settings', {
   tebraCustomerKeyEncrypted: text('tebra_customer_key_encrypted'),
   tebraUserEncrypted: text('tebra_user_encrypted'),
   tebraPasswordEncrypted: text('tebra_password_encrypted'),
+  // The admin account authenticates via ADMIN_EMAIL/ADMIN_PASSWORD_HASH env
+  // vars (api/login/route.ts), not a users row -- its MFA state has nowhere
+  // else to live, so it goes on this pilot-wide singleton instead.
+  adminMfaSecretEncrypted: text('admin_mfa_secret_encrypted'),
+  adminMfaEnabled: boolean('admin_mfa_enabled').default(false).notNull(),
 })
 
 export const appointmentStatusEnum = pgEnum('appointment_status', ['scheduled', 'completed', 'cancelled', 'no_show'])
