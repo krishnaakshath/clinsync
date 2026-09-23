@@ -15,7 +15,23 @@ export interface CriteriaSummary {
   exclusionTotal: number
 }
 
-export type PatientWithStatus = typeof patients.$inferSelect & { trialId?: string; overallStatus?: Verdict; criteriaSummary?: CriteriaSummary }
+// `mfaSecretEncrypted` is the patient's encrypted TOTP secret -- only the
+// portal login/enrollment routes ever need it, and they read it through
+// getPatientMfaState, never through these list/detail queries. Both queries
+// below are serialized to JSON (GET /api/patients, GET /api/patients/[anonId],
+// Server Component props) and written to the Redis cache, so the column is
+// stripped from every row they return rather than riding along in a
+// whole-row spread. `mfaEnabled` (a non-sensitive flag the staff UI shows)
+// stays.
+type PatientRowWithoutMfaSecret = Omit<typeof patients.$inferSelect, 'mfaSecretEncrypted'>
+
+function withoutMfaSecret(row: typeof patients.$inferSelect): PatientRowWithoutMfaSecret {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { mfaSecretEncrypted, ...rest } = row
+  return rest
+}
+
+export type PatientWithStatus = PatientRowWithoutMfaSecret & { trialId?: string; overallStatus?: Verdict; criteriaSummary?: CriteriaSummary }
 
 /**
  * Shared by the /api/patients route handler and any Server Component that
@@ -66,7 +82,7 @@ export async function listPatientsWithStatus(trialId: string | null): Promise<Pa
     }
 
     return rows.map((r) => ({
-      ...r.patient,
+      ...withoutMfaSecret(r.patient),
       trialId: r.screening?.trialId,
       overallStatus: r.screening?.overallStatus,
       criteriaSummary: summaryByPatient.get(r.patient.id),
@@ -107,7 +123,7 @@ export async function getPatientDetail(anonId: string) {
 
     const discrepancies = await listDiscrepanciesForPatient(anonId)
 
-    return { ...patient, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null, portalConfigured: !!patient.portalPasswordHash, discrepancies }
+    return { ...withoutMfaSecret(patient), mfaEnabled: patient.mfaEnabled, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null, portalConfigured: !!patient.portalPasswordHash, discrepancies }
   })
 }
 
