@@ -6,7 +6,7 @@ import { encryptSensitive } from '@/lib/crypto'
 // Single-row settings table: always operate on row id 1 (created by the seed).
 export async function getAppSettings() {
   const [row] = await getDb().select().from(appSettings)
-  return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null }
+  return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null, adminMfaSecretEncrypted: null, adminMfaEnabled: false }
 }
 
 // What the Settings page actually renders -- booleans for whether each EHR
@@ -56,4 +56,24 @@ export async function updateEhrCredentials(input: EhrCredentialsInput) {
   if (input.tebraPassword) patch.tebraPasswordEncrypted = encryptSensitive(input.tebraPassword)
   if (Object.keys(patch).length === 0) return
   await getDb().update(appSettings).set(patch).where(eq(appSettings.id, current.id))
+}
+
+export async function getAdminMfaState(): Promise<{ mfaSecretEncrypted: string | null; mfaEnabled: boolean }> {
+  const settings = await getAppSettings()
+  return { mfaSecretEncrypted: settings.adminMfaSecretEncrypted, mfaEnabled: settings.adminMfaEnabled }
+}
+
+export async function setAdminMfaSecret(secretEncrypted: string): Promise<void> {
+  const current = await getAppSettings()
+  await getDb().update(appSettings).set({ adminMfaSecretEncrypted: secretEncrypted }).where(eq(appSettings.id, current.id))
+}
+
+export async function enableAdminMfa(): Promise<void> {
+  const current = await getAppSettings()
+  await getDb().update(appSettings).set({ adminMfaEnabled: true }).where(eq(appSettings.id, current.id))
+}
+
+export async function resetAdminMfa(): Promise<void> {
+  const current = await getAppSettings()
+  await getDb().update(appSettings).set({ adminMfaSecretEncrypted: null, adminMfaEnabled: false }).where(eq(appSettings.id, current.id))
 }

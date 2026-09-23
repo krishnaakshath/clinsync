@@ -12,7 +12,29 @@ export async function findUserByEmail(email: string) {
 
 /** Settings > Staff panel roster -- never returns passwordHash. */
 export async function listAllUsers() {
-  return getDb().select({ id: users.id, name: users.name, email: users.email, role: users.role }).from(users)
+  return getDb().select({ id: users.id, name: users.name, email: users.email, role: users.role, mfaEnabled: users.mfaEnabled }).from(users)
+}
+
+export async function getUserMfaState(userId: number): Promise<{ mfaSecretEncrypted: string | null; mfaEnabled: boolean } | null> {
+  const [row] = await getDb().select({ mfaSecretEncrypted: users.mfaSecretEncrypted, mfaEnabled: users.mfaEnabled }).from(users).where(eq(users.id, userId))
+  return row ?? null
+}
+
+export async function getUserNameById(userId: number): Promise<string | null> {
+  const [row] = await getDb().select({ name: users.name }).from(users).where(eq(users.id, userId))
+  return row?.name ?? null
+}
+
+export async function setUserMfaSecret(userId: number, secretEncrypted: string): Promise<void> {
+  await getDb().update(users).set({ mfaSecretEncrypted: secretEncrypted }).where(eq(users.id, userId))
+}
+
+export async function enableUserMfa(userId: number): Promise<void> {
+  await getDb().update(users).set({ mfaEnabled: true }).where(eq(users.id, userId))
+}
+
+export async function resetUserMfa(userId: number): Promise<void> {
+  await getDb().update(users).set({ mfaSecretEncrypted: null, mfaEnabled: false }).where(eq(users.id, userId))
 }
 
 const UNAMBIGUOUS_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
