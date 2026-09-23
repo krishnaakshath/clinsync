@@ -27,8 +27,15 @@ function getSessionSecret(): Uint8Array {
 // cookie's *contents* untrustworthy without the secret, so forging a session
 // now requires compromising the server, not just typing into devtools. This
 // was found and independently confirmed by two separate security audits.
+// `kind: 'staff'` mirrors patient-session.ts's own `kind: 'patient'` claim --
+// without it, the short-lived pending-MFA JWT (mfa-pending-session.ts, which
+// also carries `role`+`name` and shares this same SESSION_SECRET) could be
+// replayed as a real session by copying its value into this cookie's slot,
+// completing a fully authenticated staff login without ever passing the
+// TOTP check. Found by task review during the MFA rollout; see
+// docs/superpowers/plans/2026-09-23-patient-portal-security-mfa.md.
 export async function buildSessionCookieValue(role: Role, name: string): Promise<string> {
-  return new SignJWT({ role, name })
+  return new SignJWT({ kind: 'staff', role, name })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
@@ -42,7 +49,7 @@ export async function parseSessionCookie(value: string): Promise<Session | null>
     // an invalid role here previously reached the audit_log insert and
     // crashed with a Postgres enum-constraint violation on every subsequent
     // audited request for that session.
-    if (typeof payload.name === 'string' && payload.name.length > 0 && VALID_ROLES.includes(payload.role as Role)) {
+    if (payload.kind === 'staff' && typeof payload.name === 'string' && payload.name.length > 0 && VALID_ROLES.includes(payload.role as Role)) {
       return { role: payload.role as Role, name: payload.name }
     }
     return null
