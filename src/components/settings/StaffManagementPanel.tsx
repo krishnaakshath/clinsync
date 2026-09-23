@@ -8,6 +8,7 @@ export interface StaffRow {
   name: string
   email: string
   role: 'admin' | 'pi' | 'crc'
+  mfaEnabled: boolean
 }
 
 const ROLE_LABEL: Record<StaffRow['role'], string> = { admin: 'Administrator', pi: 'Principal Investigator', crc: 'Coordinator' }
@@ -41,7 +42,7 @@ function AddStaffForm({ onCreated }: { onCreated: (row: StaffRow, password: stri
       return
     }
     const created = await res.json()
-    onCreated({ id: created.id, name: created.name, email: created.email, role: created.role }, created.password)
+    onCreated({ id: created.id, name: created.name, email: created.email, role: created.role, mfaEnabled: false }, created.password)
     setName('')
     setEmail('')
     setRole('crc')
@@ -117,9 +118,17 @@ function NewCredentialBanner({ row, password, onDismiss }: { row: StaffRow; pass
 export function StaffManagementPanel({ staff, isAdmin }: { staff: StaffRow[]; isAdmin: boolean }) {
   const router = useRouter()
   const [newCredential, setNewCredential] = useState<{ row: StaffRow; password: string } | null>(null)
+  const [resetting, setResetting] = useState<number | null>(null)
 
   function handleCreated(row: StaffRow, password: string) {
     setNewCredential({ row, password })
+    router.refresh()
+  }
+
+  async function resetMfa(id: number) {
+    setResetting(id)
+    await fetch(`/api/users/${id}/reset-mfa`, { method: 'POST' })
+    setResetting(null)
     router.refresh()
   }
 
@@ -140,7 +149,14 @@ export function StaffManagementPanel({ staff, isAdmin }: { staff: StaffRow[]; is
                 <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
                 <p className="truncate text-xs text-muted-foreground">{s.email}</p>
               </div>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${ROLE_BADGE[s.role]}`}>{ROLE_LABEL[s.role]}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ROLE_BADGE[s.role]}`}>{ROLE_LABEL[s.role]}</span>
+                {isAdmin && s.mfaEnabled && (
+                  <button onClick={() => resetMfa(s.id)} disabled={resetting === s.id} className="rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50">
+                    {resetting === s.id ? 'Resetting…' : 'Reset MFA'}
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>

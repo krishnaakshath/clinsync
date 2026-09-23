@@ -9,6 +9,7 @@ import { PracticeInfoForm } from '@/components/PracticeInfoForm'
 import { EhrConnectionsForm } from '@/components/EhrConnectionsForm'
 import { ProviderProfilesPanel } from '@/components/settings/ProviderProfilesPanel'
 import { StaffManagementPanel } from '@/components/settings/StaffManagementPanel'
+import { StaffMfaSelfResetForm } from '@/components/settings/StaffMfaSelfResetForm'
 import { Tabs } from '@/components/Tabs'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
@@ -23,6 +24,7 @@ export default async function SettingsPage() {
   const staff = await listAllUsers()
   const isAdmin = session.role === 'admin'
   const capabilities = ROLE_CAPABILITIES[session.role]
+  const currentUserEmail = session.role === 'admin' ? (process.env.ADMIN_EMAIL ?? '') : (staff.find((s) => s.name === session.name && s.role === session.role)?.email ?? '')
 
   const practiceTab = (
     <section className={SECTION}>
@@ -75,6 +77,11 @@ export default async function SettingsPage() {
         <ul className="space-y-1.5 text-sm text-muted-foreground">
           {capabilities.bullets.map((b, i) => <li key={i}>• {b}</li>)}
         </ul>
+      </section>
+      <section className={SECTION}>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Security</h2>
+        <p className="mb-3 text-sm text-muted-foreground">Two-factor authentication is required for every staff account. If you&apos;ve lost your device, reset it here and set it up again on your next sign-in.</p>
+        <StaffMfaSelfResetForm email={currentUserEmail} />
       </section>
     </div>
   )

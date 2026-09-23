@@ -1,11 +1,13 @@
 'use client'
 import { useState } from 'react'
 
-export function PatientPortalAccessPanel({ anonId, initialConfigured, isAdmin }: { anonId: string; initialConfigured: boolean; isAdmin: boolean }) {
+export function PatientPortalAccessPanel({ anonId, initialConfigured, mfaEnabled, isAdmin }: { anonId: string; initialConfigured: boolean; mfaEnabled: boolean; isAdmin: boolean }) {
   const [configured, setConfigured] = useState(initialConfigured)
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mfaResetting, setMfaResetting] = useState(false)
+  const [mfaWasReset, setMfaWasReset] = useState(false)
 
   async function generate() {
     setBusy(true)
@@ -26,6 +28,15 @@ export function PatientPortalAccessPanel({ anonId, initialConfigured, isAdmin }:
     if (!res.ok) { setError('Could not revoke portal access.'); return }
     setConfigured(false)
     setGeneratedPassword(null)
+  }
+
+  async function resetMfa() {
+    setMfaResetting(true)
+    setError(null)
+    const res = await fetch(`/api/patients/${anonId}/reset-mfa`, { method: 'POST' })
+    setMfaResetting(false)
+    if (!res.ok) { setError('Could not reset MFA.'); return }
+    setMfaWasReset(true)
   }
 
   if (!isAdmin) {
@@ -56,7 +67,13 @@ export function PatientPortalAccessPanel({ anonId, initialConfigured, isAdmin }:
             Revoke access
           </button>
         )}
+        {mfaEnabled && !mfaWasReset && (
+          <button onClick={resetMfa} disabled={mfaResetting} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50">
+            {mfaResetting ? 'Resetting…' : 'Reset MFA'}
+          </button>
+        )}
       </div>
+      {mfaWasReset && <p className="text-xs text-muted-foreground">MFA has been reset for this patient.</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
