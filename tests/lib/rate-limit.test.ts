@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { checkLoginRateLimit, checkPatientLoginRateLimit, checkStaffMfaRateLimit, checkPatientMfaRateLimit } from '@/lib/rate-limit'
+import { checkLoginRateLimit, checkPatientLoginRateLimit, checkStaffMfaRateLimit, checkPatientMfaRateLimit, checkAccountMfaResetRateLimit } from '@/lib/rate-limit'
 
 describe('checkLoginRateLimit', () => {
   it('allows the first few attempts for a fresh ip+email key', async () => {
@@ -143,5 +143,47 @@ describe('checkPatientMfaRateLimit', () => {
     }
     const eleventh = await checkPatientMfaRateLimit('203.0.118.99', patientId)
     expect(eleventh.allowed).toBe(false)
+  })
+})
+
+describe('checkAccountMfaResetRateLimit', () => {
+  it('blocks after 5 attempts in the window for one ip+email key', async () => {
+    const ip = '203.0.119.1'
+    const email = `rl-test-acct-reset-${Date.now()}-${Math.random()}@example.com`
+    for (let i = 0; i < 5; i++) {
+      const { allowed } = await checkAccountMfaResetRateLimit(ip, email)
+      expect(allowed).toBe(true)
+    }
+    const sixth = await checkAccountMfaResetRateLimit(ip, email)
+    expect(sixth.allowed).toBe(false)
+  })
+
+  it('treats the email case-insensitively, so varying its case does not buy fresh attempts', async () => {
+    const ip = '203.0.119.2'
+    const email = `rl-test-acct-reset-case-${Date.now()}@example.com`
+    for (let i = 0; i < 5; i++) await checkAccountMfaResetRateLimit(ip, email)
+    const upper = await checkAccountMfaResetRateLimit(ip, email.toUpperCase())
+    expect(upper.allowed).toBe(false)
+  })
+
+  it('blocks sustained password guessing against one email even when spread across many source IPs', async () => {
+    // Same spoofed-x-forwarded-for bypass the other dual-bucket limiters
+    // defend against: no single IP exceeds its 5-per-60s bucket, but the
+    // identity-only global bucket (10 per 600s) still catches it.
+    const email = `rl-test-acct-reset-distributed-${Date.now()}@example.com`
+    for (let i = 0; i < 10; i++) {
+      const { allowed } = await checkAccountMfaResetRateLimit(`203.0.120.${i}`, email)
+      expect(allowed).toBe(true)
+    }
+    const eleventh = await checkAccountMfaResetRateLimit('203.0.120.99', email)
+    expect(eleventh.allowed).toBe(false)
+  })
+
+  it('uses its own bucket, independent of the login limiter', async () => {
+    const ip = '203.0.119.3'
+    const email = `rl-test-acct-reset-vs-login-${Date.now()}@example.com`
+    for (let i = 0; i < 5; i++) await checkLoginRateLimit(ip, email)
+    expect((await checkLoginRateLimit(ip, email)).allowed).toBe(false)
+    expect((await checkAccountMfaResetRateLimit(ip, email)).allowed).toBe(true)
   })
 })
