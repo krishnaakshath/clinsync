@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileText, Pill, MessageSquare, LockKeyhole } from 'lucide-react'
 import { IpmgIcon } from '@/components/IpmgLogo'
+import { MfaCodeStep } from '@/components/mfa/MfaCodeStep'
 
 const HIGHLIGHTS = [
   { icon: FileText, text: 'Forms' },
@@ -16,6 +17,7 @@ export default function PatientPortalLoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [needsMfa, setNeedsMfa] = useState(false)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -32,7 +34,26 @@ export default function PatientPortalLoginPage() {
       setError(body?.error ?? 'Could not sign in.')
       return
     }
+    const body = await res.json()
+    if (body.mfaRequired) {
+      setNeedsMfa(true)
+      return
+    }
     router.push('/patient-portal')
+  }
+
+  async function submitMfaCode(code: string): Promise<string | null> {
+    const res = await fetch('/api/patient-portal/login/mfa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      return body?.error ?? 'Could not verify that code.'
+    }
+    router.push('/patient-portal')
+    return null
   }
 
   return (
@@ -57,62 +78,76 @@ export default function PatientPortalLoginPage() {
         </div>
 
         <div className="rounded-2xl border border-primary/10 bg-card p-7 shadow-md">
-          <div className="mb-6 text-center">
-            <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sign in with the patient ID and password your care team gave you.
+          {needsMfa ? (
+            <MfaCodeStep
+              title="Enter your code"
+              description="Open your authenticator app and enter the current 6-digit code."
+              onSubmit={submitMfaCode}
+              onBack={() => setNeedsMfa(false)}
+            />
+          ) : (
+            <>
+              <div className="mb-6 text-center">
+                <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Sign in with the patient ID and password your care team gave you.
+                </p>
+              </div>
+              <form onSubmit={submit} className="space-y-4">
+                <div>
+                  <label htmlFor="patientId" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient ID</label>
+                  <input
+                    id="patientId"
+                    value={patientId}
+                    onChange={(e) => setPatientId(e.target.value)}
+                    placeholder="RD-0001"
+                    className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="password" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={submitting || !patientId || !password}
+                  className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {submitting ? 'Signing in…' : 'Sign in'}
+                </button>
+              </form>
+              <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+                Your health information is private and secure
+              </p>
+            </>
+          )}
+        </div>
+
+        {!needsMfa && (
+          <>
+            <div className="mt-6 flex items-center justify-center gap-6">
+              {HIGHLIGHTS.map(({ icon: Icon, text }) => (
+                <div key={text} className="flex flex-col items-center gap-1.5 text-center">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span className="text-[11px] font-medium text-muted-foreground">{text}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 text-center text-xs text-muted-foreground">
+              Don&apos;t have a patient ID or password yet? Ask your provider&apos;s office.
             </p>
-          </div>
-          <form onSubmit={submit} className="space-y-4">
-            <div>
-              <label htmlFor="patientId" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient ID</label>
-              <input
-                id="patientId"
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-                placeholder="RD-0001"
-                className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <button
-              type="submit"
-              disabled={submitting || !patientId || !password}
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {submitting ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-          <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-            <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
-            Your health information is private and secure
-          </p>
-        </div>
-
-        <div className="mt-6 flex items-center justify-center gap-6">
-          {HIGHLIGHTS.map(({ icon: Icon, text }) => (
-            <div key={text} className="flex flex-col items-center gap-1.5 text-center">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Icon className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <span className="text-[11px] font-medium text-muted-foreground">{text}</span>
-            </div>
-          ))}
-        </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Don&apos;t have a patient ID or password yet? Ask your provider&apos;s office.
-        </p>
+          </>
+        )}
       </div>
     </div>
   )

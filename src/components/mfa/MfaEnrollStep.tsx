@@ -36,15 +36,19 @@ export function MfaEnrollStep({ qrDataUrl, manualKey, onSubmit }: {
         Can&apos;t scan it? Enter this key manually: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-foreground">{manualKey}</code>
       </p>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          required
-          value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-center text-lg tracking-[0.5em] text-foreground focus:border-primary focus:outline-none"
-        />
+        <div>
+          <label htmlFor="mfa-enroll-code" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">6-digit code</label>
+          <input
+            id="mfa-enroll-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-center text-lg tracking-[0.5em] text-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <button
           type="submit"
