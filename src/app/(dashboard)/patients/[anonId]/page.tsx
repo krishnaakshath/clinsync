@@ -123,7 +123,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
       <section className={SECTION}>
         <h2 className={SECTION_HEADING}>Patient Portal Access</h2>
-        <PatientPortalAccessPanel anonId={patient.id} initialConfigured={patient.portalConfigured} isAdmin={session.role === 'admin'} />
+        <PatientPortalAccessPanel anonId={patient.id} initialConfigured={patient.portalConfigured} mfaEnabled={patient.mfaEnabled} isAdmin={session.role === 'admin'} />
       </section>
     </div>
   )
