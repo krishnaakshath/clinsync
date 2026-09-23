@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
 import { patients } from '@/db/schema'
 import * as tebra from '@/connectors/tebra.mock'
+import { invalidateCache, patientListCacheKey, patientDetailCacheKey } from '@/lib/cache'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 import { GET as listPatients, POST as createPatient } from '@/app/api/patients/route'
@@ -66,6 +67,50 @@ describe('GET /api/patients/[anonId]', () => {
   it('returns 404 for an unknown anonymous id', async () => {
     const response = await getPatient(new NextRequest('http://localhost/api/patients/RD-9999'), { params: Promise.resolve({ anonId: 'RD-9999' }) })
     expect(response.status).toBe(404)
+  })
+})
+
+describe('patient list/detail never expose the encrypted TOTP secret', () => {
+  // Both responses are built from whole-row spreads of `patients` and are
+  // Redis-cached, so a column added to that table rides along to the client
+  // and into the cache unless it's explicitly stripped. Uses its own
+  // throwaway patient with a real (fake) secret on file, and invalidates the
+  // read-through caches around it so the assertions see a fresh query rather
+  // than a 30s-old cached copy that predates this row.
+  const LEAK_TEST_ID = 'RD-MFA-LEAK-01'
+
+  beforeAll(async () => {
+    await getDb().insert(patients).values({
+      id: LEAK_TEST_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'MFA Leak Test Patient', dobIntakeq: '1990-01-01',
+      mfaSecretEncrypted: 'enc-secret-that-must-not-leak', mfaEnabled: true,
+    })
+    await invalidateCache(patientListCacheKey(null))
+    await invalidateCache(patientDetailCacheKey(LEAK_TEST_ID))
+  })
+
+  afterAll(async () => {
+    await getDb().delete(patients).where(eq(patients.id, LEAK_TEST_ID))
+    await invalidateCache(patientListCacheKey(null))
+    await invalidateCache(patientDetailCacheKey(LEAK_TEST_ID))
+  })
+
+  it('GET /api/patients/[anonId] omits mfaSecretEncrypted but still reports mfaEnabled', async () => {
+    const response = await getPatient(new NextRequest(`http://localhost/api/patients/${LEAK_TEST_ID}`), { params: Promise.resolve({ anonId: LEAK_TEST_ID }) })
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body).not.toHaveProperty('mfaSecretEncrypted')
+    expect(body.mfaEnabled).toBe(true)
+    expect(JSON.stringify(body)).not.toContain('enc-secret-that-must-not-leak')
+  })
+
+  it('GET /api/patients omits mfaSecretEncrypted from every row', async () => {
+    const response = await listPatients(new NextRequest('http://localhost/api/patients'))
+    const body = await response.json()
+    const row = body.patients.find((p: { id: string }) => p.id === LEAK_TEST_ID)
+    expect(row).toBeDefined()
+    expect(row.mfaEnabled).toBe(true)
+    for (const p of body.patients) expect(p).not.toHaveProperty('mfaSecretEncrypted')
+    expect(JSON.stringify(body)).not.toContain('enc-secret-that-must-not-leak')
   })
 })
 
