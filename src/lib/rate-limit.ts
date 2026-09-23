@@ -38,9 +38,35 @@ function getStaffMfaLimiter() {
   return _staffMfaLimiter
 }
 
+// A second, IP-independent bucket keyed on identity alone: the per-IP
+// limiter above trusts the client-supplied `x-forwarded-for` header (see
+// getClientIp in the login routes), so an attacker can get a fresh 5-attempt
+// budget on every single guess just by sending a different spoofed IP each
+// time -- no botnet needed, just a header change per request. This catches
+// sustained TOTP guessing against one staff account regardless of how many
+// (real or spoofed) IPs it comes from. Slower and wider than the per-IP
+// bucket -- it's the backstop, not the primary defense, and shouldn't lock
+// out a staff member's own handful of mistyped codes. Same shape as
+// checkPatientLoginRateLimit's dual-bucket defense against the identical
+// threat model.
+let _staffMfaGlobalLimiter: Ratelimit | null = null
+function getStaffMfaGlobalLimiter() {
+  if (!_staffMfaGlobalLimiter) {
+    _staffMfaGlobalLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(10, '600 s'),
+      prefix: 'ratelimit:mfa-verify-staff-global',
+    })
+  }
+  return _staffMfaGlobalLimiter
+}
+
 export async function checkStaffMfaRateLimit(ip: string, identity: string): Promise<{ allowed: boolean }> {
-  const { success } = await getStaffMfaLimiter().limit(`${ip}:${identity}`)
-  return { allowed: success }
+  const [perIp, global] = await Promise.all([
+    getStaffMfaLimiter().limit(`${ip}:${identity}`),
+    getStaffMfaGlobalLimiter().limit(identity),
+  ])
+  return { allowed: perIp.success && global.success }
 }
 
 // Same defense, separate bucket -- a patient hammering their own portal
