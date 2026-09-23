@@ -101,4 +101,17 @@ describe('self-service MFA reset', () => {
     const res = await callReset(await reqAs('pi', 'Reset Test PI', { email: 'admin@example.com', password: 'admin-test-pass' }))
     expect(res.status).toBe(401)
   })
+
+  it('rejects a signed-in admin session submitting a different staff member\'s genuinely-correct credentials', async () => {
+    // Symmetric to the pi-submits-admin-credentials case above: the earlier
+    // "resets the signed-in DB user's own MFA" test already disabled this
+    // user's MFA, so re-enable it here to prove this rejected attempt --
+    // made with the pi user's own real password, but from an `admin`
+    // session -- truly has no effect on it.
+    await setUserMfaSecret(testUserId, 'enc-secret-2')
+    await enableUserMfa(testUserId)
+    const res = await callReset(await reqAs('admin', 'Test Admin', { email: TEST_EMAIL, password: TEST_PASSWORD }))
+    expect(res.status).toBe(401)
+    expect((await getUserMfaState(testUserId))?.mfaEnabled).toBe(true)
+  })
 })
