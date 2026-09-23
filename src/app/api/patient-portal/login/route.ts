@@ -4,6 +4,8 @@ import { setPatientSessionCookie } from '@/lib/patient-session'
 import { verifyPatientPortalCredentials } from '@/lib/queries/patient-portal'
 import { checkPatientLoginRateLimit } from '@/lib/rate-limit'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
+import { setPendingPatientMfaCookie } from '@/lib/mfa-pending-session'
+import { getPatientMfaState } from '@/lib/queries/patient-portal'
 
 const loginSchema = z.object({
   patientId: z.string().trim().min(1),
@@ -41,6 +43,12 @@ export async function POST(request: NextRequest) {
   const valid = await verifyPatientPortalCredentials(patientId, password)
   if (!valid) {
     return NextResponse.json({ error: 'Invalid patient ID or password' }, { status: 401 })
+  }
+
+  const mfaState = await getPatientMfaState(patientId)
+  if (mfaState?.mfaEnabled) {
+    await setPendingPatientMfaCookie({ patientId })
+    return NextResponse.json({ mfaRequired: true })
   }
 
   await setPatientSessionCookie(patientId)
