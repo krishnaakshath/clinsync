@@ -45,10 +45,16 @@ function req(body: unknown) {
 
 describe('POST /api/login', () => {
   it('accepts the correct admin email and password', async () => {
+    // Staff MFA is now mandatory (see tests/api/login-mfa.test.ts for the
+    // full two-step flow) -- a correct password no longer completes a login
+    // by itself, it hands back an MFA challenge instead. This still proves
+    // the password check itself passed: a wrong password or unknown email
+    // gets 401, not this challenge shape (see tests below).
     const res = await login(req({ email: 'admin@example.com', password: 's3cret-pass' }))
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.ok).toBe(true)
+    expect(body.mfaRequired).toBe(true)
+    expect(['enroll', 'verify']).toContain(body.mode)
   })
 
   it('rejects the wrong password', async () => {

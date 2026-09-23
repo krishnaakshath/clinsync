@@ -23,6 +23,26 @@ export async function checkLoginRateLimit(ip: string, email: string): Promise<{ 
   return { allowed: success }
 }
 
+// Separate bucket from the password-check limiter above -- a correct
+// password shouldn't share a counter with brute-forcing the 6-digit TOTP
+// code that comes after it.
+let _staffMfaLimiter: Ratelimit | null = null
+function getStaffMfaLimiter() {
+  if (!_staffMfaLimiter) {
+    _staffMfaLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(5, '60 s'),
+      prefix: 'ratelimit:mfa-verify-staff',
+    })
+  }
+  return _staffMfaLimiter
+}
+
+export async function checkStaffMfaRateLimit(ip: string, identity: string): Promise<{ allowed: boolean }> {
+  const { success } = await getStaffMfaLimiter().limit(`${ip}:${identity}`)
+  return { allowed: success }
+}
+
 // Same defense, separate bucket -- a patient hammering their own portal
 // login (or an attacker guessing patient IDs) must never be able to affect
 // or be affected by the staff login limiter's counters.

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { setSessionCookie } from '@/lib/auth'
+import type { Role } from '@/lib/auth'
+import { encryptSensitive } from '@/lib/crypto'
+import { generateMfaEnrollment } from '@/lib/mfa'
+import { setPendingStaffMfaCookie } from '@/lib/mfa-pending-session'
 import { verifyPassword } from '@/lib/password'
 import { checkLoginRateLimit } from '@/lib/rate-limit'
-import { findUserByEmail } from '@/lib/queries/users'
+import { getAdminMfaState, setAdminMfaSecret } from '@/lib/queries/settings'
+import { findUserByEmail, getUserMfaState, setUserMfaSecret } from '@/lib/queries/users'
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -49,15 +53,29 @@ export async function POST(request: NextRequest) {
   // with no password set at all, so this endpoint never confirms which
   // part was wrong or whether an email exists in the system.
   if (adminEmail && adminPasswordHash && email.toLowerCase() === adminEmail.toLowerCase() && verifyPassword(password, adminPasswordHash)) {
-    await setSessionCookie('admin', adminName)
-    return NextResponse.json({ ok: true })
+    return startStaffMfaChallenge({ role: 'admin', name: adminName, userId: null })
   }
 
   const user = await findUserByEmail(email)
   if (user?.passwordHash && verifyPassword(password, user.passwordHash)) {
-    await setSessionCookie(user.role, user.name)
-    return NextResponse.json({ ok: true })
+    return startStaffMfaChallenge({ role: user.role, name: user.name, userId: user.id })
   }
 
   return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+}
+
+// MFA is mandatory for every staff account, so a correct password never
+// completes a login by itself anymore -- it always hands back an MFA
+// challenge (enroll, the first time; verify, every time after).
+async function startStaffMfaChallenge({ role, name, userId }: { role: Role; name: string; userId: number | null }) {
+  const mfaState = userId === null ? await getAdminMfaState() : await getUserMfaState(userId)
+  if (!mfaState || !mfaState.mfaEnabled) {
+    const enrollment = await generateMfaEnrollment(`${name} <${role}>`)
+    if (userId === null) await setAdminMfaSecret(encryptSensitive(enrollment.secretBase32))
+    else await setUserMfaSecret(userId, encryptSensitive(enrollment.secretBase32))
+    await setPendingStaffMfaCookie({ role, name, mode: 'enroll', userId })
+    return NextResponse.json({ mfaRequired: true, mode: 'enroll', qrDataUrl: enrollment.qrDataUrl, manualKey: enrollment.secretBase32 })
+  }
+  await setPendingStaffMfaCookie({ role, name, mode: 'verify', userId })
+  return NextResponse.json({ mfaRequired: true, mode: 'verify' })
 }
