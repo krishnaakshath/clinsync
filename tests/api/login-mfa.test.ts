@@ -129,6 +129,8 @@ function mfaReq(body: unknown, cookie?: string) {
 }
 
 describe('two-step staff login', () => {
+  let enrollCode: string
+
   it('unenrolled user gets an enroll challenge, then a correct code logs them in', async () => {
     const enrollRes = await login(req({ email: TEST_DB_USER_EMAIL, password: TEST_DB_USER_PASSWORD }))
     expect(enrollRes.status).toBe(200)
@@ -142,11 +144,24 @@ describe('two-step staff login', () => {
 
     const pendingCookie = enrollRes.cookies.get('clinsync_pending_staff_mfa')?.value
     const totp = new OTPAuth.TOTP({ issuer: 'Clinsync', label: 'x', algorithm: 'SHA1', digits: 6, period: 30, secret: enrollBody.manualKey })
-    const verifyRes = await loginMfa(mfaReq({ code: totp.generate() }, `clinsync_pending_staff_mfa=${pendingCookie}`))
+    enrollCode = totp.generate()
+    const verifyRes = await loginMfa(mfaReq({ code: enrollCode }, `clinsync_pending_staff_mfa=${pendingCookie}`))
     expect(verifyRes.status).toBe(200)
     expect(await verifyRes.json()).toEqual({ ok: true })
     expect(verifyRes.cookies.get('clinsync_demo_session')).toBeTruthy()
     expect((await getUserMfaState(testUserId))?.mfaEnabled).toBe(true)
+  })
+
+  it('rejects replaying the enrollment code on the next login (RFC 6238 §5.2)', async () => {
+    // Still inside its validity window and the secret is unchanged, but the
+    // code was consumed by the enrollment above -- a fresh password step
+    // presenting it again must not complete a login.
+    const res = await login(req({ email: TEST_DB_USER_EMAIL, password: TEST_DB_USER_PASSWORD }))
+    expect(await res.json()).toEqual({ mfaRequired: true, mode: 'verify' })
+    const pendingCookie = res.cookies.get('clinsync_pending_staff_mfa')?.value
+    const replayRes = await loginMfa(mfaReq({ code: enrollCode }, `clinsync_pending_staff_mfa=${pendingCookie}`))
+    expect(replayRes.status).toBe(401)
+    expect(replayRes.cookies.get('clinsync_demo_session')).toBeFalsy()
   })
 
   it('already-enrolled user gets a verify challenge, and a wrong code is rejected', async () => {
