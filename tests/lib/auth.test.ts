@@ -64,4 +64,16 @@ describe('auth session cookie', () => {
       .sign(secret)
     expect(await parseSessionCookie(tokenWithBadRole)).toBeNull()
   })
+
+  it('rejects a validly-signed token missing the staff `kind` claim -- the exact pending-MFA-cookie-replay attack this check closes', async () => {
+    const { SignJWT } = await import('jose')
+    const secret = new TextEncoder().encode(process.env.SESSION_SECRET)
+    // Same role+name shape a pending-staff-mfa cookie carries (see
+    // mfa-pending-session.ts) -- proves that token can't be replayed here.
+    const tokenWithoutKind = await new SignJWT({ role: 'admin', name: 'Sam Patel' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('1h')
+      .sign(secret)
+    expect(await parseSessionCookie(tokenWithoutKind)).toBeNull()
+  })
 })
