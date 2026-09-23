@@ -23,6 +23,52 @@ export async function checkLoginRateLimit(ip: string, email: string): Promise<{ 
   return { allowed: success }
 }
 
+// Staff self-service MFA reset (POST /api/account/mfa/reset) re-verifies a
+// password, so it's a password-guessing surface exactly like login -- and a
+// more dangerous one: someone holding a stolen staff session who guesses the
+// real password there can clear MFA, then log in fresh and enroll their own
+// authenticator, turning a temporary session hijack into a permanent
+// takeover. Same 5-per-60s per-IP window as checkLoginRateLimit, in its own
+// bucket (so it never shares a counter with real logins), plus the same
+// IP-independent backstop the other dual-bucket limiters use: the per-IP key
+// trusts the client-supplied x-forwarded-for header, so without the
+// identity-only bucket an attacker could rotate a spoofed IP per guess.
+// Keyed on the submitted email (lowercased), since the route doesn't yet
+// know which branch (env admin vs DB user) that email resolves to when it
+// has to decide whether to allow the attempt.
+let _accountMfaResetLimiter: Ratelimit | null = null
+function getAccountMfaResetLimiter() {
+  if (!_accountMfaResetLimiter) {
+    _accountMfaResetLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(5, '60 s'),
+      prefix: 'ratelimit:account-mfa-reset',
+    })
+  }
+  return _accountMfaResetLimiter
+}
+
+let _accountMfaResetGlobalLimiter: Ratelimit | null = null
+function getAccountMfaResetGlobalLimiter() {
+  if (!_accountMfaResetGlobalLimiter) {
+    _accountMfaResetGlobalLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(10, '600 s'),
+      prefix: 'ratelimit:account-mfa-reset-global',
+    })
+  }
+  return _accountMfaResetGlobalLimiter
+}
+
+export async function checkAccountMfaResetRateLimit(ip: string, email: string): Promise<{ allowed: boolean }> {
+  const identity = email.toLowerCase()
+  const [perIp, global] = await Promise.all([
+    getAccountMfaResetLimiter().limit(`${ip}:${identity}`),
+    getAccountMfaResetGlobalLimiter().limit(identity),
+  ])
+  return { allowed: perIp.success && global.success }
+}
+
 // Separate bucket from the password-check limiter above -- a correct
 // password shouldn't share a counter with brute-forcing the 6-digit TOTP
 // code that comes after it.

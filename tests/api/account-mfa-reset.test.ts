@@ -6,13 +6,36 @@ import { hashPassword } from '@/lib/password'
 import { buildSessionCookieValue, SESSION_COOKIE_NAME } from '@/lib/auth'
 import { POST as resetMfa } from '@/app/api/account/mfa/reset/route'
 import { getDb } from '@/db/client'
-import { users } from '@/db/schema'
+import { users, appSettings } from '@/db/schema'
 import { setUserMfaSecret, enableUserMfa, getUserMfaState } from '@/lib/queries/users'
 import { setAdminMfaSecret, enableAdminMfa, getAdminMfaState } from '@/lib/queries/settings'
+import { verifyPassword } from '@/lib/password'
+import { checkAccountMfaResetRateLimit } from '@/lib/rate-limit'
 
 const TEST_PASSWORD = 'pi-reset-test-pass-123'
 const TEST_EMAIL = 'test-account-mfa-reset@example.com'
 let testUserId: number
+
+// The limiter is real Upstash Redis shared with production; mocked here so
+// re-running this file inside one sliding window can't turn an unrelated
+// assertion into a 429. The limiter itself is unit-tested against Redis in
+// tests/lib/rate-limit.test.ts.
+vi.mock('@/lib/rate-limit', () => ({
+  checkAccountMfaResetRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+}))
+
+// Wrapped (not replaced) so every test still checks real passwords, but the
+// rate-limit test can prove the throttle fires *before* any password check.
+vi.mock('@/lib/password', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/password')>()
+  return { ...actual, verifyPassword: vi.fn(actual.verifyPassword) }
+})
+
+// app_settings is a single, shared, LIVE row -- the admin MFA columns on it
+// are the real admin's real enrollment. This file has to write to them to
+// exercise the admin self-reset path, so it snapshots their exact values
+// first and writes them back afterwards, leaving the row exactly as found.
+let adminMfaSnapshot: { id: number; adminMfaSecretEncrypted: string | null; adminMfaEnabled: boolean } | undefined
 
 // Route handler modules are invoked directly (no real Next.js server in
 // front of them), so `next/headers`'s cookies() has no request-scoped
@@ -52,6 +75,9 @@ async function callReset(request: NextRequest) {
 }
 
 beforeAll(async () => {
+  ;[adminMfaSnapshot] = await getDb()
+    .select({ id: appSettings.id, adminMfaSecretEncrypted: appSettings.adminMfaSecretEncrypted, adminMfaEnabled: appSettings.adminMfaEnabled })
+    .from(appSettings)
   vi.stubEnv('ADMIN_EMAIL', 'admin@example.com')
   vi.stubEnv('ADMIN_PASSWORD_HASH', hashPassword('admin-test-pass'))
   vi.stubEnv('ADMIN_NAME', 'Test Admin')
@@ -63,6 +89,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
   vi.unstubAllEnvs()
+  // Restore first, so a failure in the fixture cleanup below can't skip it.
+  if (adminMfaSnapshot) {
+    await getDb().update(appSettings)
+      .set({ adminMfaSecretEncrypted: adminMfaSnapshot.adminMfaSecretEncrypted, adminMfaEnabled: adminMfaSnapshot.adminMfaEnabled })
+      .where(eq(appSettings.id, adminMfaSnapshot.id))
+  }
   await getDb().delete(users).where(eq(users.id, testUserId))
 })
 
@@ -113,5 +145,30 @@ describe('self-service MFA reset', () => {
     const res = await callReset(await reqAs('admin', 'Test Admin', { email: TEST_EMAIL, password: TEST_PASSWORD }))
     expect(res.status).toBe(401)
     expect((await getUserMfaState(testUserId))?.mfaEnabled).toBe(true)
+  })
+
+  it('returns 429 when rate-limited, before any password is checked, even with correct credentials', async () => {
+    // The previous test left this user enrolled; submitting their genuinely
+    // correct password while throttled must neither reach verifyPassword
+    // (no password oracle) nor clear their MFA.
+    vi.mocked(verifyPassword).mockClear()
+    vi.mocked(checkAccountMfaResetRateLimit).mockResolvedValueOnce({ allowed: false })
+    const res = await callReset(await reqAs('pi', 'Reset Test PI', { email: TEST_EMAIL, password: TEST_PASSWORD }))
+    expect(res.status).toBe(429)
+    expect(verifyPassword).not.toHaveBeenCalled()
+    expect((await getUserMfaState(testUserId))?.mfaEnabled).toBe(true)
+  })
+
+  it('keys the rate limit on the submitted email, and throttles the admin branch too', async () => {
+    await setAdminMfaSecret('enc-admin-secret')
+    await enableAdminMfa()
+    vi.mocked(checkAccountMfaResetRateLimit).mockClear()
+    vi.mocked(verifyPassword).mockClear()
+    vi.mocked(checkAccountMfaResetRateLimit).mockResolvedValueOnce({ allowed: false })
+    const res = await callReset(await reqAs('admin', 'Test Admin', { email: 'Admin@Example.com', password: 'admin-test-pass' }))
+    expect(res.status).toBe(429)
+    expect(checkAccountMfaResetRateLimit).toHaveBeenCalledWith(expect.any(String), 'Admin@Example.com')
+    expect(verifyPassword).not.toHaveBeenCalled()
+    expect((await getAdminMfaState()).mfaEnabled).toBe(true)
   })
 })
