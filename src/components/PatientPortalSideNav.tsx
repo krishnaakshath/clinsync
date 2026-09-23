@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FileText, Pill, CalendarCheck, MessageSquare, Megaphone } from 'lucide-react'
+import { LayoutDashboard, FileText, Pill, CalendarCheck, MessageSquare, Megaphone, ShieldCheck } from 'lucide-react'
 import { IpmgIcon } from '@/components/IpmgLogo'
 
 type Icon = React.ComponentType<{ className?: string }>
@@ -13,6 +13,7 @@ const ITEMS: { href: string; label: string; icon: Icon }[] = [
   { href: '/patient-portal/medications', label: 'Medications', icon: Pill },
   { href: '/patient-portal/appointments', label: 'Appointments', icon: CalendarCheck },
   { href: '/patient-portal/messages', label: 'Messages', icon: MessageSquare },
+  { href: '/patient-portal/security', label: 'Security', icon: ShieldCheck },
 ]
 
 function isActive(pathname: string | null, href: string): boolean {
