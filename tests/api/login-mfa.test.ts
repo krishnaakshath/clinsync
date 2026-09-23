@@ -21,6 +21,25 @@ vi.mock('@/lib/rate-limit', () => ({
   checkStaffMfaRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
 }))
 
+// Every flow in this file logs in as a throwaway DB user, never the env-var
+// admin -- the admin's MFA columns live on the single LIVE app_settings row,
+// and the real login routes would write a fresh secret into it. Guard that
+// invariant: if a future test here ever reaches the admin branch, fail
+// loudly instead of silently overwriting the real admin's enrollment. (Tests
+// that genuinely need the admin path mock these, or snapshot/restore the
+// row -- see tests/api/login.test.ts and tests/api/account-mfa-reset.test.ts.)
+vi.mock('@/lib/queries/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/queries/settings')>()
+  const refuse = (name: string) => vi.fn(async () => { throw new Error(`${name} must not touch the live app_settings row from login-mfa.test.ts`) })
+  return {
+    ...actual,
+    getAdminMfaState: refuse('getAdminMfaState'),
+    setAdminMfaSecret: refuse('setAdminMfaSecret'),
+    enableAdminMfa: refuse('enableAdminMfa'),
+    resetAdminMfa: refuse('resetAdminMfa'),
+  }
+})
+
 // The two-step flow round-trips a cookie from step 1's response to step 2's
 // request. Route handlers here are invoked directly (no real Next.js server
 // in front of them), so `next/headers`'s cookies() has no request it's

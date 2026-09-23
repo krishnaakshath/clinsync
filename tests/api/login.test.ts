@@ -29,6 +29,25 @@ vi.mock('@/lib/rate-limit', () => ({
   checkLoginRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
 }))
 
+// A correct admin password now always starts the mandatory MFA challenge,
+// which reads -- and, if the admin isn't enrolled yet, WRITES a fresh secret
+// into -- the single live app_settings row's admin MFA columns. This file is
+// about the password check, not MFA persistence (that's
+// tests/lib/queries/mfa-state.test.ts / tests/api/account-mfa-reset.test.ts,
+// which snapshot and restore the real row), so the admin-MFA queries are
+// mocked out here entirely: a login test run must never overwrite the real
+// admin's enrollment.
+vi.mock('@/lib/queries/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/queries/settings')>()
+  return {
+    ...actual,
+    getAdminMfaState: vi.fn().mockResolvedValue({ mfaSecretEncrypted: null, mfaEnabled: false }),
+    setAdminMfaSecret: vi.fn().mockResolvedValue(undefined),
+    enableAdminMfa: vi.fn().mockResolvedValue(undefined),
+    resetAdminMfa: vi.fn().mockResolvedValue(undefined),
+  }
+})
+
 beforeAll(() => {
   vi.stubEnv('ADMIN_EMAIL', 'admin@example.com')
   vi.stubEnv('ADMIN_PASSWORD_HASH', TEST_HASH)
@@ -54,7 +73,12 @@ describe('POST /api/login', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.mfaRequired).toBe(true)
-    expect(['enroll', 'verify']).toContain(body.mode)
+    // getAdminMfaState is mocked to "not enrolled", so this is the enroll
+    // challenge -- and the secret it provisions went to the mock, not the
+    // real app_settings row.
+    expect(body.mode).toBe('enroll')
+    const { setAdminMfaSecret } = await import('@/lib/queries/settings')
+    expect(setAdminMfaSecret).toHaveBeenCalledTimes(1)
   })
 
   it('rejects the wrong password', async () => {

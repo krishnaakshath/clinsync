@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
-import { users, patients } from '@/db/schema'
+import { users, patients, appSettings } from '@/db/schema'
 import { hashPassword } from '@/lib/password'
 import {
   getUserMfaState, getUserNameById, setUserMfaSecret, enableUserMfa, resetUserMfa,
@@ -18,7 +18,18 @@ const TEST_USER_EMAIL = 'test-mfa-state-user@example.com'
 const TEST_PATIENT_ID = 'RD-MFA-TEST-01'
 let testUserId: number
 
+// app_settings is a single, shared, LIVE row -- its admin MFA columns are the
+// real admin's real enrollment, not a fixture. The admin-state test below
+// has to exercise real reads/writes against it, so snapshot the exact values
+// before anything runs and write them back afterwards, leaving the row
+// exactly as found (never just "reset", which would silently un-enroll the
+// real admin).
+let adminMfaSnapshot: { id: number; adminMfaSecretEncrypted: string | null; adminMfaEnabled: boolean } | undefined
+
 beforeAll(async () => {
+  ;[adminMfaSnapshot] = await getDb()
+    .select({ id: appSettings.id, adminMfaSecretEncrypted: appSettings.adminMfaSecretEncrypted, adminMfaEnabled: appSettings.adminMfaEnabled })
+    .from(appSettings)
   const [row] = await getDb().insert(users).values({ name: 'MFA Test User', email: TEST_USER_EMAIL, role: 'crc', passwordHash: hashPassword('irrelevant') }).returning()
   testUserId = row.id
   await getDb().insert(patients).values({
@@ -27,9 +38,14 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  // Restore first, so a failure in the fixture cleanup below can't skip it.
+  if (adminMfaSnapshot) {
+    await getDb().update(appSettings)
+      .set({ adminMfaSecretEncrypted: adminMfaSnapshot.adminMfaSecretEncrypted, adminMfaEnabled: adminMfaSnapshot.adminMfaEnabled })
+      .where(eq(appSettings.id, adminMfaSnapshot.id))
+  }
   await getDb().delete(users).where(eq(users.id, testUserId))
   await getDb().delete(patients).where(eq(patients.id, TEST_PATIENT_ID))
-  await resetAdminMfa() // leave the singleton appSettings row clean for other tests
 })
 
 describe('user MFA state', () => {
