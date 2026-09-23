@@ -3,6 +3,7 @@ import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalIdentity } from '@/lib/queries/patient-portal'
 import { PatientPortalSideNav } from '@/components/PatientPortalSideNav'
 import { PatientPortalTopBar } from '@/components/PatientPortalTopBar'
+import { PatientPortalSessionTimeoutWarning } from '@/components/PatientPortalSessionTimeoutWarning'
 
 // Same shell shape as the staff app's (dashboard) layout -- a persistent
 // left sidebar (logo + nav) plus a slim top identity bar -- so the
@@ -19,6 +20,7 @@ export default async function PatientPortalLayout({ children }: { children: Reac
     // scrolls the whole browser window and carries the sidebar away with
     // it instead of leaving it pinned while only the content scrolls.
     <div className="flex h-screen overflow-hidden">
+      <PatientPortalSessionTimeoutWarning />
       <PatientPortalSideNav />
       <div className="flex flex-1 flex-col overflow-hidden">
         <PatientPortalTopBar name={identity.name} dob={identity.dob} patientId={identity.id} />
