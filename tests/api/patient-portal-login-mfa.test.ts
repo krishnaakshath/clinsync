@@ -1,13 +1,13 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import * as OTPAuth from 'otpauth'
 import { encryptSensitive } from '@/lib/crypto'
 import { POST as loginRoute } from '@/app/api/patient-portal/login/route'
 import { POST as loginMfaRoute } from '@/app/api/patient-portal/login/mfa/route'
 import { getDb } from '@/db/client'
-import { patients } from '@/db/schema'
+import { patients, auditLog } from '@/db/schema'
 import { setPatientPortalPassword } from '@/lib/queries/patient-portal'
 import { setPatientMfaSecret, enablePatientMfa } from '@/lib/queries/patient-portal'
 
@@ -85,6 +85,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  await getDb().delete(auditLog).where(and(eq(auditLog.patientId, TEST_PATIENT_ID), eq(auditLog.action, 'failed MFA code entry')))
   await getDb().delete(patients).where(eq(patients.id, TEST_PATIENT_ID))
 })
 
@@ -144,6 +145,9 @@ describe('patient login with MFA enabled', () => {
     const pendingCookie = res.cookies.get('clinsync_pending_patient_mfa')?.value
     const wrongRes = await loginMfa(mfaReq({ code: '000000' }, `clinsync_pending_patient_mfa=${pendingCookie}`))
     expect(wrongRes.status).toBe(401)
+
+    const auditEntries = await getDb().select().from(auditLog).where(and(eq(auditLog.patientId, TEST_PATIENT_ID), eq(auditLog.action, 'failed MFA code entry')))
+    expect(auditEntries.length).toBeGreaterThan(0)
   })
 
   it('returns 401 with no pending cookie', async () => {

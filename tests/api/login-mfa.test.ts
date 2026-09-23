@@ -1,14 +1,14 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import * as OTPAuth from 'otpauth'
 import { hashPassword } from '@/lib/password'
 import { encryptSensitive } from '@/lib/crypto'
 import { POST as loginRoute } from '@/app/api/login/route'
 import { POST as loginMfaRoute } from '@/app/api/login/mfa/route'
 import { getDb } from '@/db/client'
-import { users } from '@/db/schema'
+import { users, auditLog } from '@/db/schema'
 import { setUserMfaSecret, enableUserMfa, getUserMfaState } from '@/lib/queries/users'
 
 const TEST_HASH = hashPassword('s3cret-pass')
@@ -116,6 +116,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   vi.unstubAllEnvs()
+  await getDb().delete(auditLog).where(and(eq(auditLog.userName, 'Test PI'), eq(auditLog.action, 'failed MFA code entry')))
   await getDb().delete(users).where(eq(users.id, testUserId))
 })
 
@@ -176,6 +177,11 @@ describe('two-step staff login', () => {
 
     const wrongRes = await loginMfa(mfaReq({ code: '000000' }, `clinsync_pending_staff_mfa=${pendingCookie}`))
     expect(wrongRes.status).toBe(401)
+
+    const auditEntries = await getDb().select().from(auditLog).where(and(eq(auditLog.userName, 'Test PI'), eq(auditLog.action, 'failed MFA code entry')))
+    expect(auditEntries.length).toBeGreaterThan(0)
+    expect(auditEntries[0].role).toBe('pi')
+    expect(auditEntries[0].patientId).toBeNull()
   })
 
   it('returns 401 with no pending cookie', async () => {

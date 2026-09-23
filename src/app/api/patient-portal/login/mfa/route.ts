@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
 
   const secretBase32 = decryptSensitive(mfaState.mfaSecretEncrypted)
   if (!(await verifyMfaCode(secretBase32, parsed.data.code, pending.patientId))) {
+    await logPatientPortalAction('failed MFA code entry', pending.patientId)
     return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
   }
 
