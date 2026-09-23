@@ -1,14 +1,14 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import * as OTPAuth from 'otpauth'
 import { setPatientSessionCookie, PATIENT_SESSION_COOKIE_NAME } from '@/lib/patient-session'
 import { POST as enroll } from '@/app/api/patient-portal/account/mfa/enroll/route'
 import { POST as confirm } from '@/app/api/patient-portal/account/mfa/confirm/route'
 import { POST as reset } from '@/app/api/patient-portal/account/mfa/reset/route'
 import { getDb } from '@/db/client'
-import { patients } from '@/db/schema'
+import { patients, auditLog } from '@/db/schema'
 import { setPatientPortalPassword, getPatientMfaState } from '@/lib/queries/patient-portal'
 
 const TEST_PATIENT_ID = 'RD-ACCT-MFA-01'
@@ -105,6 +105,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  await getDb().delete(auditLog).where(and(eq(auditLog.patientId, TEST_PATIENT_ID), eq(auditLog.action, 'failed MFA code entry during enrollment')))
   await getDb().delete(patients).where(eq(patients.id, TEST_PATIENT_ID))
 })
 
@@ -129,6 +130,9 @@ describe('patient opt-in MFA', () => {
     const res = await withCookieBridge((request) => confirm(request), reqWithSession('/api/patient-portal/account/mfa/confirm', { code: '000000' }, sessionCookieValue))
     expect(res.status).toBe(401)
     expect((await getPatientMfaState(TEST_PATIENT_ID))?.mfaEnabled).toBe(false)
+
+    const auditEntries = await getDb().select().from(auditLog).where(and(eq(auditLog.patientId, TEST_PATIENT_ID), eq(auditLog.action, 'failed MFA code entry during enrollment')))
+    expect(auditEntries.length).toBeGreaterThan(0)
   })
 
   it('confirm with the correct code enables MFA', async () => {
