@@ -98,3 +98,20 @@ export async function setPatientPortalPassword(patientId: string, plaintextPassw
 export async function revokePatientPortalAccess(patientId: string): Promise<void> {
   await getDb().update(patients).set({ portalPasswordHash: null }).where(eq(patients.id, patientId))
 }
+
+export async function getPatientMfaState(patientId: string): Promise<{ mfaSecretEncrypted: string | null; mfaEnabled: boolean } | null> {
+  const [row] = await getDb().select({ mfaSecretEncrypted: patients.mfaSecretEncrypted, mfaEnabled: patients.mfaEnabled }).from(patients).where(eq(patients.id, patientId))
+  return row ?? null
+}
+
+export async function setPatientMfaSecret(patientId: string, secretEncrypted: string): Promise<void> {
+  await getDb().update(patients).set({ mfaSecretEncrypted: secretEncrypted }).where(eq(patients.id, patientId))
+}
+
+export async function enablePatientMfa(patientId: string): Promise<void> {
+  await getDb().update(patients).set({ mfaEnabled: true }).where(eq(patients.id, patientId))
+}
+
+export async function resetPatientMfa(patientId: string): Promise<void> {
+  await getDb().update(patients).set({ mfaSecretEncrypted: null, mfaEnabled: false }).where(eq(patients.id, patientId))
+}
