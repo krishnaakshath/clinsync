@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { checkLoginRateLimit, checkPatientLoginRateLimit } from '@/lib/rate-limit'
+import { checkLoginRateLimit, checkPatientLoginRateLimit, checkStaffMfaRateLimit } from '@/lib/rate-limit'
 
 describe('checkLoginRateLimit', () => {
   it('allows the first few attempts for a fresh ip+email key', async () => {
@@ -68,6 +68,43 @@ describe('checkPatientLoginRateLimit', () => {
       expect(allowed).toBe(true)
     }
     const eleventh = await checkPatientLoginRateLimit('203.0.114.99', patientId)
+    expect(eleventh.allowed).toBe(false)
+  })
+})
+
+describe('checkStaffMfaRateLimit', () => {
+  it('allows the first few attempts for a fresh ip+identity key', async () => {
+    const identity = `rl-test-staff-mfa-${Date.now()}-${Math.random()}`
+    const first = await checkStaffMfaRateLimit('203.0.115.1', identity)
+    expect(first.allowed).toBe(true)
+  })
+
+  it('blocks after the window is exhausted for one ip+identity key', async () => {
+    const ip = '203.0.115.2'
+    const identity = `rl-test-staff-mfa-${Date.now()}`
+    for (let i = 0; i < 5; i++) {
+      const { allowed } = await checkStaffMfaRateLimit(ip, identity)
+      expect(allowed).toBe(true)
+    }
+    const sixth = await checkStaffMfaRateLimit(ip, identity)
+    expect(sixth.allowed).toBe(false)
+  })
+
+  it('blocks sustained TOTP guessing against one staff identity even when spread across many source IPs', async () => {
+    // Regression test for a Critical finding: checkStaffMfaRateLimit used to
+    // be keyed solely on `${ip}:${identity}` -- since getClientIp trusts the
+    // client-supplied x-forwarded-for header, an attacker could get a fresh
+    // 5-attempt budget on every single 6-digit code guess just by sending a
+    // different (spoofed) IP each time, defeating the rate limit against the
+    // whole code space with no botnet required. Each individual IP below
+    // never exceeds its own 5-per-60s bucket, but the IP-independent global
+    // bucket (10 per 600s, keyed on identity alone) still catches it.
+    const identity = `rl-test-staff-mfa-distributed-${Date.now()}`
+    for (let i = 0; i < 10; i++) {
+      const { allowed } = await checkStaffMfaRateLimit(`203.0.116.${i}`, identity)
+      expect(allowed).toBe(true)
+    }
+    const eleventh = await checkStaffMfaRateLimit('203.0.116.99', identity)
     expect(eleventh.allowed).toBe(false)
   })
 })

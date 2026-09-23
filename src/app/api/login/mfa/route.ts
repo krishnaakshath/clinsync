@@ -9,7 +9,7 @@ import { getUserMfaState, enableUserMfa } from '@/lib/queries/users'
 import { checkStaffMfaRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
 
-const mfaSchema = z.object({ code: z.string().trim().length(6) }).strict()
+const mfaSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/) }).strict()
 
 function getClientIp(request: NextRequest): string {
   const forwardedFor = request.headers.get('x-forwarded-for')
