@@ -7,6 +7,10 @@ import { formatCents } from '@/lib/format'
 
 type Row = { patientId: string; patientName: string; balanceCents: number; unappliedCents: number }
 
+// Same elevated-card treatment ReportTable.tsx and the rest of the app's
+// data surfaces already use.
+const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
+
 const COLUMNS: DataGridColumn[] = [
   { key: 'patient', label: 'Patient' },
   { key: 'balance', label: 'Balance' },
@@ -23,7 +27,7 @@ export function PatientCollectionsTable({ rows }: { rows: Row[] }) {
   const show = (key: string) => visibleColumns.includes(key)
 
   return (
-    <div>
+    <div className={SECTION}>
       <DataGridToolbar
         searchValue={search}
         onSearchChange={setSearch}
@@ -39,41 +43,43 @@ export function PatientCollectionsTable({ rows }: { rows: Row[] }) {
       />
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No records found.</p>
+        <p className="mt-6 rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No records found.</p>
       ) : (
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border text-left">
-              {show('patient') && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>}
-              {show('balance') && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Balance</th>}
-              {show('unapplied') && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unapplied</th>}
-              {show('actions') && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r, i) => (
-              <tr key={r.patientId} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''} hover:bg-secondary`}>
-                {show('patient') && <td className="p-3 text-foreground">{r.patientName} ({r.patientId})</td>}
-                {show('balance') && <td className="p-3 text-foreground">{formatCents(r.balanceCents)}</td>}
-                {show('unapplied') && <td className="p-3 text-foreground">{r.unappliedCents > 0 ? formatCents(r.unappliedCents) : '—'}</td>}
-                {show('actions') && (
-                  <td className="p-3">
-                    {r.balanceCents > 0 ? (
-                      <Link
-                        href={`/billing/pay?patientId=${r.patientId}&amountCents=${r.balanceCents}`}
-                        className="rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                      >
-                        Collect Payment
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </td>
-                )}
+        <div className="mt-4 overflow-hidden rounded-lg border border-border">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-secondary/40 text-left">
+                {show('patient') && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>}
+                {show('balance') && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Balance</th>}
+                {show('unapplied') && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unapplied</th>}
+                {show('actions') && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((r, i) => (
+                <tr key={r.patientId} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''} transition-colors hover:bg-secondary`}>
+                  {show('patient') && <td className="p-3 text-foreground">{r.patientName} ({r.patientId})</td>}
+                  {show('balance') && <td className="p-3 text-foreground">{formatCents(r.balanceCents)}</td>}
+                  {show('unapplied') && <td className="p-3 text-foreground">{r.unappliedCents > 0 ? formatCents(r.unappliedCents) : '—'}</td>}
+                  {show('actions') && (
+                    <td className="p-3">
+                      {r.balanceCents > 0 ? (
+                        <Link
+                          href={`/billing/pay?patientId=${r.patientId}&amountCents=${r.balanceCents}`}
+                          className="rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                        >
+                          Collect Payment
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <p className="mt-3 text-xs text-muted-foreground">{filtered.length} patient{filtered.length === 1 ? '' : 's'} with an outstanding balance or unapplied credit</p>
     </div>
