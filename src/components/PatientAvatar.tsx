@@ -5,7 +5,7 @@ const COLOR_CLASSES = [
   'bg-primary/15 text-primary',
   'bg-accent/15 text-accent',
   'bg-sky-500/15 text-sky-700',
-  'bg-emerald-500/15 text-emerald-700',
+  'bg-chart-4/15 text-chart-4',
   'bg-amber-500/15 text-amber-700',
 ]
 

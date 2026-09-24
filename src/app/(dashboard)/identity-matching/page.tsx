@@ -21,7 +21,7 @@ export default async function IdentityMatchingPage() {
               <p className="text-xs text-muted-foreground">DOB {m.referralDob}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Candidate Clinical Record ({m.confidence}% confidence)</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Candidate Clinical Record ({m.confidence}% confidence)</p>
               <p className="text-sm">{m.candidateName}</p>
               <p className="text-xs text-muted-foreground">DOB {m.candidateDob}</p>
             </div>
