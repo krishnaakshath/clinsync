@@ -1,11 +1,13 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { DataGridToolbar, type DataGridFilterField, type DataGridColumn } from '@/components/DataGridToolbar'
 import { formatCents } from '@/lib/format'
 
 type Statement = {
   id: number
+  patientId: string
   patientName: string
   amountCents: number
   deliveryMethod: 'email' | 'sms' | 'paper'
@@ -91,7 +93,7 @@ export function PatientStatementsTable({ statements }: { statements: Statement[]
               {filtered.map((s, i) => (
                 <tr key={s.id} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''} transition-colors hover:bg-secondary`}>
                   {show('sentDate') && <td className="p-3 text-foreground">{new Date(s.sentDate).toLocaleDateString()}</td>}
-                  {show('patient') && <td className="p-3 text-foreground">{s.patientName}</td>}
+                  {show('patient') && <td className="p-3"><Link href={`/patients/${s.patientId}`} className="font-medium text-primary hover:underline">{s.patientName}</Link></td>}
                   {show('amount') && <td className="p-3 text-foreground">{formatCents(s.amountCents)}</td>}
                   {show('delivery') && <td className="p-3 text-foreground">{DELIVERY_LABELS[s.deliveryMethod]}</td>}
                   {show('type') && <td className="p-3 text-foreground">{TYPE_LABELS[s.type]}</td>}

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -29,7 +30,7 @@ export default async function BroadcastDetailPage({ params }: { params: Promise<
         <tbody>
           {broadcast.recipients.map((r, i) => (
             <tr key={r.patientId} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''}`}>
-              <td className="p-3 text-foreground">{r.patientName}</td>
+              <td className="p-3"><Link href={`/patients/${r.patientId}`} className="font-medium text-primary hover:underline">{r.patientName}</Link></td>
               <td className="p-3">
                 <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${r.deliveryStatus === 'delivered' ? 'text-emerald-800' : 'text-red-800'}`}>
                   <span className={`h-2 w-2 rounded-full ${r.deliveryStatus === 'delivered' ? 'bg-emerald-600' : 'bg-red-600'}`} aria-hidden="true" />

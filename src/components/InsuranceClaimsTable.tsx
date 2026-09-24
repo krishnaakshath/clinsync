@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { DataGridToolbar, type DataGridFilterField, type DataGridColumn } from '@/components/DataGridToolbar'
 import { formatCents } from '@/lib/format'
@@ -126,7 +127,7 @@ export function InsuranceClaimsTable({ claims }: { claims: Claim[] }) {
               {visibleClaims.map((c, i) => (
                 <tr key={c.id} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''} transition-colors hover:bg-secondary`}>
                   {show('dateOfService') && <td className="p-3 text-foreground">{c.dateOfService}</td>}
-                  {show('patient') && <td className="p-3 text-foreground">{c.patientName}</td>}
+                  {show('patient') && <td className="p-3"><Link href={`/patients/${c.patientId}`} className="font-medium text-primary hover:underline">{c.patientName}</Link></td>}
                   {show('payer') && <td className="p-3 text-foreground">{c.payerName}</td>}
                   {show('status') && (
                     <td className="p-3">

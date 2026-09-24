@@ -58,7 +58,7 @@ export function PatientCollectionsTable({ rows }: { rows: Row[] }) {
             <tbody>
               {filtered.map((r, i) => (
                 <tr key={r.patientId} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''} transition-colors hover:bg-secondary`}>
-                  {show('patient') && <td className="p-3 text-foreground">{r.patientName} ({r.patientId})</td>}
+                  {show('patient') && <td className="p-3"><Link href={`/patients/${r.patientId}`} className="font-medium text-primary hover:underline">{r.patientName} ({r.patientId})</Link></td>}
                   {show('balance') && <td className="p-3 text-foreground">{formatCents(r.balanceCents)}</td>}
                   {show('unapplied') && <td className="p-3 text-foreground">{r.unappliedCents > 0 ? formatCents(r.unappliedCents) : '—'}</td>}
                   {show('actions') && (
