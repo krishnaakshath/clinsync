@@ -36,7 +36,7 @@ const STAT_ICON_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
   accent: 'bg-accent/10 text-accent',
   sky: 'bg-sky-500/10 text-sky-700',
-  emerald: 'bg-chart-4/10 text-chart-4',
+  chart4: 'bg-chart-4/10 text-chart-4',
 }
 
 function MiniStatTile({ value, label, href, icon: Icon, color }: { value: number; label: string; href: string; icon: React.ComponentType<{ className?: string }>; color: keyof typeof STAT_ICON_COLOR }) {
@@ -156,7 +156,7 @@ export default async function DashboardHomePage() {
       <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
         <MiniStatTile value={data.pendingFormsTotal} label="Pending Forms" href="/client-forms" icon={FileClock} color="sky" />
         <MiniStatTile value={data.pendingClassification.length} label="Pending Classifications" href="/patients" icon={ClipboardCheck} color="accent" />
-        <MiniStatTile value={templates.length} label="Form Templates" href="/forms" icon={LayoutTemplate} color="emerald" />
+        <MiniStatTile value={templates.length} label="Form Templates" href="/forms" icon={LayoutTemplate} color="chart4" />
         <MiniStatTile value={patients.length} label="Total Patients" href="/patients" icon={Users} color="primary" />
       </div>
 

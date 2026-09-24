@@ -3,7 +3,7 @@ import { Stethoscope, Calendar, FileCheck2, ShieldAlert } from 'lucide-react'
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
   sky: 'bg-sky-500/10 text-sky-700',
-  emerald: 'bg-accent/10 text-accent',
+  accent: 'bg-accent/10 text-accent',
   amber: 'bg-amber-500/10 text-amber-700',
 }
 
@@ -31,7 +31,7 @@ export function PatientQuickGlance({ provider, chartDataAsOf, identityVerified, 
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <Tile icon={Stethoscope} label="Provider" value={provider ?? 'Unassigned'} color="primary" />
       <Tile icon={Calendar} label="Chart as of" value={new Date(chartDataAsOf).toLocaleDateString()} color="sky" />
-      <Tile icon={FileCheck2} label="Criteria evaluated" value={String(criteriaCount)} color="emerald" />
+      <Tile icon={FileCheck2} label="Criteria evaluated" value={String(criteriaCount)} color="accent" />
       <Tile icon={ShieldAlert} label="Identity" value={identityVerified ? 'Verified' : 'Pending'} color="amber" />
     </div>
   )
