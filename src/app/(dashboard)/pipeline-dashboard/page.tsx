@@ -16,7 +16,7 @@ const PRESETS = [
 
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
-  emerald: 'bg-emerald-500/10 text-emerald-700',
+  sky: 'bg-sky-500/10 text-sky-700',
   amber: 'bg-amber-500/10 text-amber-700',
   violet: 'bg-violet-500/10 text-violet-700',
 }
@@ -91,7 +91,7 @@ export default async function PipelineDashboardPage({ searchParams }: { searchPa
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile icon={UserPlus} value={String(performance.referralsReceived)} label="Referrals received" color="primary" />
-        <StatTile icon={FileCheck2} value={String(performance.formsCompleted)} label="Forms completed" color="emerald" />
+        <StatTile icon={FileCheck2} value={String(performance.formsCompleted)} label="Forms completed" color="sky" />
         <StatTile icon={ClipboardCheck} value={String(performance.patientsClassified)} label="Patients classified" color="amber" />
         <StatTile icon={Hourglass} value={performance.avgDaysToClassify !== null ? performance.avgDaysToClassify.toFixed(1) : '—'} label="Avg. days to classify" color="violet" />
       </div>
