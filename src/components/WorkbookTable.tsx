@@ -6,6 +6,10 @@ import { Search, Trash2 } from 'lucide-react'
 import type { WorkbookRow } from '@/lib/queries/workbook'
 import { DeletePatientDialog, type DeleteTarget } from '@/components/DeletePatientDialog'
 
+// Same elevated-card treatment ReportTable.tsx and the rest of the app's
+// data surfaces already use.
+const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
+
 // Columns match the source 30-heading workbook verbatim and in order (see
 // src/lib/queries/workbook.ts). This is an internal, staff-only operational
 // grid meant to replicate a document coordinators already use day to day --
@@ -79,7 +83,7 @@ export function WorkbookTable({ rows, isAdmin }: { rows: WorkbookRow[]; isAdmin:
   const show = (key: string) => visibleColumns.includes(key)
 
   return (
-    <div>
+    <div className={SECTION}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="relative max-w-sm flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -127,12 +131,12 @@ export function WorkbookTable({ rows, isAdmin }: { rows: WorkbookRow[]; isAdmin:
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No records found.</p>
+        <p className="mt-6 rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No records found.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-border bg-secondary text-left">
+              <tr className="border-b border-border bg-secondary/40 text-left">
                 {COLUMNS.filter((c) => show(c.key as string)).map((c) => (
                   <th key={c.key} className="whitespace-nowrap p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</th>
                 ))}
@@ -142,7 +146,7 @@ export function WorkbookTable({ rows, isAdmin }: { rows: WorkbookRow[]; isAdmin:
               {filtered.map((r, i) => (
                 <tr
                   key={r.id}
-                  className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/40' : ''} hover:bg-secondary`}
+                  className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''} transition-colors hover:bg-secondary`}
                   onContextMenu={isAdmin ? (e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: r }) } : undefined}
                 >
                   {COLUMNS.filter((c) => show(c.key as string)).map((c) =>
