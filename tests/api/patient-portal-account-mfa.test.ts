@@ -114,7 +114,7 @@ describe('patient opt-in MFA', () => {
 
   it('enroll returns a QR and manual key, and provisions an unconfirmed secret', async () => {
     const sessionCookieValue = await mintSessionCookieValue(TEST_PATIENT_ID)
-    const res = await withCookieBridge((request) => enroll(request), enrollReq(sessionCookieValue))
+    const res = await withCookieBridge(() => enroll(), enrollReq(sessionCookieValue))
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.qrDataUrl).toMatch(/^data:image\/png/)
@@ -145,7 +145,7 @@ describe('patient opt-in MFA', () => {
 
   it('enroll rejects when MFA is already enabled', async () => {
     const sessionCookieValue = await mintSessionCookieValue(TEST_PATIENT_ID)
-    const res = await withCookieBridge((request) => enroll(request), enrollReq(sessionCookieValue))
+    const res = await withCookieBridge(() => enroll(), enrollReq(sessionCookieValue))
     expect(res.status).toBe(400)
   })
 
@@ -171,7 +171,7 @@ describe('patient opt-in MFA', () => {
 
   it('rejects every route without a patient session', async () => {
     const noSessionEnroll = new NextRequest('http://localhost/api/patient-portal/account/mfa/enroll', { method: 'POST' })
-    expect((await withCookieBridge((request) => enroll(request), noSessionEnroll)).status).toBe(401)
+    expect((await withCookieBridge(() => enroll(), noSessionEnroll)).status).toBe(401)
 
     const noSessionConfirm = new NextRequest('http://localhost/api/patient-portal/account/mfa/confirm', { method: 'POST', body: JSON.stringify({ code: '123456' }), headers: { 'Content-Type': 'application/json' } })
     expect((await withCookieBridge((request) => confirm(request), noSessionConfirm)).status).toBe(401)
