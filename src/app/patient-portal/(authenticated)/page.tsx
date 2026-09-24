@@ -12,7 +12,7 @@ const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold 
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
   sky: 'bg-sky-500/10 text-sky-700',
-  emerald: 'bg-accent/10 text-accent',
+  accent: 'bg-accent/10 text-accent',
   amber: 'bg-amber-500/10 text-amber-700',
   violet: 'bg-violet-500/10 text-violet-700',
 }
@@ -55,7 +55,7 @@ export default async function PatientPortalOverviewPage() {
         <SummaryTile icon={Stethoscope} value={data.currentProvider ?? 'Unassigned'} label="Care team" color="primary" />
         <SummaryTile icon={Pill} value={data.activeMedications.length} label="Current meds" color="sky" href="/patient-portal/medications" />
         <SummaryTile icon={FileText} value={formsToComplete.length} label="Forms to complete" color="amber" href="/patient-portal/forms" />
-        <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="emerald" href="/patient-portal/appointments" />
+        <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="accent" href="/patient-portal/appointments" />
         <SummaryTile icon={MessageSquare} value={data.unreadMessageCount} label="New messages" color="violet" href="/patient-portal/messages" />
         <SummaryTile icon={Megaphone} value={broadcasts.length} label="Announcements" color="sky" href="/patient-portal/broadcasts" />
       </div>
