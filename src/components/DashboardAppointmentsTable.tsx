@@ -22,7 +22,7 @@ const REASON_PILL_CLASSES = [
   'bg-sky-500/10 text-sky-700',
   'bg-primary/10 text-primary',
   'bg-amber-500/10 text-amber-700',
-  'bg-emerald-500/10 text-emerald-700',
+  'bg-chart-4/10 text-chart-4',
   'bg-accent/10 text-accent',
 ]
 

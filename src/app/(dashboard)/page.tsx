@@ -36,7 +36,7 @@ const STAT_ICON_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
   accent: 'bg-accent/10 text-accent',
   sky: 'bg-sky-500/10 text-sky-700',
-  emerald: 'bg-emerald-500/10 text-emerald-700',
+  emerald: 'bg-chart-4/10 text-chart-4',
 }
 
 function MiniStatTile({ value, label, href, icon: Icon, color }: { value: number; label: string; href: string; icon: React.ComponentType<{ className?: string }>; color: keyof typeof STAT_ICON_COLOR }) {

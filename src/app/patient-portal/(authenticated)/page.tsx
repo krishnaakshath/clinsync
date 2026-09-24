@@ -12,7 +12,7 @@ const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold 
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
   sky: 'bg-sky-500/10 text-sky-700',
-  emerald: 'bg-emerald-500/10 text-emerald-700',
+  emerald: 'bg-accent/10 text-accent',
   amber: 'bg-amber-500/10 text-amber-700',
   violet: 'bg-violet-500/10 text-violet-700',
 }
