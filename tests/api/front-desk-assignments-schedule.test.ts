@@ -41,6 +41,18 @@ describe('POST /api/front-desk/assignments/[id]/schedule', () => {
     const res = await schedule(req as never, { params: Promise.resolve({ id: String(assignment.id) }) })
     expect(res.status).toBe(403)
   })
+
+  it('returns 403 when the assignment belongs to a different provider than the calling PI', async () => {
+    const providers = await listActiveProviders()
+    // providers[1] is not "Dr. R. Kunam" (the mocked session's name) -- this
+    // assignment was routed to a different doctor entirely.
+    const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId: providers[1].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(assignment.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt: '2026-11-03T11:00:00', endsAt: '2026-11-03T11:30:00', visitReason: 'Follow-up' }) })
+    const res = await schedule(req as never, { params: Promise.resolve({ id: String(assignment.id) }) })
+    expect(res.status).toBe(403)
+  })
 })
 
 describe('POST /api/front-desk/assignments/[id]/decline', () => {
@@ -55,5 +67,18 @@ describe('POST /api/front-desk/assignments/[id]/decline', () => {
     const body = await res.json()
     expect(body.status).toBe('declined')
     expect(body.declineReason).toBe('Fully booked this week')
+  })
+
+  it('returns 403 when the assignment belongs to a different provider than the calling PI', async () => {
+    const providers = await listActiveProviders()
+    const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId: providers[1].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(assignment.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ reason: 'Not mine' }) })
+    const res = await decline(req as never, { params: Promise.resolve({ id: String(assignment.id) }) })
+    expect(res.status).toBe(403)
+
+    const [row] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, assignment.id))
+    expect(row.status).toBe('pending')
   })
 })

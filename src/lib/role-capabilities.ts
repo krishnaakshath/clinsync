@@ -42,11 +42,12 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
   },
   frontdesk: {
     label: 'Front Desk / Reception',
-    summary: 'Handles walk-in and phone patient traffic at the point of check-in: rooming, doctor assignment, and insurance eligibility -- not the clinical or billing tools used by other roles.',
+    summary: 'Handles walk-in and phone patient traffic at the point of check-in: rooming, doctor assignment, insurance eligibility, and billing visibility -- not the clinical evidence-review or practice-administration tools used by other roles.',
     bullets: [
       'Check patients in and assign rooms',
       'Route patients to a provider for inpatient or outpatient visits',
       'Record insurance eligibility checks',
+      'View and manage billing, insurance, and payment status',
     ],
   },
 }

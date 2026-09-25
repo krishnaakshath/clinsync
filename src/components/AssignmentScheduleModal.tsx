@@ -63,10 +63,10 @@ function AssignmentScheduleModal({ assignment, onClose }: { assignment: DoctorAs
 
         {mode === 'schedule' ? (
           <div className="space-y-3">
-            <input value={date} onChange={(e) => setDate(e.target.value)} type="date" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+            <input value={date} onChange={(e) => setDate(e.target.value)} type="date" aria-label="Appointment date" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
             <div className="flex gap-2">
-              <input value={startTime} onChange={(e) => setStartTime(e.target.value)} type="time" className="w-1/2 rounded-md border border-border px-3 py-2 text-sm" />
-              <input value={endTime} onChange={(e) => setEndTime(e.target.value)} type="time" className="w-1/2 rounded-md border border-border px-3 py-2 text-sm" />
+              <input value={startTime} onChange={(e) => setStartTime(e.target.value)} type="time" aria-label="Start time" className="w-1/2 rounded-md border border-border px-3 py-2 text-sm" />
+              <input value={endTime} onChange={(e) => setEndTime(e.target.value)} type="time" aria-label="End time" className="w-1/2 rounded-md border border-border px-3 py-2 text-sm" />
             </div>
             <button type="button" onClick={() => setMode('decline')} className="text-xs font-medium text-destructive hover:underline">I can&apos;t take this patient</button>
           </div>

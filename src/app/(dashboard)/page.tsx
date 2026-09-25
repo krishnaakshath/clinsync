@@ -21,7 +21,10 @@ export default async function DashboardHomePage() {
   // page resolves to a plain, already-rendered element tree instead of an unresolved async
   // component nested inside another one's return value -- React's client renderer (used by
   // @testing-library/react in tests) can't render an async component directly as JSX.
-  if (session.role === 'frontdesk') return await FrontDeskDashboard({ session })
+  if (session.role === 'frontdesk') {
+    await logAudit(session, 'viewed front desk dashboard', null)
+    return await FrontDeskDashboard({ session })
+  }
 
   const now = new Date()
   const rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
@@ -36,7 +39,7 @@ export default async function DashboardHomePage() {
   ])
   await logAudit(session, 'viewed home dashboard', null)
 
-  const staffByRole = ['admin', 'pi', 'crc'].map((role) => ({
+  const staffByRole = ['admin', 'pi', 'crc', 'frontdesk'].map((role) => ({
     role,
     count: allStaff.filter((u) => u.role === role).length,
   }))
