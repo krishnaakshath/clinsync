@@ -134,4 +134,42 @@ describe('scheduling conflict detection', () => {
     }) as never)
     expect(overlapping.status).toBe(409)
   })
+
+  it('rejects rescheduling an appointment into a slot that conflicts with a different existing appointment', async () => {
+    const providers = await listActiveProviders()
+    const first = await POST(new Request('http://localhost/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify({ patientId: 'RD-0001', providerId: providers[0].id, startsAt: '2026-11-05T09:00:00', endsAt: '2026-11-05T09:30:00', visitReason: 'Test visit' }),
+    }) as never)
+    const firstBody = await first.json()
+    createdIds.push(firstBody.id)
+
+    const second = await POST(new Request('http://localhost/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify({ patientId: 'RD-0002', providerId: providers[0].id, startsAt: '2026-11-05T11:00:00', endsAt: '2026-11-05T11:30:00', visitReason: 'Test visit' }),
+    }) as never)
+    const secondBody = await second.json()
+    createdIds.push(secondBody.id)
+
+    // Reschedule the second appointment into the first one's slot.
+    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ startsAt: '2026-11-05T09:15:00', endsAt: '2026-11-05T09:45:00' }) })
+    const res = await PUT(req as never, { params: Promise.resolve({ id: String(secondBody.id) }) })
+    expect(res.status).toBe(409)
+  })
+
+  it('allows rescheduling an appointment to a partial update that keeps its own current slot (excludes itself from the conflict check)', async () => {
+    const providers = await listActiveProviders()
+    const created = await POST(new Request('http://localhost/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify({ patientId: 'RD-0001', providerId: providers[0].id, startsAt: '2026-11-06T09:00:00', endsAt: '2026-11-06T09:30:00', visitReason: 'Test visit' }),
+    }) as never)
+    const createdBody = await created.json()
+    createdIds.push(createdBody.id)
+
+    // Re-sends the appointment's own current startsAt -- must not conflict
+    // with itself.
+    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ startsAt: '2026-11-06T09:00:00', endsAt: '2026-11-06T09:30:00' }) })
+    const res = await PUT(req as never, { params: Promise.resolve({ id: String(createdBody.id) }) })
+    expect(res.status).toBe(200)
+  })
 })
