@@ -27,12 +27,21 @@ describe('dashboard role routing', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/doctor')
   })
 
-  it('renders the FrontDeskDashboard for a frontdesk session', async () => {
-    const auth = await import('@/lib/auth')
-    vi.mocked(auth.requireSessionOrRedirect).mockResolvedValueOnce({ role: 'frontdesk', name: 'Taylor Nguyen' })
+  it('renders the FrontDeskDashboard with KPI strip and queue for a frontdesk session', async () => {
+    vi.resetModules()
+    vi.doMock('next/navigation', () => ({ redirect: mockRedirect }))
+    vi.doMock('@/lib/auth', () => ({ requireSessionOrRedirect: vi.fn(async () => ({ role: 'frontdesk', name: 'Taylor Nguyen' })) }))
+    vi.doMock('@/lib/audit', () => ({ logAudit: vi.fn(async () => undefined) }))
+    vi.doMock('@/lib/queries/rooms', () => ({ listAvailableRooms: vi.fn(async () => [{ id: 1, ward: 'Ward A', roomNumber: '101', bedNumber: 'A' }]) }))
+    vi.doMock('@/lib/queries/doctor-assignments', () => ({ listAllAssignments: vi.fn(async () => [
+      { id: 1, patientId: 'RD-0001', providerId: 1, visitType: 'outpatient', urgency: 'urgent', reason: 'Test visit', status: 'pending', roomId: null, assignedByName: 'Taylor Nguyen', appointmentId: null, declineReason: null, createdAt: new Date() },
+    ]) }))
+    vi.doMock('@/lib/queries/providers', () => ({ listActiveProviders: vi.fn(async () => [{ id: 1, name: 'Dr. R. Kunam' }]), listAllProviders: vi.fn(async () => [{ id: 1, name: 'Dr. R. Kunam' }]) }))
+    const { default: DashboardHomePageWithFrontDesk } = await import('@/app/(dashboard)/page')
     const { render, screen } = await import('@testing-library/react')
-    const jsx = await DashboardHomePage()
+    const jsx = await DashboardHomePageWithFrontDesk()
     render(jsx)
-    expect(screen.getByText(/front desk/i)).toBeInTheDocument()
+    expect(screen.getByText(/rooms available/i)).toBeInTheDocument()
+    expect(screen.getByText('Test visit')).toBeInTheDocument()
   })
 })

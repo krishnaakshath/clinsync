@@ -17,7 +17,11 @@ export default async function DashboardHomePage() {
   // a real separate route rather than a conditional render here avoids
   // duplicating /doctor's assignment-matching logic in two places.
   if (session.role === 'pi') redirect('/doctor')
-  if (session.role === 'frontdesk') return <FrontDeskDashboard session={session} />
+  // Called and awaited directly (not `<FrontDeskDashboard session={session} />`) so this
+  // page resolves to a plain, already-rendered element tree -- consistent with every other
+  // async page component in this app, which await their own data before returning JSX,
+  // rather than nesting an unresolved async component inside another one's return value.
+  if (session.role === 'frontdesk') return await FrontDeskDashboard({ session })
 
   const now = new Date()
   const rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
