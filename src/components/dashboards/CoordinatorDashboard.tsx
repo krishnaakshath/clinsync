@@ -46,6 +46,9 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 }
 
 export function CoordinatorDashboard({ session, data, templates, patients, appointmentsInRange }: DashboardPageProps) {
+  const screenedCount = data.screeningBreakdown.green + data.screeningBreakdown.yellow + data.screeningBreakdown.red
+  const unscreenedCount = Math.max(patients.length - screenedCount, 0)
+  const screenedPct = patients.length > 0 ? Math.round((screenedCount / patients.length) * 100) : 0
   const now = new Date()
   const currentMonthLabel = data.patientsByMonth[now.getMonth()]?.month
 
@@ -171,6 +174,7 @@ export function CoordinatorDashboard({ session, data, templates, patients, appoi
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 text-accent" aria-hidden="true"><Clock className="h-4 w-4" /></span>
           </div>
           <p className="text-xl font-bold text-foreground">{data.peakHourRange ?? 'Not enough data yet'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Busiest 2-hour window across scheduled appointments</p>
         </div>
         <div className={`${CARD_SURFACE} p-5`}>
           <div className="mb-3 flex items-center justify-between">
@@ -178,6 +182,10 @@ export function CoordinatorDashboard({ session, data, templates, patients, appoi
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true"><Users className="h-4 w-4" /></span>
           </div>
           <p className="text-2xl font-bold tabular-nums text-foreground">{patients.length}</p>
+          <div className="mt-3 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-primary" style={{ width: `${screenedPct}%` }} />
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">{screenedCount} screened · {unscreenedCount} not yet screened</p>
         </div>
         <div className={`${CARD_SURFACE} p-5`}>
           <div className="mb-3 flex items-center justify-between">
@@ -185,6 +193,7 @@ export function CoordinatorDashboard({ session, data, templates, patients, appoi
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning" aria-hidden="true"><Star className="h-4 w-4" /></span>
           </div>
           <p className="text-2xl font-bold tabular-nums text-foreground">{data.avgExperienceRating !== null ? data.avgExperienceRating.toFixed(1) : '—'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{data.completedReviewCount} completed experience survey{data.completedReviewCount === 1 ? '' : 's'}</p>
         </div>
       </div>
 

@@ -38,6 +38,9 @@ describe('CoordinatorDashboard', () => {
     expect(screen.getByText(/screening status breakdown/i)).toBeInTheDocument()
     expect(screen.getAllByText(/pending classifications/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/latest account events/i)).toBeInTheDocument()
+    expect(screen.getByText(/busiest 2-hour window/i)).toBeInTheDocument()
+    expect(screen.getByText(/screened ·/i)).toBeInTheDocument()
+    expect(screen.getByText(/completed experience survey/i)).toBeInTheDocument()
   })
 
   it('puts the actionable queues (Pending Forms, Pending Classifications) before the stat row in document order', () => {

@@ -43,8 +43,8 @@ export function PatientPortalSideNav() {
                 aria-current={active ? 'page' : undefined}
                 className={`flex items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground'
                 }`}
               >
                 <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
