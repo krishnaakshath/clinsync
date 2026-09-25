@@ -4,8 +4,9 @@ import { LogOut } from 'lucide-react'
 import { NotificationPanel } from '@/components/NotificationPanel'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { PatientAvatar } from '@/components/PatientAvatar'
+import type { Role } from '@/lib/auth'
 
-export function TopBanner({ userName }: { userName: string }) {
+export function TopBanner({ userName, role }: { userName: string; role: Role }) {
   const router = useRouter()
 
   async function signOut() {
@@ -19,7 +20,7 @@ export function TopBanner({ userName }: { userName: string }) {
       <div className="flex items-center justify-between px-6 py-3">
         <GlobalSearch />
         <div className="flex items-center gap-4">
-          <NotificationPanel triggerClassName="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+          <NotificationPanel role={role} triggerClassName="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
           <div className="flex items-center gap-2">
             <PatientAvatar name={userName} size="sm" />
             <span className="text-sm font-medium text-sidebar-foreground">{userName}</span>

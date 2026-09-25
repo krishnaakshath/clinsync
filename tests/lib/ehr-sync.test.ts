@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-const insertValues = vi.fn(async () => undefined)
+const insertValues = vi.fn(async (_values: Record<string, unknown>) => undefined)
 const insertMock = vi.fn(() => ({ values: insertValues }))
 const selectFromMock = vi.fn()
 

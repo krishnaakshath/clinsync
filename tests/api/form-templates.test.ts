@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, afterAll } from 'vitest'
 import { GET, POST } from '@/app/api/form-templates/route'
 import { GET as getOneTemplate } from '@/app/api/form-templates/[id]/route'
 import { getDb } from '@/db/client'
 import { formTemplates, auditLog } from '@/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, or, like } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -17,6 +17,12 @@ afterEach(async () => {
   if (createdTemplateId == null) return
   await getDb().delete(formTemplates).where(eq(formTemplates.id, createdTemplateId))
   createdTemplateId = undefined
+})
+
+// The "audit logging" tests below insert real auditLog rows via the real
+// GET handlers -- clean them up too, or they accumulate in the shared DB.
+afterAll(async () => {
+  await getDb().delete(auditLog).where(or(eq(auditLog.action, 'viewed form templates list'), like(auditLog.action, 'viewed form template %')))
 })
 
 describe('GET /api/form-templates', () => {

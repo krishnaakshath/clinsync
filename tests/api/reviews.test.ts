@@ -1,11 +1,18 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { getDb } from '@/db/client'
 import { formSubmissions, reviews, auditLog } from '@/db/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, or, like } from 'drizzle-orm'
 import { GET as listReviews, POST as sendSurvey } from '@/app/api/reviews/route'
 import { GET as getOneReview, PUT as recordResponse } from '@/app/api/reviews/[id]/route'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+
+// The "audit logging" tests below insert real auditLog rows via the real
+// GET handlers against the shared dev DB -- clean them up, or they
+// accumulate in the compliance log forever.
+afterAll(async () => {
+  await getDb().delete(auditLog).where(or(eq(auditLog.action, 'viewed experience surveys list'), like(auditLog.action, 'viewed experience survey %')))
+})
 
 describe('GET /api/reviews', () => {
   it('returns the seeded survey records', async () => {

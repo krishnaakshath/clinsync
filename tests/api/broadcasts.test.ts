@@ -4,7 +4,7 @@ import { GET as getOneBroadcast } from '@/app/api/broadcasts/[id]/route'
 import { GET as recipientPreview } from '@/app/api/broadcasts/recipients/route'
 import { getDb } from '@/db/client'
 import { broadcasts, auditLog } from '@/db/schema'
-import { inArray, desc } from 'drizzle-orm'
+import { inArray, desc, eq, or, like } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -16,6 +16,13 @@ vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc',
 const createdBroadcastIds: number[] = []
 afterAll(async () => {
   if (createdBroadcastIds.length > 0) await getDb().delete(broadcasts).where(inArray(broadcasts.id, createdBroadcastIds))
+})
+
+// The "audit logging" tests below insert real auditLog rows via the real
+// GET handlers (same shared-DB reasoning as createdBroadcastIds above) --
+// clean them up too, or they accumulate in the compliance log forever.
+afterAll(async () => {
+  await getDb().delete(auditLog).where(or(eq(auditLog.action, 'viewed broadcasts list'), like(auditLog.action, 'viewed broadcast %')))
 })
 
 describe('GET /api/broadcasts', () => {

@@ -3,7 +3,7 @@ import { GET, POST } from '@/app/api/charges/route'
 import { GET as getOne, PATCH } from '@/app/api/charges/[id]/route'
 import { getDb } from '@/db/client'
 import { charges, auditLog } from '@/db/schema'
-import { inArray, desc } from 'drizzle-orm'
+import { inArray, desc, eq, or, like } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -15,6 +15,12 @@ vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc',
 const createdChargeIds: number[] = []
 afterAll(async () => {
   if (createdChargeIds.length > 0) await getDb().delete(charges).where(inArray(charges.id, createdChargeIds))
+})
+
+// Same reasoning as createdChargeIds above, for the "audit logging" tests'
+// real auditLog inserts.
+afterAll(async () => {
+  await getDb().delete(auditLog).where(or(eq(auditLog.action, 'viewed charges list'), like(auditLog.action, 'viewed charge %')))
 })
 
 describe('GET /api/charges', () => {

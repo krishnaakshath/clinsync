@@ -17,7 +17,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // content scrolls.
     <div className="flex h-screen flex-col overflow-hidden">
       <SessionTimeoutWarning />
-      <TopBanner userName={session.name} />
+      <TopBanner userName={session.name} role={session.role} />
       <div className="flex flex-1 overflow-hidden">
         <LeftNav role={session.role} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { inArray, desc } from 'drizzle-orm'
+import { inArray, desc, eq } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
 import { users, auditLog } from '@/db/schema'
@@ -21,6 +21,12 @@ afterEach(async () => {
     await getDb().delete(users).where(inArray(users.id, createdIds))
     createdIds.length = 0
   }
+})
+
+// The "logs an audit entry..." test below inserts a real auditLog row via
+// the real GET handler against the shared dev DB -- clean it up too.
+afterAll(async () => {
+  await getDb().delete(auditLog).where(eq(auditLog.action, 'viewed staff roster'))
 })
 
 function postReq(body: unknown) {

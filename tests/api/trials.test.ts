@@ -15,6 +15,13 @@ vi.mock('@/lib/auth', async () => {
   return { ...actual, requireSession: vi.fn(async () => ({ role: 'crc' as const, name: 'Test CRC' })) }
 })
 
+// The "logs an audit entry..." test below inserts a real auditLog row via
+// the real GET handler against the shared dev DB -- clean it up, or it
+// accumulates in the compliance log forever.
+afterAll(async () => {
+  await getDb().delete(auditLog).where(eq(auditLog.action, 'viewed trials list'))
+})
+
 // The PUT test below overwrites nct-adhd-demo-01's medicationClasses with a
 // test fixture value. It's idempotent across repeated test runs, but it
 // would otherwise permanently corrupt the seeded demo criteria that later

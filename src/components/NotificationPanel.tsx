@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
+import type { Role } from '@/lib/auth'
 
 interface Event { id: number; action: string; timestamp: string }
 
-export function NotificationPanel({ triggerClassName = 'text-muted-foreground hover:bg-secondary' }: { triggerClassName?: string }) {
+export function NotificationPanel({ role, triggerClassName = 'text-muted-foreground hover:bg-secondary' }: { role: Role; triggerClassName?: string }) {
   const [open, setOpen] = useState(false)
   const [events, setEvents] = useState<Event[]>([])
 
@@ -15,6 +16,12 @@ export function NotificationPanel({ triggerClassName = 'text-muted-foreground ho
         .then((data) => setEvents((data.entries ?? []).slice(0, 10)))
     }
   }, [open])
+
+  // GET /api/audit-log is admin-only (see src/app/api/audit-log/route.ts) --
+  // a CRC/PI session would always get a 403 here, silently rendered as an
+  // empty "No records found" list. Hide the affordance entirely for roles
+  // that can never use it, rather than shipping a permanently dead bell.
+  if (role !== 'admin') return null
 
   return (
     <div className="relative">

@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
 export interface DeleteTarget {
@@ -39,12 +39,14 @@ export function DeletePatientDialog({ target, onClose, onDeleted }: { target: De
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="max-w-sm">
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive" aria-hidden="true">
-            <Trash2 className="h-4.5 w-4.5" />
-          </span>
-          <h2 className="text-lg font-semibold text-foreground">Delete patient record?</h2>
-        </div>
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive" aria-hidden="true">
+              <Trash2 className="h-4.5 w-4.5" />
+            </span>
+            <DialogTitle className="text-lg font-semibold text-foreground">Delete patient record?</DialogTitle>
+          </div>
+        </DialogHeader>
         <p className="text-sm text-muted-foreground">
           This permanently removes <span className="font-medium text-foreground">{target.name}</span> ({target.id}) and every record tied to
           them -- diagnoses, medications, forms, appointments, messages, billing -- from Clinsync. It disappears from the Patients tab, the
