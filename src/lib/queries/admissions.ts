@@ -1,5 +1,5 @@
 import { getDb } from '@/db/client'
-import { admissions, admissionTransfers } from '@/db/schema'
+import { admissions, admissionTransfers, rooms } from '@/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
 
 export type Admission = typeof admissions.$inferSelect
@@ -62,4 +62,37 @@ export async function listAdmissionsForPatient(patientId: string): Promise<Admis
     result.push({ ...admission, transfers })
   }
   return result
+}
+
+export interface TransferResult {
+  ok: boolean
+  error?: string
+}
+
+// Sequential, not transactional (the neon-http driver doesn't support
+// multi-statement transactions -- same accepted limitation as Front Desk).
+// Order matters for safety: claim the destination room FIRST (race-safe,
+// conditional on it still being available), and only free the old room and
+// update the admission after that succeeds. If the process died between
+// steps, the failure mode is "new room occupied, old room still occupied
+// too" -- an inconsistency a human can see and fix -- never "old room freed
+// but nobody actually holds the new one."
+export async function transferAdmission(admissionId: number, toRoomId: number, reason: string, transferredByName: string): Promise<TransferResult> {
+  const db = getDb()
+  const admission = await getAdmissionById(admissionId)
+  if (!admission) return { ok: false, error: 'Admission not found' }
+  if (admission.status !== 'admitted') return { ok: false, error: 'This admission has already been discharged' }
+
+  const claimed = await db.update(rooms).set({ status: 'occupied', occupiedByPatientId: admission.patientId }).where(and(eq(rooms.id, toRoomId), eq(rooms.status, 'available'))).returning({ id: rooms.id })
+  if (claimed.length === 0) return { ok: false, error: 'That room is no longer available. Please choose another.' }
+
+  const fromRoomId = admission.currentRoomId
+  if (fromRoomId !== null) {
+    await db.update(rooms).set({ status: 'dirty', occupiedByPatientId: null }).where(eq(rooms.id, fromRoomId))
+  }
+
+  await db.update(admissions).set({ currentRoomId: toRoomId }).where(eq(admissions.id, admissionId))
+  await db.insert(admissionTransfers).values({ admissionId, fromRoomId, toRoomId, reason, transferredByName })
+
+  return { ok: true }
 }
