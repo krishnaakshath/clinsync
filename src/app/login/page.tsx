@@ -140,6 +140,17 @@ export default function LoginPage() {
                     {submitting ? 'Signing in…' : 'Sign in'}
                   </button>
                 </form>
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <a
+                  href="/api/auth/google/start"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+                >
+                  Sign in with Google
+                </a>
               </>
             )}
             {step.kind === 'enroll' && (
