@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { FileText, Stethoscope, ShieldAlert } from 'lucide-react'
+import { FileText, Stethoscope, ShieldAlert, BedDouble } from 'lucide-react'
 import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
@@ -11,9 +11,12 @@ import { PatientQuickGlance } from '@/components/PatientQuickGlance'
 import { DiscrepancyList } from '@/components/DiscrepancyList'
 import { Tabs } from '@/components/Tabs'
 import { DeletePatientButton } from '@/components/DeletePatientButton'
+import { InpatientHistoryPanel } from '@/components/InpatientHistoryPanel'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
+import { listAdmissionsForPatient } from '@/lib/queries/admissions'
+import { listAvailableRooms } from '@/lib/queries/rooms'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -40,6 +43,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const patient = await getPatientDetail(anonId)
   if (!patient) notFound()
   await logAudit(session, 'viewed patient detail', anonId)
+
+  const [admissionHistory, availableRooms] = await Promise.all([listAdmissionsForPatient(anonId), listAvailableRooms()])
 
   const name = patient.nameTebra ?? patient.nameIntakeq
 
@@ -128,6 +133,27 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     </div>
   )
 
+  const inpatientTab = (
+    <InpatientHistoryPanel
+      admissions={admissionHistory.map((a) => ({
+        id: a.id,
+        status: a.status,
+        admissionType: a.admissionType,
+        admittedAt: a.admittedAt.toString(),
+        dischargedAt: a.dischargedAt?.toString() ?? null,
+        dischargeDiagnosis: a.dischargeDiagnosis,
+        dischargeDrugs: a.dischargeDrugs,
+        dischargeDevices: a.dischargeDevices,
+        dischargeDiet: a.dischargeDiet,
+        dischargeSummaryNotes: a.dischargeSummaryNotes,
+        transfers: a.transfers.map((t) => ({ id: t.id, fromRoomId: t.fromRoomId, toRoomId: t.toRoomId, reason: t.reason, transferredByName: t.transferredByName, transferredAt: t.transferredAt.toString() })),
+      }))}
+      availableRooms={availableRooms}
+      canTransfer={['frontdesk', 'admin', 'crc', 'pi'].includes(session.role)}
+      canDischarge={['pi', 'admin'].includes(session.role)}
+    />
+  )
+
   return (
     <div className="max-w-4xl space-y-6">
       <BackLink href="/patients" label="Back to Patients" />
@@ -160,6 +186,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         { id: 'overview', label: 'Overview', content: overviewTab },
         { id: 'screening', label: 'Screening', content: screeningTab },
         { id: 'identity', label: 'Verification', content: identityAndPortalTab },
+        ...(admissionHistory.length > 0 ? [{ id: 'inpatient', label: <span className="inline-flex items-center gap-1.5"><BedDouble className="h-3.5 w-3.5" aria-hidden="true" />Inpatient History</span>, content: inpatientTab }] : []),
       ]} />
     </div>
   )
