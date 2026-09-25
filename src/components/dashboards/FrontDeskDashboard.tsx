@@ -1,14 +1,14 @@
 import { ClipboardCheck, BedDouble, ListChecks, ShieldCheck } from 'lucide-react'
 import type { Session } from '@/lib/auth'
 import { listAvailableRooms } from '@/lib/queries/rooms'
-import { listAllAssignments } from '@/lib/queries/doctor-assignments'
+import { listTodaysAssignments } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
+import { countEligibilityFollowUps } from '@/lib/queries/insurance-eligibility'
 import { CheckInButton } from '@/components/CheckInButton'
 import { EligibilityCheckButton } from '@/components/EligibilityCheckButton'
+import { AssignmentStatusChip } from '@/components/AssignmentStatusChip'
 
 const URGENCY_ORDER = { emergency: 0, urgent: 1, routine: 2 } as const
-const STATUS_LABEL: Record<string, string> = { pending: 'Pending', scheduled: 'Scheduled', declined: 'Declined' }
-const STATUS_COLOR: Record<string, string> = { pending: 'text-warning', scheduled: 'text-success', declined: 'text-destructive' }
 
 function KpiTile({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string }) {
   return (
@@ -25,7 +25,15 @@ function KpiTile({ icon: Icon, value, label }: { icon: React.ComponentType<{ cla
 }
 
 export async function FrontDeskDashboard({ session }: { session: Session }) {
-  const [rooms, assignments, providers] = await Promise.all([listAvailableRooms(), listAllAssignments(), listActiveProviders()])
+  // Today's assignments only -- listAllAssignments() (used by the full
+  // /front-desk/assignments history page) would count and list every
+  // assignment ever created, not just what actually happened today.
+  const [rooms, assignments, providers, eligibilityFollowUpCount] = await Promise.all([
+    listAvailableRooms(),
+    listTodaysAssignments(),
+    listActiveProviders(),
+    countEligibilityFollowUps(),
+  ])
   const providerName = (id: number) => providers.find((p) => p.id === id)?.name ?? `Provider #${id}`
   const pendingCount = assignments.filter((a) => a.status === 'pending').length
   const sortedAssignments = [...assignments].sort((a, b) => URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency])
@@ -41,7 +49,7 @@ export async function FrontDeskDashboard({ session }: { session: Session }) {
         <KpiTile icon={ClipboardCheck} value={pendingCount} label="Pending assignments" />
         <KpiTile icon={BedDouble} value={rooms.length} label="Rooms available" />
         <KpiTile icon={ListChecks} value={assignments.length} label="Total checked in today" />
-        <KpiTile icon={ShieldCheck} value={0} label="Eligibility follow-ups" />
+        <KpiTile icon={ShieldCheck} value={eligibilityFollowUpCount} label="Eligibility follow-ups" />
       </div>
 
       <div className="mb-6 flex gap-3">
@@ -67,7 +75,7 @@ export async function FrontDeskDashboard({ session }: { session: Session }) {
                 <td className="p-3 text-foreground">{providerName(a.providerId)}</td>
                 <td className="p-3 text-foreground">{a.reason}</td>
                 <td className="p-3 capitalize text-foreground">{a.urgency}</td>
-                <td className={`p-3 font-medium ${STATUS_COLOR[a.status]}`}>{STATUS_LABEL[a.status]}</td>
+                <td className="p-3"><AssignmentStatusChip status={a.status} declineReason={a.declineReason} /></td>
               </tr>
             ))}
           </tbody>

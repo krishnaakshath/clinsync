@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { doctorAssignments } from '@/db/schema'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, gte } from 'drizzle-orm'
 
 export interface CreateDoctorAssignmentInput {
   patientId: string
@@ -46,4 +46,20 @@ export async function declineAssignment(assignmentId: number, reason: string): P
 
 export async function listAllAssignments(): Promise<DoctorAssignmentRow[]> {
   return getDb().select().from(doctorAssignments).orderBy(desc(doctorAssignments.createdAt))
+}
+
+/**
+ * Restricts the KPI/queue view to assignments created today (calendar day,
+ * server-local time) -- listAllAssignments() itself is intentionally left
+ * alone since /front-desk/assignments shows the full history, not just
+ * today.
+ */
+export async function listTodaysAssignments(): Promise<DoctorAssignmentRow[]> {
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  return getDb()
+    .select()
+    .from(doctorAssignments)
+    .where(gte(doctorAssignments.createdAt, startOfToday))
+    .orderBy(desc(doctorAssignments.createdAt))
 }

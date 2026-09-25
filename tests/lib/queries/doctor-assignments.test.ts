@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import { doctorAssignments, appointments } from '@/db/schema'
-import { createDoctorAssignment, listPendingAssignmentsForProvider, scheduleAssignment, declineAssignment } from '@/lib/queries/doctor-assignments'
+import { createDoctorAssignment, listPendingAssignmentsForProvider, scheduleAssignment, declineAssignment, listTodaysAssignments } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
 
 const createdAssignmentIds: number[] = []
@@ -56,5 +56,22 @@ describe('declineAssignment', () => {
     const [row] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, assignment.id))
     expect(row).toBeDefined()
     expect(row.status).toBe('declined')
+  })
+})
+
+describe('listTodaysAssignments', () => {
+  it('includes an assignment created just now but excludes one created yesterday', async () => {
+    const providers = await listActiveProviders()
+    const today = await createDoctorAssignment({ patientId: 'RD-0001', providerId: providers[0].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test today', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(today.id)
+
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const [oldRow] = await getDb().insert(doctorAssignments).values({ patientId: 'RD-0001', providerId: providers[0].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test yesterday', assignedByName: 'Taylor Nguyen', createdAt: yesterday }).returning()
+    createdAssignmentIds.push(oldRow.id)
+
+    const result = await listTodaysAssignments()
+    expect(result.some((a) => a.id === today.id)).toBe(true)
+    expect(result.some((a) => a.id === oldRow.id)).toBe(false)
   })
 })

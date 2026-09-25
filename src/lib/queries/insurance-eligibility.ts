@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import { getDb } from '@/db/client'
 import { insuranceEligibilityChecks } from '@/db/schema'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 
 export type InsuranceEligibilityCheckRow = typeof insuranceEligibilityChecks.$inferSelect
 
@@ -43,4 +43,27 @@ export async function getLatestEligibilityCheck(patientId: string): Promise<Insu
     .orderBy(desc(insuranceEligibilityChecks.checkedAt))
     .limit(1)
   return row ?? null
+}
+
+/**
+ * Counts patients whose MOST RECENT eligibility check needs follow-up -- not
+ * just any row ever marked needs_follow_up, since a later re-check of the
+ * same patient may have since resolved it. A raw correlated-subquery SQL
+ * expression (via Drizzle's `sql` template, same technique used elsewhere in
+ * this codebase for aggregate queries -- see lib/queries/dashboard.ts) is the
+ * clearest way to express "latest row per patient" without a window
+ * function's added complexity for a single scalar count.
+ */
+export async function countEligibilityFollowUps(): Promise<number> {
+  const result = await getDb().execute<{ count: number }>(sql`
+    SELECT COUNT(DISTINCT a.patient_id)::int AS count
+    FROM insurance_eligibility_checks a
+    WHERE a.status = 'needs_follow_up'
+      AND a.checked_at = (
+        SELECT MAX(b.checked_at)
+        FROM insurance_eligibility_checks b
+        WHERE b.patient_id = a.patient_id
+      )
+  `)
+  return result.rows[0]?.count ?? 0
 }

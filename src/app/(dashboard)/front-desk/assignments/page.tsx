@@ -3,9 +3,7 @@ import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listAllAssignments } from '@/lib/queries/doctor-assignments'
 import { listAllProviders } from '@/lib/queries/providers'
-
-const STATUS_LABEL: Record<string, string> = { pending: 'Pending', scheduled: 'Scheduled', declined: 'Declined — needs reassignment' }
-const STATUS_COLOR: Record<string, string> = { pending: 'text-warning', scheduled: 'text-success', declined: 'text-destructive' }
+import { AssignmentStatusChip } from '@/components/AssignmentStatusChip'
 
 export default async function FrontDeskAssignmentsPage() {
   const session = await requireSessionOrRedirect()
@@ -37,7 +35,7 @@ export default async function FrontDeskAssignmentsPage() {
                 <td className="p-3 text-foreground">{providerName(a.providerId)}</td>
                 <td className="p-3 text-foreground capitalize">{a.visitType}</td>
                 <td className="p-3 text-foreground">{a.reason}</td>
-                <td className={`p-3 font-medium ${STATUS_COLOR[a.status]}`}>{STATUS_LABEL[a.status]}{a.status === 'declined' && a.declineReason ? ` (${a.declineReason})` : ''}</td>
+                <td className="p-3"><AssignmentStatusChip status={a.status} declineReason={a.declineReason} /></td>
               </tr>
             ))}
           </tbody>
