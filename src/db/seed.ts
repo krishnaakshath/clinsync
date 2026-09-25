@@ -22,6 +22,7 @@ import {
   appSettings,
   providers,
   appointments,
+  rooms,
   documents,
   faxes,
   broadcasts,
@@ -512,10 +513,31 @@ async function seedAdditionalAppointmentsForExpandedRoster() {
   }
 }
 
+// A handful of inpatient rooms across a few wards, all available -- gives the
+// front desk check-in flow real rooms to pick from instead of an always-empty
+// list. Distinct room/bed numbers per ward so the "Ward — Room X, Bed Y"
+// display in CheckInModal doesn't repeat.
+const ROOM_ROSTER = [
+  { ward: 'Ward A', roomNumber: '101', bedNumber: 'A' },
+  { ward: 'Ward A', roomNumber: '101', bedNumber: 'B' },
+  { ward: 'Ward A', roomNumber: '102', bedNumber: 'A' },
+  { ward: 'Ward B', roomNumber: '201', bedNumber: 'A' },
+  { ward: 'Ward B', roomNumber: '202', bedNumber: 'A' },
+  { ward: 'Ward B', roomNumber: '202', bedNumber: 'B' },
+  { ward: 'ICU', roomNumber: '301', bedNumber: 'A' },
+  { ward: 'ICU', roomNumber: '302', bedNumber: 'A' },
+]
+
+async function seedRooms() {
+  const db = getDb()
+  await db.insert(rooms).values(ROOM_ROSTER.map((r) => ({ ...r, status: 'available' as const })))
+}
+
 async function clearExistingData() {
   const db = getDb()
   // Delete in FK-safe order (children before parents) so seed() is safely re-runnable
   // against the live database without unique-constraint violations.
+  await db.delete(rooms)
   await db.delete(faxes)
   await db.delete(documents)
   await db.delete(mockPayments)
@@ -567,6 +589,11 @@ export async function seed() {
     if (providerCount === 0) {
       await seedProvidersAndAppointments()
       console.log('Seeded providers/appointments (patients table was already populated).')
+    }
+    const [{ roomCount }] = await db.select({ roomCount: sql<number>`count(*)::int` }).from(rooms)
+    if (roomCount === 0) {
+      await seedRooms()
+      console.log('Seeded rooms (patients table was already populated).')
     }
     // seedFillerPatients() skips any id that already exists, so it's safe to
     // call again here to top up the roster with any new FILLER_NAMES entries
@@ -637,6 +664,7 @@ export async function seed() {
 
   await seedFillerPatients()
   await seedProvidersAndAppointments()
+  await seedRooms()
   await seedBilling()
   await seedDocumentsAndFaxes()
 

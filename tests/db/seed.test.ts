@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments, documents, faxes, broadcasts, reviews } from '@/db/schema'
+import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments, rooms, documents, faxes, broadcasts, reviews } from '@/db/schema'
 import { seed } from '@/db/seed'
 
 describe('seed', () => {
@@ -57,6 +57,13 @@ describe('seed', () => {
     const rows = await getDb().select().from(providers)
     expect(rows.length).toBe(5)
     expect(new Set(rows.map((r) => r.colorTag)).size).toBe(5)
+  })
+
+  it('creates rooms across multiple wards, all available', async () => {
+    const rows = await getDb().select().from(rooms)
+    expect(rows.length).toBeGreaterThanOrEqual(6)
+    expect(rows.every((r) => r.status === 'available')).toBe(true)
+    expect(new Set(rows.map((r) => r.ward)).size).toBeGreaterThanOrEqual(2)
   })
 
   it('creates appointments spanning multiple statuses', async () => {
