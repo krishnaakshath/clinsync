@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 export interface DeleteTarget {
   id: string
@@ -35,9 +37,9 @@ export function DeletePatientDialog({ target, onClose, onDeleted }: { target: De
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-sm rounded-lg bg-card p-6 shadow-lg">
-        <div className="mb-3 flex items-center gap-3">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-sm">
+        <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive" aria-hidden="true">
             <Trash2 className="h-4.5 w-4.5" />
           </span>
@@ -48,18 +50,14 @@ export function DeletePatientDialog({ target, onClose, onDeleted }: { target: De
           them -- diagnoses, medications, forms, appointments, messages, billing -- from Clinsync. It disappears from the Patients tab, the
           Workbook, and everywhere else in the app immediately. This does not affect their chart in Tebra or IntakeQ, and cannot be undone.
         </p>
-        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-        <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} disabled={deleting} className="rounded-md border border-border px-4 py-1.5 text-sm font-medium text-foreground hover:bg-secondary disabled:opacity-50">Cancel</button>
-          <button
-            onClick={confirmDelete}
-            disabled={deleting}
-            className="rounded-md bg-destructive px-4 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancel</Button>
+          <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Delete permanently'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
