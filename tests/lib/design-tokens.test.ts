@@ -32,3 +32,51 @@ describe('design tokens', () => {
     expect(root).toMatch(/--warning:\s*oklch\(0\.58\s+0\.15\s+75\)/)
   })
 })
+
+function parseOklch(value: string): [number, number, number] {
+  const m = value.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/)
+  if (!m) throw new Error(`not a plain oklch() value: ${value}`)
+  return [Number(m[1]), Number(m[2]), Number(m[3])]
+}
+
+function tokenValue(block: string, name: string): string {
+  const m = block.match(new RegExp(`--${name}:\\s*(oklch\\([^)]*\\))`))
+  if (!m) throw new Error(`token --${name} not found`)
+  return m[1]
+}
+
+// Cheap perceptual-distance proxy: treat L/C/H as a 3D point (H in degrees,
+// scaled down so hue differences don't dominate at typical L/C magnitudes).
+// Not a real deltaE calculation, but good enough to catch the exact class of
+// bug the prior chart-3/chart-1 fix addressed: two tokens landing close
+// enough in all three dimensions to read as the same color at a glance.
+function distance(a: [number, number, number], b: [number, number, number]): number {
+  const [l1, c1, h1] = a
+  const [l2, c2, h2] = b
+  return Math.sqrt((l1 - l2) ** 2 * 4 + (c1 - c2) ** 2 * 4 + ((h1 - h2) / 60) ** 2)
+}
+
+describe('chart color collisions', () => {
+  it('every pair of chart-1..5 tokens is visually distinguishable in :root', () => {
+    const root = rootBlock('\n:root')
+    const names = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5']
+    const values = names.map((n) => parseOklch(tokenValue(root, n)))
+    for (let i = 0; i < values.length; i++) {
+      for (let j = i + 1; j < values.length; j++) {
+        expect(distance(values[i], values[j]), `${names[i]} vs ${names[j]}`).toBeGreaterThan(0.5)
+      }
+    }
+  })
+
+  it('chart tokens are also distinguishable from success/warning/destructive (verdict colors must never collide with chart colors)', () => {
+    const root = rootBlock('\n:root')
+    const chartNames = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5']
+    const verdictNames = ['success', 'warning', 'destructive']
+    for (const c of chartNames) {
+      for (const v of verdictNames) {
+        const dist = distance(parseOklch(tokenValue(root, c)), parseOklch(tokenValue(root, v)))
+        expect(dist, `${c} vs ${v}`).toBeGreaterThan(0.4)
+      }
+    }
+  })
+})
