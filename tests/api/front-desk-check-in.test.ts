@@ -1,15 +1,25 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 import { POST } from '@/app/api/front-desk/check-in/route'
 import { getDb } from '@/db/client'
-import { doctorAssignments, rooms } from '@/db/schema'
+import { doctorAssignments, rooms, admissions } from '@/db/schema'
 import { listActiveProviders } from '@/lib/queries/providers'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'frontdesk', name: 'Taylor Nguyen' })) }))
 
 const createdAssignmentIds: number[] = []
 const createdRoomIds: number[] = []
+const createdAdmissionIds: number[] = []
 afterEach(async () => {
+  while (createdAdmissionIds.length > 0) await getDb().delete(admissions).where(eq(admissions.id, createdAdmissionIds.pop()!))
+  // Safety net: several of the pre-existing tests above (not part of this
+  // task's brief) also do an inpatient check-in for the shared 'RD-0001'
+  // fixture patient, which -- now that check-in creates an admission as a
+  // side effect -- would otherwise leave a stray 'admitted' admission behind
+  // for every test in this file to trip over (in particular, it would make
+  // RD-0001 look already-admitted by the time the "admissions" describe
+  // block below runs, since tests in a file execute in declaration order).
+  await getDb().delete(admissions).where(eq(admissions.patientId, 'RD-0001'))
   while (createdAssignmentIds.length > 0) await getDb().delete(doctorAssignments).where(eq(doctorAssignments.id, createdAssignmentIds.pop()!))
   while (createdRoomIds.length > 0) await getDb().delete(rooms).where(eq(rooms.id, createdRoomIds.pop()!))
 })
@@ -107,5 +117,39 @@ describe('POST /api/front-desk/check-in', () => {
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'outpatient', urgency: 'routine', reason: 'Follow-up', providerId: providers[0].id }) })
     const res = await POST(req as never)
     expect(res.status).toBe(403)
+  })
+})
+
+describe('POST /api/front-desk/check-in — admissions', () => {
+  it('creates an admission record for an inpatient check-in', async () => {
+    const providers = await listActiveProviders()
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'inpatient', urgency: 'urgent', reason: 'Admission for observation', providerId: providers[0].id }) })
+    const res = await POST(req as never)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    createdAssignmentIds.push(body.id)
+
+    const [admission] = await getDb().select().from(admissions).where(eq(admissions.patientId, 'RD-0001')).orderBy(desc(admissions.admittedAt)).limit(1)
+    createdAdmissionIds.push(admission.id)
+    expect(admission.status).toBe('admitted')
+    expect(admission.attendingProviderId).toBe(providers[0].id)
+    expect(admission.createdFromAssignmentId).toBe(body.id)
+  })
+
+  it('does not create a second admission when the patient already has an active one', async () => {
+    const providers = await listActiveProviders()
+    const firstReq = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'inpatient', urgency: 'urgent', reason: 'First admission', providerId: providers[0].id }) })
+    const firstRes = await POST(firstReq as never)
+    const firstBody = await firstRes.json()
+    createdAssignmentIds.push(firstBody.id)
+
+    const secondReq = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'inpatient', urgency: 'routine', reason: 'Duplicate check-in attempt', providerId: providers[0].id }) })
+    const secondRes = await POST(secondReq as never)
+    const secondBody = await secondRes.json()
+    createdAssignmentIds.push(secondBody.id)
+
+    const activeAdmissions = await getDb().select().from(admissions).where(and(eq(admissions.patientId, 'RD-0001'), eq(admissions.status, 'admitted')))
+    for (const a of activeAdmissions) createdAdmissionIds.push(a.id)
+    expect(activeAdmissions.length).toBe(1)
   })
 })

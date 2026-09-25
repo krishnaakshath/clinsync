@@ -7,6 +7,7 @@ import { getDb } from '@/db/client'
 import { patients, providers } from '@/db/schema'
 import { assignRoomToPatient } from '@/lib/queries/rooms'
 import { createDoctorAssignment } from '@/lib/queries/doctor-assignments'
+import { createAdmission, getActiveAdmissionForPatient } from '@/lib/queries/admissions'
 
 const checkInSchema = z.object({
   patientId: z.string().min(1),
@@ -58,6 +59,23 @@ export async function POST(request: NextRequest) {
     roomId: roomId ?? null,
     assignedByName: session.name,
   })
+
+  // Checking in an inpatient IS starting their admission -- there's no
+  // separate "start an admission" screen. Guard against double-admitting a
+  // patient who's already an active inpatient (e.g. reception accidentally
+  // re-checks someone in): the existing admission remains the current one.
+  if (visitType === 'inpatient') {
+    const existingActive = await getActiveAdmissionForPatient(patientId)
+    if (!existingActive) {
+      await createAdmission({
+        patientId,
+        roomId: roomId ?? null,
+        attendingProviderId: providerId,
+        admissionType: 'elective',
+        createdFromAssignmentId: created.id,
+      })
+    }
+  }
 
   await logAudit(session, `checked in patient (${visitType})`, patientId)
   return NextResponse.json(created, { status: 201 })
