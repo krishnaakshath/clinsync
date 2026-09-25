@@ -31,16 +31,14 @@ export async function listBroadcastRecipientCandidates(filters: BroadcastRecipie
     .from(patients)
     .leftJoin(patientTrialScreenings, eq(patientTrialScreenings.patientId, patients.id))
     .where(filters.trialId ? eq(patientTrialScreenings.trialId, filters.trialId) : undefined)
+    .orderBy(desc(patientTrialScreenings.id))
 
   // A patient can have multiple screening rows across trials; when no
   // trialId filter narrows the join, keep exactly one row per patient.
-  // KNOWN LIMITATION: the query has no ORDER BY, so "first row per patient"
-  // is whatever order Postgres happens to return -- for a hypothetical
-  // multi-trial patient, filtering by overallStatus alone (no trialId) could
-  // arbitrarily resolve to either trial's status. Not exploitable with
-  // today's seed data (every patient has exactly one screening row); needs
-  // a real product decision (which trial "wins") before this filter is used
-  // against data where multi-trial patients actually exist.
+  // Rows are ordered by screening id descending above, so the first one
+  // seen per patient below is deterministically that patient's most
+  // recently created screening -- "most recent screening wins" is a real
+  // product decision now, not an accident of Postgres's row order.
   const byPatient = new Map<string, { patient: typeof patients.$inferSelect; overallStatus?: Verdict }>()
   for (const r of rows) {
     if (!byPatient.has(r.patient.id)) {
