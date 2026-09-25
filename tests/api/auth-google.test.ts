@@ -41,7 +41,7 @@ describe('GET /api/auth/google/callback identity matching', () => {
     }))
     vi.doMock('@/lib/mfa-pending-session', async () => {
       const actual = await vi.importActual<typeof import('@/lib/mfa-pending-session')>('@/lib/mfa-pending-session')
-      return { ...actual, getPendingGoogleOAuth: vi.fn(async () => ({ state: 'x', codeVerifier: 'y' })), clearPendingGoogleOAuthCookie: vi.fn(async () => undefined) }
+      return { ...actual, getPendingGoogleOAuth: vi.fn(async () => ({ state: 'x', codeVerifier: 'y', nonce: 'z' })), clearPendingGoogleOAuthCookie: vi.fn(async () => undefined) }
     })
     process.env.GOOGLE_CLIENT_ID = 'test-client-id'
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
@@ -62,5 +62,45 @@ describe('GET /api/auth/google/callback identity matching', () => {
     const { eq } = await import('drizzle-orm')
     const [found] = await getDb().select().from(users).where(eq(users.email, 'no-such-account@example.com'))
     expect(found).toBeUndefined()
+  })
+
+  it('rejects with 403 (and never relinks) when the matched account already has a different googleSub', async () => {
+    const updateSet = vi.fn(() => ({ where: vi.fn(async () => undefined) }))
+    const dbMock = {
+      // No row matches by googleSub -- forces the email fallback path.
+      select: () => ({ from: () => ({ where: vi.fn(async () => []) }) }),
+      update: () => ({ set: updateSet }),
+    }
+    vi.doMock('@/db/client', () => ({ getDb: () => dbMock }))
+    vi.doMock('@/lib/queries/users', () => ({
+      findUserByEmail: vi.fn(async () => ({
+        id: 42,
+        name: 'Existing User',
+        email: 'existing@example.com',
+        role: 'crc',
+        googleSub: 'already-linked-google-sub',
+      })),
+    }))
+    vi.doMock('@/lib/google-oauth', () => ({
+      exchangeCodeForIdentity: vi.fn(async () => ({ sub: 'a-different-google-sub', email: 'existing@example.com' })),
+      verifyState: vi.fn(() => true),
+    }))
+    vi.doMock('@/lib/mfa-pending-session', async () => {
+      const actual = await vi.importActual<typeof import('@/lib/mfa-pending-session')>('@/lib/mfa-pending-session')
+      return { ...actual, getPendingGoogleOAuth: vi.fn(async () => ({ state: 'x', codeVerifier: 'y', nonce: 'z' })), clearPendingGoogleOAuthCookie: vi.fn(async () => undefined) }
+    })
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
+
+    vi.resetModules()
+    const { GET } = await import('@/app/api/auth/google/callback/route')
+    const req = new Request('http://localhost/api/auth/google/callback?code=abc&state=x')
+    const res = await GET(req as never)
+
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error).toMatch(/already linked to a different google account/i)
+    expect(updateSet).not.toHaveBeenCalled()
   })
 })

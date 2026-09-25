@@ -26,10 +26,14 @@ export async function GET(request: NextRequest) {
   if (!code || !state) return NextResponse.json({ error: 'Invalid Google sign-in response' }, { status: 400 })
 
   const pending = await getPendingGoogleOAuth()
-  if (!pending || !verifyState(pending.state, state)) {
+  const stateValid = pending ? verifyState(pending.state, state) : false
+  // Clear the pending cookie on every path -- success or failure -- so a
+  // rejected attempt (bad/replayed state, expired cookie) doesn't leave a
+  // still-live 5-minute pending cookie sitting around for a follow-up try.
+  await clearPendingGoogleOAuthCookie()
+  if (!pending || !stateValid) {
     return NextResponse.json({ error: 'This sign-in link has expired or is invalid. Please try again.' }, { status: 400 })
   }
-  await clearPendingGoogleOAuthCookie()
 
   let identity
   try {
@@ -39,13 +43,24 @@ export async function GET(request: NextRequest) {
       clientId,
       clientSecret,
       redirectUri: `${appUrl}/api/auth/google/callback`,
+      nonce: pending.nonce,
     })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Could not verify your Google sign-in.' }, { status: 400 })
+    // Never reflect the raw upstream error back to an unauthenticated
+    // caller -- it can carry Google's token-endpoint response body or
+    // jose's internal verification message, both of which are internal
+    // diagnostic detail, not something to hand to whoever hit this URL.
+    console.error('Google OAuth callback failed to exchange/verify identity:', err)
+    return NextResponse.json({ error: 'Could not verify your Google sign-in. Please try again.' }, { status: 400 })
   }
 
   const adminEmail = process.env.ADMIN_EMAIL
-  if (adminEmail && identity.email.toLowerCase() === adminEmail.toLowerCase()) {
+  const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH
+  // Also requires ADMIN_PASSWORD_HASH to be configured, matching the same
+  // precondition the password-login path enforces (src/app/api/login/route.ts)
+  // -- a deployment that never set up the password-based admin account
+  // shouldn't be reachable as admin via SSO alone.
+  if (adminEmail && adminPasswordHash && identity.email.toLowerCase() === adminEmail.toLowerCase()) {
     await setSessionCookie('admin', process.env.ADMIN_NAME ?? 'Admin')
     await logAudit({ role: 'admin', name: process.env.ADMIN_NAME ?? 'Admin' }, 'logged in via Google SSO', null)
     return NextResponse.redirect(`${appUrl}/`)
@@ -62,7 +77,16 @@ export async function GET(request: NextRequest) {
   }
 
   if (!bySub) {
-    await getDb().update(users).set({ googleSub: identity.sub }).where(eq(users.id, user.id))
+    if (user.googleSub && user.googleSub !== identity.sub) {
+      // Matched by email, but this account is already linked to a
+      // *different* Google identity -- silently relinking here would let
+      // whoever controls the new Google account take over this user's
+      // Clinsync session just by sharing its email address.
+      return NextResponse.json({ error: 'This account is already linked to a different Google account.' }, { status: 403 })
+    }
+    if (!user.googleSub) {
+      await getDb().update(users).set({ googleSub: identity.sub }).where(eq(users.id, user.id))
+    }
   }
 
   await setSessionCookie(user.role, user.name)

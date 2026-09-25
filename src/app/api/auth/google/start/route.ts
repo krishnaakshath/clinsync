@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { generatePkcePair, generateState, buildGoogleAuthUrl } from '@/lib/google-oauth'
+import { generatePkcePair, generateState, generateNonce, buildGoogleAuthUrl } from '@/lib/google-oauth'
 import { setPendingGoogleOAuthCookie } from '@/lib/mfa-pending-session'
 
 export async function GET() {
@@ -10,14 +10,16 @@ export async function GET() {
   }
 
   const state = generateState()
+  const nonce = generateNonce()
   const { verifier, challenge } = generatePkcePair()
-  await setPendingGoogleOAuthCookie({ state, codeVerifier: verifier })
+  await setPendingGoogleOAuthCookie({ state, codeVerifier: verifier, nonce })
 
   const authUrl = buildGoogleAuthUrl({
     clientId,
     redirectUri: `${appUrl}/api/auth/google/callback`,
     state,
     codeChallenge: challenge,
+    nonce,
   })
   return NextResponse.redirect(authUrl)
 }

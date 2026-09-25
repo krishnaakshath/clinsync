@@ -109,11 +109,12 @@ const GOOGLE_OAUTH_MAX_AGE_SECONDS = 300
 export interface PendingGoogleOAuth {
   state: string
   codeVerifier: string
+  nonce: string
 }
 
 export async function setPendingGoogleOAuthCookie(pending: PendingGoogleOAuth): Promise<void> {
   const store = await cookies()
-  const value = await new SignJWT({ kind: 'pending-google-oauth', state: pending.state, codeVerifier: pending.codeVerifier })
+  const value = await new SignJWT({ kind: 'pending-google-oauth', state: pending.state, codeVerifier: pending.codeVerifier, nonce: pending.nonce })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${GOOGLE_OAUTH_MAX_AGE_SECONDS}s`)
@@ -127,8 +128,8 @@ export async function getPendingGoogleOAuth(): Promise<PendingGoogleOAuth | null
   if (!raw) return null
   try {
     const { payload } = await jwtVerify(raw, getSessionSecret())
-    if (payload.kind === 'pending-google-oauth' && typeof payload.state === 'string' && typeof payload.codeVerifier === 'string') {
-      return { state: payload.state, codeVerifier: payload.codeVerifier }
+    if (payload.kind === 'pending-google-oauth' && typeof payload.state === 'string' && typeof payload.codeVerifier === 'string' && typeof payload.nonce === 'string') {
+      return { state: payload.state, codeVerifier: payload.codeVerifier, nonce: payload.nonce }
     }
     return null
   } catch {

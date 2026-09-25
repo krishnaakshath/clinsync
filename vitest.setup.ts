@@ -18,5 +18,6 @@ vi.mock('next/headers', () => ({
   cookies: async () => ({
     get: () => undefined,
     set: () => {},
+    delete: () => {},
   }),
 }))
