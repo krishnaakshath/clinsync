@@ -79,10 +79,10 @@ export function NewChargeModal({ patients }: { patients: { id: string; name: str
             </div>
             <div className="space-y-2">
               {dx.map((row, i) => (
-                <div key={i} className="flex gap-2">
+                <div key={i} className="flex min-w-0 gap-2">
                   <input value={row.code} onChange={(e) => updateDx(i, { code: e.target.value })} placeholder="Code (e.g. F33.1)" className="w-32 rounded-md border border-border px-2 py-1.5 text-sm" />
-                  <input value={row.description} onChange={(e) => updateDx(i, { description: e.target.value })} placeholder="Description" className="flex-1 rounded-md border border-border px-2 py-1.5 text-sm" />
-                  <button type="button" onClick={() => setDx(dx.filter((_, idx) => idx !== i))} disabled={dx.length === 1} className="rounded px-2 text-xs text-destructive hover:bg-secondary disabled:opacity-30">Remove</button>
+                  <input value={row.description} onChange={(e) => updateDx(i, { description: e.target.value })} placeholder="Description" className="min-w-0 flex-1 rounded-md border border-border px-2 py-1.5 text-sm" />
+                  <button type="button" onClick={() => setDx(dx.filter((_, idx) => idx !== i))} disabled={dx.length === 1} className="shrink-0 rounded px-2 text-xs text-destructive hover:bg-secondary disabled:opacity-30">Remove</button>
                 </div>
               ))}
             </div>
@@ -95,12 +95,12 @@ export function NewChargeModal({ patients }: { patients: { id: string; name: str
             </div>
             <div className="space-y-2">
               {proc.map((row, i) => (
-                <div key={i} className="flex gap-2">
-                  <input value={row.code} onChange={(e) => updateProc(i, { code: e.target.value })} placeholder="CPT code" className="w-24 rounded-md border border-border px-2 py-1.5 text-sm" />
-                  <input value={row.description} onChange={(e) => updateProc(i, { description: e.target.value })} placeholder="Description" className="flex-1 rounded-md border border-border px-2 py-1.5 text-sm" />
-                  <input type="number" min={1} value={row.units} onChange={(e) => updateProc(i, { units: Number(e.target.value) })} placeholder="Units" className="w-16 rounded-md border border-border px-2 py-1.5 text-sm" />
-                  <input type="number" min={0} value={row.chargeCents / 100} onChange={(e) => updateProc(i, { chargeCents: Math.round(Number(e.target.value) * 100) })} placeholder="$ per unit" className="w-24 rounded-md border border-border px-2 py-1.5 text-sm" />
-                  <button type="button" onClick={() => setProc(proc.filter((_, idx) => idx !== i))} disabled={proc.length === 1} className="rounded px-2 text-xs text-destructive hover:bg-secondary disabled:opacity-30">Remove</button>
+                <div key={i} className="flex min-w-0 gap-2">
+                  <input value={row.code} onChange={(e) => updateProc(i, { code: e.target.value })} placeholder="CPT code" className="w-24 shrink-0 rounded-md border border-border px-2 py-1.5 text-sm" />
+                  <input value={row.description} onChange={(e) => updateProc(i, { description: e.target.value })} placeholder="Description" className="min-w-0 flex-1 rounded-md border border-border px-2 py-1.5 text-sm" />
+                  <input type="number" min={1} value={row.units} onChange={(e) => updateProc(i, { units: Number(e.target.value) })} placeholder="Units" className="w-16 shrink-0 rounded-md border border-border px-2 py-1.5 text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                  <input type="number" min={0} value={row.chargeCents / 100} onChange={(e) => updateProc(i, { chargeCents: Math.round(Number(e.target.value) * 100) })} placeholder="$ per unit" className="w-24 shrink-0 rounded-md border border-border px-2 py-1.5 text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                  <button type="button" onClick={() => setProc(proc.filter((_, idx) => idx !== i))} disabled={proc.length === 1} className="shrink-0 rounded px-2 text-xs text-destructive hover:bg-secondary disabled:opacity-30">Remove</button>
                 </div>
               ))}
             </div>

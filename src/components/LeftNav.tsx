@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Stethoscope, Users, ClipboardList, Fingerprint, FlaskConical,
   Calendar, FileText, FileSignature, MessageSquare, Wallet, Receipt, ShieldCheck, HandCoins,
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
-  Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight,
+  Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
@@ -54,6 +54,7 @@ const TRAILING_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] 
   { href: '/broadcasts', label: 'Broadcasts', icon: Megaphone, roles: ['admin', 'crc'] as Role[] },
   { href: '/experience-surveys', label: 'Experience Surveys', icon: Star, roles: ['admin', 'crc'] as Role[] },
   { href: '/pipeline-dashboard', label: 'Pipeline Dashboard', icon: Activity, roles: ['admin', 'crc'] as Role[] },
+  { href: '/audit-log', label: 'Audit Log', icon: History, roles: ['admin'] as Role[] },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 

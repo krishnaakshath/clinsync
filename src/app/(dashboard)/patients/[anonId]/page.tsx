@@ -72,14 +72,14 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       ) : (
         <div className="space-y-5">
           <div>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-700">Inclusion criteria</h3>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-success">Inclusion criteria</h3>
             <div className="space-y-3">
               {patient.criteria.filter((c) => c.criterionType !== 'exclusion').map((c) => <EvidenceCard key={c.id} criterion={c} />)}
             </div>
           </div>
           {patient.criteria.some((c) => c.criterionType === 'exclusion') && (
             <div>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-red-700">Exclusion criteria</h3>
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-destructive">Exclusion criteria</h3>
               <div className="space-y-3">
                 {patient.criteria.filter((c) => c.criterionType === 'exclusion').map((c) => <EvidenceCard key={c.id} criterion={c} />)}
               </div>

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Pill, Stethoscope, CalendarCheck, FileText, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
+import { Pill, Stethoscope, CalendarCheck, FileText, MessageSquare, ArrowRight, Megaphone, Users, Stamp } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { listBroadcastsForPatient } from '@/lib/queries/broadcasts'
@@ -85,20 +85,36 @@ export default async function PatientPortalOverviewPage() {
         <SummaryTile icon={Megaphone} value={broadcasts.length} label="Announcements" color="accent" href="/patient-portal/broadcasts" />
       </div>
 
-      <section className={SECTION}>
-        <h2 className={HEADING}>Your care team</h2>
-        <p className="text-sm text-foreground">{data.currentProvider ?? 'Not yet assigned'}</p>
-      </section>
-      <section className={SECTION}>
-        <h2 className={HEADING}>Diagnoses on file</h2>
-        {data.diagnoses.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No diagnoses on file.</p>
-        ) : (
-          <ul className="space-y-1.5 text-sm text-foreground">
-            {data.diagnoses.map((d, i) => <li key={i}>{d.code} — {d.description}</li>)}
-          </ul>
-        )}
-      </section>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <section className={SECTION}>
+          <h2 className={HEADING}>Your care team</h2>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+              <Users className="h-5 w-5" />
+            </span>
+            <p className="text-sm font-medium text-foreground">{data.currentProvider ?? 'Not yet assigned'}</p>
+          </div>
+        </section>
+        <section className={SECTION}>
+          <h2 className={HEADING}>Diagnoses on file</h2>
+          {data.diagnoses.length === 0 ? (
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true">
+                <Stamp className="h-5 w-5" />
+              </span>
+              <p className="text-sm text-muted-foreground">No diagnoses on file.</p>
+            </div>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {data.diagnoses.map((d, i) => (
+                <li key={i} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-foreground">
+                  <span className="text-primary">{d.code}</span> — {d.description}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   )
 }
