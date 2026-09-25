@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import * as intakeq from '@/connectors/intakeq.mock'
 import * as tebra from '@/connectors/tebra.mock'
 import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/lib/cache'
+import { matchConfidence } from '@/lib/matcher'
 
 function unwrapRef(ref: string): string {
   const match = ref.match(/^ENC\[(.+)\]$/)
@@ -60,6 +61,10 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
     const candidates = await tebra.searchPatient(`${client.firstName} ${client.lastName}`, client.dateOfBirth)
     if (candidates.length > 0) {
       const candidate = candidates[0]
+      const confidence = matchConfidence(
+        { name: `${client.firstName} ${client.lastName}`, dob: client.dateOfBirth },
+        { name: `${candidate.firstName} ${candidate.lastName}`, dob: candidate.birthDate },
+      )
       await db.insert(identityMatches).values({
         intakeqClientIdRef: `ENC[${client.clientId}]`,
         referralName: `${client.firstName} ${client.lastName}`,
@@ -67,7 +72,7 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
         candidateTebraPatientIdRef: `ENC[${candidate.tebraPatientId}]`,
         candidateName: `${candidate.firstName} ${candidate.lastName}`,
         candidateDob: candidate.birthDate,
-        confidence: 95, // mock connector only returns exact name+DOB matches
+        confidence,
         status: 'pending',
       })
       newMatches++
