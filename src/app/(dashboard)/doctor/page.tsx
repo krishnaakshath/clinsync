@@ -8,9 +8,9 @@ import { PatientAvatar } from '@/components/PatientAvatar'
 
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
-  emerald: 'bg-emerald-500/10 text-emerald-700',
-  amber: 'bg-amber-500/10 text-amber-700',
-  red: 'bg-red-500/10 text-red-700',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  destructive: 'bg-destructive/10 text-destructive',
 }
 
 function StatTile({ icon: Icon, value, label, color }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string; color: keyof typeof TILE_COLOR }) {
@@ -20,7 +20,7 @@ function StatTile({ icon: Icon, value, label, color }: { icon: React.ComponentTy
         <Icon className="h-4.5 w-4.5" />
       </span>
       <div>
-        <p className="text-xl font-bold tabular-nums text-foreground">{value}</p>
+        <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       </div>
     </div>
@@ -52,16 +52,16 @@ export default async function DoctorPortalPage() {
       <div className="mb-4 flex items-center gap-4 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
         <PatientAvatar name={session.name} size="lg" />
         <div>
-          <h1 className="text-xl font-bold text-foreground">My Patients</h1>
-          <p className="text-sm text-muted-foreground">Patients currently assigned to {session.name}.</p>
+          <h1 className="text-2xl font-bold text-foreground">My Patients</h1>
+          <p className="text-sm text-muted-foreground">Patients currently assigned to you, {session.name}.</p>
         </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile icon={Users} value={myPatients.length} label="Total assigned" color="primary" />
-        <StatTile icon={CheckCircle2} value={meetsCount} label="Meets" color="emerald" />
-        <StatTile icon={AlertTriangle} value={needsVerificationCount} label="Needs verification" color="amber" />
-        <StatTile icon={XCircle} value={exclusionCount} label="Potential exclusion" color="red" />
+        <StatTile icon={CheckCircle2} value={meetsCount} label="Meets" color="success" />
+        <StatTile icon={AlertTriangle} value={needsVerificationCount} label="Needs verification" color="warning" />
+        <StatTile icon={XCircle} value={exclusionCount} label="Potential exclusion" color="destructive" />
       </div>
 
       {/* Project down to only what PatientsTable renders -- see the same
