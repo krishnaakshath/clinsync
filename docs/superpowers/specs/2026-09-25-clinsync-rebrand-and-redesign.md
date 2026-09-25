@@ -83,17 +83,26 @@ All tokens live in `src/app/globals.css` under the existing `@theme inline` / `:
 
 Each role gets a dedicated page (not one shared `Home` with conditional sections). Server Components already know the session role (`requireSessionOrRedirect()`), so routing to the right dashboard is a session-role check at `src/app/(dashboard)/page.tsx`, same pattern already used for `/doctor`.
 
+**Content-parity rule (applies to every dashboard below):** nothing currently visible to a role is dropped. Today, `admin` and `crc` both see the exact same shared Home page (`src/app/(dashboard)/page.tsx`, backed by `getDashboardData()`); `pi` sees `/doctor`; patients see the patient-portal overview. Every widget enumerated below for a dashboard already exists in the current code — this section is a reorganization spec, not a reduction. Anything genuinely new is called out explicitly as "(new)".
+
 ### 6.1 Admin dashboard
-**Pattern:** Deel-style stat/chart card grid. Content: today's real Home-page data (peak scheduling hours, total patients screened/unscreened, patients-by-month chart, screening-status breakdown, day's appointments) reorganized into a clean card grid with larger, bolder stat numbers than today. Adds a staff-roster-at-a-glance card (count by role) and a link into the audit log (admin-only, matches the Task 1 fix already shipped). This is the closest to today's existing Home page — same data, tighter visual execution.
+**Pattern:** Deel-style stat/chart card grid — an admin wants a full operational picture, so this keeps every widget from today's shared Home page, laid out with larger/bolder stat numbers and tighter card grouping:
+- Greeting header + Add Client / Send Form actions (`DashboardHomeClient`)
+- Stat row: Peak Scheduling Hours, Total Patients (screened/unscreened split), Avg. Patient Experience (+ completed survey count)
+- Patients Added (by month) chart, Screening Status Breakdown chart
+- Appointments table (±30 day range)
+- Mini stat tiles: Pending Forms, Pending Classifications, Form Templates count, Total Patients
+- Latest Forms Received, Pending Forms, Pending Classifications, Latest Account Events lists
+- **(new)** Staff-roster-at-a-glance card (count by role) and a direct link into the Audit Log (admin-only, matches the already-shipped Task 1 RBAC fix)
 
 ### 6.2 Coordinator (CRC) dashboard
-**Pattern:** Zoho CRM Workqueue / Linear-style task-queue-first layout — a CRC's job is triage, not analytics. Leads with actionable queues: Identity Matching Queue count + preview, pending form submissions, today's appointments needing prep, unresolved form-vs-chart discrepancies. Stats (if any) are secondary, below the queues, not the top of the page. This is a structurally different layout from Admin's, not a re-skin of the same one.
+**Pattern:** Zoho CRM Workqueue / Linear-style task-queue-first layout — a CRC's job is triage, not analytics, so the same underlying data as Admin's is kept but re-primaried: the four list widgets that are actually queues (Pending Forms, Pending Classifications, Identity Matching preview, Latest Account Events) move to the top as the main content; the stat row and both charts move below, as secondary reference info, not removed. The appointments table and mini stat tiles stay. This is a structurally different emphasis from Admin's, built from the identical data set — not a subset of it.
 
 ### 6.3 PI dashboard
-**Pattern:** Heidi/Aboard-style personalized "My Patients" view — replaces the current `/doctor` page's content with the same underlying scoped-to-PI query, restyled: a greeting header, then the assigned-patient list with screening-evidence emphasis (per-criterion verdict visible inline, not just overall status), matching Heidi's own clinician-facing patient-context screens.
+**Pattern:** Heidi/Aboard-style personalized "My Patients" view — keeps every widget from today's `/doctor` page: the avatar+greeting header card, all four stat tiles (Total assigned, Meets, Needs verification, Potential exclusion), and the full `PatientsTable` scoped to the PI's assigned patients. Restyled with the new tokens, plus per-criterion evidence made more visible inline (not just the overall status pill) per the Heidi clinician-context reference — an enhancement to the existing table, not a replacement of it.
 
 ### 6.4 Patient dashboard
-**Pattern:** Hims' "Action Items" pattern for nudges (a form to complete, an unread message, an upcoming appointment) at the top, calm and reassuring tone, minimal clinical jargon — then the existing patient-portal home content (medications, appointments, messages) below, restyled to the new token set. This is the one dashboard where warmth and simplicity matter most — a patient is not a power user.
+**Pattern:** Hims' "Action Items" pattern surfaces the two conditional nudge cards (next visit, forms needing attention) more prominently at the top — keeps every widget from today's patient-portal overview: all six summary tiles (Care team, Current meds, Forms to complete, Upcoming visits, New messages, Announcements), the "Your care team" section, and the "Diagnoses on file" list. Calm, reassuring tone; minimal clinical jargon. This is the one dashboard where warmth and simplicity matter most — a patient is not a power user — but still shows everything it shows today.
 
 ---
 
