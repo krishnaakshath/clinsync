@@ -106,6 +106,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await getDb().delete(auditLog).where(and(eq(auditLog.patientId, TEST_PATIENT_ID), eq(auditLog.action, 'failed MFA code entry during enrollment')))
+  await getDb().delete(auditLog).where(and(eq(auditLog.patientId, TEST_PATIENT_ID), eq(auditLog.action, 'enrolled in patient portal MFA')))
   await getDb().delete(patients).where(eq(patients.id, TEST_PATIENT_ID))
 })
 
@@ -123,6 +124,9 @@ describe('patient opt-in MFA', () => {
     const state = await getPatientMfaState(TEST_PATIENT_ID)
     expect(state?.mfaEnabled).toBe(false)
     expect(state?.mfaSecretEncrypted).toBeTruthy()
+
+    const auditEntries = await getDb().select().from(auditLog).where(and(eq(auditLog.patientId, TEST_PATIENT_ID), eq(auditLog.action, 'enrolled in patient portal MFA')))
+    expect(auditEntries.length).toBe(1)
   })
 
   it('confirm rejects an incorrect code without enabling MFA', async () => {
