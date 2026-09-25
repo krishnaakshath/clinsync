@@ -37,7 +37,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const result = await transferAdmission(admissionId, parsed.data.toRoomId, parsed.data.reason, session.name)
   if (!result.ok) {
-    const status = result.error === 'Admission not found' ? 404 : result.error === 'This admission has already been discharged' ? 409 : 409
+    const status = result.error === 'Admission not found' ? 404 : 409
     return NextResponse.json({ error: result.error }, { status })
   }
 

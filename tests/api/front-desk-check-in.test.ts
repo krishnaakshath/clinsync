@@ -152,4 +152,33 @@ describe('POST /api/front-desk/check-in — admissions', () => {
     for (const a of activeAdmissions) createdAdmissionIds.push(a.id)
     expect(activeAdmissions.length).toBe(1)
   })
+
+  it('rejects a duplicate inpatient check-in with a roomId for a patient who is already admitted, and never claims the room', async () => {
+    const providers = await listActiveProviders()
+
+    const firstReq = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'inpatient', urgency: 'urgent', reason: 'First admission', providerId: providers[0].id }) })
+    const firstRes = await POST(firstReq as never)
+    expect(firstRes.status).toBe(201)
+    const firstBody = await firstRes.json()
+    createdAssignmentIds.push(firstBody.id)
+
+    const [room] = await getDb().insert(rooms).values({ ward: 'Test Ward', roomNumber: '305', bedNumber: 'A', status: 'available' }).returning()
+    createdRoomIds.push(room.id)
+
+    const secondReq = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'inpatient', urgency: 'urgent', reason: 'Duplicate check-in with a room', providerId: providers[0].id, roomId: room.id }) })
+    const secondRes = await POST(secondReq as never)
+    expect(secondRes.status).toBe(409)
+
+    // The room must never have been claimed -- this is the actual bed leak
+    // this test guards against. Verify real DB state, not a mock.
+    const [roomAfter] = await getDb().select().from(rooms).where(eq(rooms.id, room.id))
+    expect(roomAfter.status).toBe('available')
+    expect(roomAfter.occupiedByPatientId).toBeNull()
+
+    // Still only one active admission -- the duplicate must not have created
+    // a second one either.
+    const activeAdmissions = await getDb().select().from(admissions).where(and(eq(admissions.patientId, 'RD-0001'), eq(admissions.status, 'admitted')))
+    for (const a of activeAdmissions) createdAdmissionIds.push(a.id)
+    expect(activeAdmissions.length).toBe(1)
+  })
 })

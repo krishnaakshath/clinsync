@@ -16,6 +16,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Send and track intake forms via Form Templates and Client Forms',
       'Manage Calendar, Billing, Broadcasts, Experience Surveys, and the Pipeline Dashboard',
       'View Reports and Documents',
+      'View and manage the live bed/ward status board, including marking rooms clean',
     ],
   },
   pi: {
@@ -39,6 +40,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Toggle auto-classification on form completion',
       'Rename entries in the Provider Profiles roster',
       'Issue and revoke Patient Portal access credentials',
+      'View and manage the live bed/ward status board, including blocking and unblocking rooms',
     ],
   },
   frontdesk: {

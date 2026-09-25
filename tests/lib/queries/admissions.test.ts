@@ -108,6 +108,25 @@ describe('transferAdmission', () => {
     await db.delete(admissions).where(eq(admissions.id, admission.id))
     await db.delete(rooms).where(eq(rooms.id, room.id))
   })
+
+  it('rejects transferring an admission that is already discharged', async () => {
+    const db = getDb()
+    const [room] = await db.insert(rooms).values({ ward: 'Test Ward', roomNumber: 'X5', bedNumber: 'A' }).returning()
+    const [providerRow] = await db.select().from(providers).limit(1)
+    const [patientRow] = await db.select().from(patients).limit(1)
+    const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: providerRow.id, admissionType: 'elective', createdFromAssignmentId: null })
+    await dischargeAdmission(admission.id, { dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', followUp: null })
+
+    const result = await transferAdmission(admission.id, room.id, 'Attempted transfer after discharge', 'Test Nurse')
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('This admission has already been discharged')
+
+    const [roomAfter] = await db.select().from(rooms).where(eq(rooms.id, room.id))
+    expect(roomAfter.status).toBe('available')
+
+    await db.delete(admissions).where(eq(admissions.id, admission.id))
+    await db.delete(rooms).where(eq(rooms.id, room.id))
+  })
 })
 
 describe('dischargeAdmission', () => {
