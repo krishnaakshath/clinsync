@@ -117,3 +117,21 @@ describe('PUT /api/appointments/[id]', () => {
     expect(res.status).toBe(400)
   })
 })
+
+describe('scheduling conflict detection', () => {
+  it('rejects a new appointment that overlaps an existing one for the same provider', async () => {
+    const providers = await listActiveProviders()
+    const first = await POST(new Request('http://localhost/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify({ patientId: 'RD-0001', providerId: providers[0].id, startsAt: '2026-11-01T09:00:00', endsAt: '2026-11-01T09:30:00', visitReason: 'Test visit' }),
+    }) as never)
+    const firstBody = await first.json()
+    createdIds.push(firstBody.id)
+
+    const overlapping = await POST(new Request('http://localhost/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify({ patientId: 'RD-0002', providerId: providers[0].id, startsAt: '2026-11-01T09:15:00', endsAt: '2026-11-01T09:45:00', visitReason: 'Test visit' }),
+    }) as never)
+    expect(overlapping.status).toBe(409)
+  })
+})

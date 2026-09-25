@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { appointments, patients, providers } from '@/db/schema'
-import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, asc, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm'
 
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show'
 
@@ -79,4 +79,17 @@ export async function getAppointment(id: number): Promise<AppointmentWithDetails
     .innerJoin(providers, eq(appointments.providerId, providers.id))
     .where(eq(appointments.id, id))
   return row ? mapAppointmentRow(row) : null
+}
+
+export async function hasSchedulingConflict(providerId: number, startsAt: Date, endsAt: Date): Promise<boolean> {
+  const rows = await getDb()
+    .select({ id: appointments.id })
+    .from(appointments)
+    .where(and(
+      eq(appointments.providerId, providerId),
+      ne(appointments.status, 'cancelled'),
+      lt(appointments.startsAt, endsAt),
+      gt(appointments.endsAt, startsAt),
+    ))
+  return rows.length > 0
 }

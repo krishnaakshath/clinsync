@@ -3,8 +3,11 @@ import { Users, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
+import { listActiveProviders } from '@/lib/queries/providers'
+import { listPendingAssignmentsForProvider } from '@/lib/queries/doctor-assignments'
 import { PatientsTable } from '@/components/PatientsTable'
 import { PatientAvatar } from '@/components/PatientAvatar'
+import { AssignmentScheduleModalTrigger } from '@/components/AssignmentScheduleModal'
 
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
@@ -41,6 +44,14 @@ export default async function DoctorPortalPage() {
   const lastName = session.name.trim().split(/\s+/).pop() ?? session.name
   const myPatients = patients.filter((p) => (p.currentProvider ?? '').toLowerCase().includes(lastName.toLowerCase()))
 
+  // Same last-name matching as myPatients above -- there's no real
+  // session<->provider-row link yet, so this is the same best-effort match
+  // used to resolve "this PI's own patients" applied to "this PI's own
+  // provider row" for the assignment queue.
+  const providers = await listActiveProviders()
+  const providerMatch = providers.find((p) => p.name.toLowerCase().includes(lastName.toLowerCase()))
+  const pendingAssignments = providerMatch ? await listPendingAssignmentsForProvider(providerMatch.id) : []
+
   await logAudit(session, 'viewed My Patients (doctor portal)', null)
 
   const meetsCount = myPatients.filter((p) => p.overallStatus === 'green').length
@@ -63,6 +74,23 @@ export default async function DoctorPortalPage() {
         <StatTile icon={AlertTriangle} value={needsVerificationCount} label="Needs verification" color="warning" />
         <StatTile icon={XCircle} value={exclusionCount} label="Potential exclusion" color="destructive" />
       </div>
+
+      {pendingAssignments.length > 0 && (
+        <div className="mb-6 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Assigned to you</h2>
+          <ul className="space-y-2">
+            {pendingAssignments.map((a) => (
+              <li key={a.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+                <div>
+                  <p className="font-medium text-foreground">{a.reason}</p>
+                  <p className="text-xs text-muted-foreground">{a.patientId} · {a.visitType} · {a.urgency}</p>
+                </div>
+                <AssignmentScheduleModalTrigger assignment={a} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Project down to only what PatientsTable renders -- see the same
           comment in patients/page.tsx. */}

@@ -4,7 +4,7 @@ import { getDb } from '@/db/client'
 import { appointments } from '@/db/schema'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { listAppointmentsInRange } from '@/lib/queries/appointments'
+import { hasSchedulingConflict, listAppointmentsInRange } from '@/lib/queries/appointments'
 
 const createAppointmentSchema = z.object({
   patientId: z.string().min(1),
@@ -45,6 +45,10 @@ export async function POST(request: NextRequest) {
   const endsAt = new Date(parsed.data.endsAt)
   if (isNaN(startsAt.getTime()) || isNaN(endsAt.getTime()) || endsAt <= startsAt) {
     return NextResponse.json({ error: 'endsAt must be a valid time after startsAt' }, { status: 400 })
+  }
+
+  if (await hasSchedulingConflict(parsed.data.providerId, startsAt, endsAt)) {
+    return NextResponse.json({ error: 'This provider already has an appointment during that time.' }, { status: 409 })
   }
 
   const [created] = await getDb().insert(appointments).values({
