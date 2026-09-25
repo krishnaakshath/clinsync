@@ -1,5 +1,5 @@
 import { getDb } from '@/db/client'
-import { admissions, admissionTransfers, rooms } from '@/db/schema'
+import { admissions, admissionTransfers, rooms, appointments } from '@/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
 
 export type Admission = typeof admissions.$inferSelect
@@ -95,4 +95,65 @@ export async function transferAdmission(admissionId: number, toRoomId: number, r
   await db.insert(admissionTransfers).values({ admissionId, fromRoomId, toRoomId, reason, transferredByName })
 
   return { ok: true }
+}
+
+export interface DischargeInput {
+  dischargeDiagnosis: string
+  dischargeDrugs: string
+  dischargeDevices: string
+  dischargeDiet: string
+  dischargeSummaryNotes: string
+  followUp: { startsAt: Date; endsAt: Date } | null
+}
+
+export interface DischargeResult {
+  ok: boolean
+  error?: string
+  followUpAppointmentId?: number
+}
+
+// Sequential, not transactional -- same driver limitation noted on
+// transferAdmission. Order: mark the admission discharged FIRST (the
+// single authoritative state change), then free the room, then create the
+// optional follow-up appointment. If the process dies after the first step,
+// the admission is correctly discharged and only the room-freeing or
+// appointment-creation is left incomplete -- a visible, fixable state, never
+// a room silently left occupied by a patient the record says already left,
+// or a "successful" discharge that silently kept the room occupied.
+export async function dischargeAdmission(admissionId: number, input: DischargeInput): Promise<DischargeResult> {
+  const db = getDb()
+  const admission = await getAdmissionById(admissionId)
+  if (!admission) return { ok: false, error: 'Admission not found' }
+  if (admission.status !== 'admitted') return { ok: false, error: 'This admission has already been discharged' }
+
+  await db.update(admissions).set({
+    status: 'discharged',
+    dischargedAt: new Date(),
+    currentRoomId: null,
+    dischargeDiagnosis: input.dischargeDiagnosis,
+    dischargeDrugs: input.dischargeDrugs,
+    dischargeDevices: input.dischargeDevices,
+    dischargeDiet: input.dischargeDiet,
+    dischargeSummaryNotes: input.dischargeSummaryNotes,
+  }).where(eq(admissions.id, admissionId))
+
+  if (admission.currentRoomId !== null) {
+    await db.update(rooms).set({ status: 'dirty', occupiedByPatientId: null }).where(eq(rooms.id, admission.currentRoomId))
+  }
+
+  let followUpAppointmentId: number | undefined
+  if (input.followUp) {
+    const [appt] = await db.insert(appointments).values({
+      patientId: admission.patientId,
+      providerId: admission.attendingProviderId,
+      startsAt: input.followUp.startsAt,
+      endsAt: input.followUp.endsAt,
+      visitReason: 'Post-discharge follow-up',
+      status: 'scheduled',
+    }).returning()
+    followUpAppointmentId = appt.id
+    await db.update(admissions).set({ followUpAppointmentId: appt.id }).where(eq(admissions.id, admissionId))
+  }
+
+  return { ok: true, followUpAppointmentId }
 }
