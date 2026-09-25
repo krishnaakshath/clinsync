@@ -70,10 +70,10 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex items-center gap-2.5 rounded-md border-l-2 py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
         active
-          ? 'border-sidebar-ring bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-          : 'border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -111,10 +111,10 @@ export function LeftNav({ role }: { role: Role }) {
             type="button"
             onClick={() => setBillingOpen((v) => !v)}
             aria-expanded={billingOpen}
-            className={`flex w-full items-center gap-2.5 rounded-md border-l-2 py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
+            className={`flex w-full items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
               billingActive
-                ? 'border-sidebar-ring bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-                : 'border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
             }`}
           >
             <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" />

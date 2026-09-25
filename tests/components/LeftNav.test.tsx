@@ -1,0 +1,20 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { LeftNav } from '@/components/LeftNav'
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/patients' }))
+
+describe('LeftNav', () => {
+  it('renders the Clinsync wordmark instead of any logo image', () => {
+    render(<LeftNav role="admin" />)
+    expect(screen.getByText('Clinsync')).toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('gives the active nav link a filled rounded-full pill background, not a left border bar', () => {
+    render(<LeftNav role="admin" />)
+    const activeLink = screen.getByRole('link', { name: /patients/i, current: 'page' })
+    expect(activeLink.className).toMatch(/rounded-full/)
+    expect(activeLink.className).not.toMatch(/border-l-2/)
+  })
+})
