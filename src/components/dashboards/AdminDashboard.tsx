@@ -143,7 +143,7 @@ export function AdminDashboard({ session, data, templates, patients, appointment
             narrower type. The page.tsx caller always sources this array from
             listAppointmentsInRange(), whose rows are already real
             AppointmentStatus values, so this narrowing is safe. */}
-        <DashboardAppointmentsTable appointments={appointmentsInRange as unknown as DashboardAppointmentRow[]} />
+        <DashboardAppointmentsTable appointments={appointmentsInRange as DashboardAppointmentRow[]} />
       </section>
 
       <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
