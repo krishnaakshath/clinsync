@@ -205,3 +205,70 @@ export async function checkPatientMfaRateLimit(ip: string, patientId: string): P
   ])
   return { allowed: perIp.success && global.success }
 }
+
+// Separate buckets from every other limiter in this file -- an OTP send/verify
+// flow is a fresh brute-force surface (a 6-digit code, same guessable space as
+// TOTP) and must not share a counter with password or TOTP attempts.
+let _otpSendLimiter: Ratelimit | null = null
+function getOtpSendLimiter() {
+  if (!_otpSendLimiter) {
+    _otpSendLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(5, '900 s'),
+      prefix: 'ratelimit:otp-send',
+    })
+  }
+  return _otpSendLimiter
+}
+
+let _otpSendGlobalLimiter: Ratelimit | null = null
+function getOtpSendGlobalLimiter() {
+  if (!_otpSendGlobalLimiter) {
+    _otpSendGlobalLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(5, '900 s'),
+      prefix: 'ratelimit:otp-send-global',
+    })
+  }
+  return _otpSendGlobalLimiter
+}
+
+export async function checkOtpSendRateLimit(ip: string, identity: string): Promise<{ allowed: boolean }> {
+  const [perIp, global] = await Promise.all([
+    getOtpSendLimiter().limit(`${ip}:${identity}`),
+    getOtpSendGlobalLimiter().limit(identity),
+  ])
+  return { allowed: perIp.success && global.success }
+}
+
+let _otpVerifyLimiter: Ratelimit | null = null
+function getOtpVerifyLimiter() {
+  if (!_otpVerifyLimiter) {
+    _otpVerifyLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(5, '900 s'),
+      prefix: 'ratelimit:otp-verify',
+    })
+  }
+  return _otpVerifyLimiter
+}
+
+let _otpVerifyGlobalLimiter: Ratelimit | null = null
+function getOtpVerifyGlobalLimiter() {
+  if (!_otpVerifyGlobalLimiter) {
+    _otpVerifyGlobalLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(5, '900 s'),
+      prefix: 'ratelimit:otp-verify-global',
+    })
+  }
+  return _otpVerifyGlobalLimiter
+}
+
+export async function checkOtpVerifyRateLimit(ip: string, identity: string): Promise<{ allowed: boolean }> {
+  const [perIp, global] = await Promise.all([
+    getOtpVerifyLimiter().limit(`${ip}:${identity}`),
+    getOtpVerifyGlobalLimiter().limit(identity),
+  ])
+  return { allowed: perIp.success && global.success }
+}

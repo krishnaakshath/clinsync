@@ -2,6 +2,7 @@ import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial
 
 export const verdictEnum = pgEnum('verdict', ['green', 'yellow', 'red'])
 export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin', 'frontdesk'])
+export const mfaMethodEnum = pgEnum('mfa_method', ['totp', 'sms', 'email'])
 export const matchStatusEnum = pgEnum('match_status', ['pending', 'confirmed', 'rejected'])
 
 export const trials = pgTable('trials', {
@@ -167,6 +168,9 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash'),
   mfaSecretEncrypted: text('mfa_secret_encrypted'),
   mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
+  mfaMethod: mfaMethodEnum('mfa_method').default('totp').notNull(),
+  phone: text('phone'),
+  googleSub: text('google_sub'),
 })
 
 export const chargeStatusEnum = pgEnum('charge_status', ['draft', 'pending_approval', 'approved', 'submitted'])
@@ -376,6 +380,8 @@ export const appSettings = pgTable('app_settings', {
   // else to live, so it goes on this pilot-wide singleton instead.
   adminMfaSecretEncrypted: text('admin_mfa_secret_encrypted'),
   adminMfaEnabled: boolean('admin_mfa_enabled').default(false).notNull(),
+  adminMfaMethod: mfaMethodEnum('admin_mfa_method').default('totp').notNull(),
+  adminPhone: text('admin_phone'),
 })
 
 export const appointmentStatusEnum = pgEnum('appointment_status', ['scheduled', 'completed', 'cancelled', 'no_show'])

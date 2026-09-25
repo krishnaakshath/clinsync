@@ -6,7 +6,7 @@ import { encryptSensitive } from '@/lib/crypto'
 // Single-row settings table: always operate on row id 1 (created by the seed).
 export async function getAppSettings() {
   const [row] = await getDb().select().from(appSettings)
-  return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null, adminMfaSecretEncrypted: null, adminMfaEnabled: false }
+  return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null, adminMfaSecretEncrypted: null, adminMfaEnabled: false, adminMfaMethod: 'totp' as const, adminPhone: null }
 }
 
 // What the Settings page actually renders -- booleans for whether each EHR
@@ -58,9 +58,9 @@ export async function updateEhrCredentials(input: EhrCredentialsInput) {
   await getDb().update(appSettings).set(patch).where(eq(appSettings.id, current.id))
 }
 
-export async function getAdminMfaState(): Promise<{ mfaSecretEncrypted: string | null; mfaEnabled: boolean }> {
+export async function getAdminMfaState(): Promise<{ mfaSecretEncrypted: string | null; mfaEnabled: boolean; mfaMethod: 'totp' | 'sms' | 'email'; phone: string | null }> {
   const settings = await getAppSettings()
-  return { mfaSecretEncrypted: settings.adminMfaSecretEncrypted, mfaEnabled: settings.adminMfaEnabled }
+  return { mfaSecretEncrypted: settings.adminMfaSecretEncrypted, mfaEnabled: settings.adminMfaEnabled, mfaMethod: settings.adminMfaMethod, phone: settings.adminPhone }
 }
 
 export async function setAdminMfaSecret(secretEncrypted: string): Promise<void> {
