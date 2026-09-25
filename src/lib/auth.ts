@@ -3,10 +3,10 @@ import { redirect } from 'next/navigation'
 import { NextResponse } from 'next/server'
 import { SignJWT, jwtVerify } from 'jose'
 
-export type Role = 'crc' | 'pi' | 'admin'
+export type Role = 'crc' | 'pi' | 'admin' | 'frontdesk'
 export interface Session { role: Role; name: string }
 
-const VALID_ROLES: readonly Role[] = ['crc', 'pi', 'admin']
+const VALID_ROLES: readonly Role[] = ['crc', 'pi', 'admin', 'frontdesk']
 const COOKIE_NAME = 'clinsync_demo_session'
 // Absolute session lifetime -- a server-enforced backstop independent of the
 // client-side idle timer (SessionTimeoutWarning), which cannot itself expire

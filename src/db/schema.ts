@@ -1,7 +1,7 @@
 import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial } from 'drizzle-orm/pg-core'
 
 export const verdictEnum = pgEnum('verdict', ['green', 'yellow', 'red'])
-export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin'])
+export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin', 'frontdesk'])
 export const matchStatusEnum = pgEnum('match_status', ['pending', 'confirmed', 'rejected'])
 
 export const trials = pgTable('trials', {
@@ -410,6 +410,48 @@ export const appointments = pgTable('appointments', {
   status: appointmentStatusEnum('status').default('scheduled').notNull(),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const roomStatusEnum = pgEnum('room_status', ['available', 'occupied'])
+
+export const rooms = pgTable('rooms', {
+  id: serial('id').primaryKey(),
+  ward: text('ward').notNull(),
+  roomNumber: text('room_number').notNull(),
+  bedNumber: text('bed_number').notNull(),
+  status: roomStatusEnum('status').default('available').notNull(),
+  occupiedByPatientId: text('occupied_by_patient_id').references(() => patients.id),
+})
+
+export const doctorAssignmentVisitTypeEnum = pgEnum('doctor_assignment_visit_type', ['inpatient', 'outpatient'])
+export const doctorAssignmentUrgencyEnum = pgEnum('doctor_assignment_urgency', ['routine', 'urgent', 'emergency'])
+export const doctorAssignmentStatusEnum = pgEnum('doctor_assignment_status', ['pending', 'scheduled', 'declined'])
+
+export const doctorAssignments = pgTable('doctor_assignments', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  providerId: integer('provider_id').notNull().references(() => providers.id),
+  visitType: doctorAssignmentVisitTypeEnum('visit_type').notNull(),
+  urgency: doctorAssignmentUrgencyEnum('urgency').default('routine').notNull(),
+  reason: text('reason').notNull(),
+  status: doctorAssignmentStatusEnum('status').default('pending').notNull(),
+  roomId: integer('room_id').references(() => rooms.id),
+  assignedByName: text('assigned_by_name').notNull(),
+  appointmentId: integer('appointment_id').references(() => appointments.id),
+  declineReason: text('decline_reason'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const eligibilityStatusEnum = pgEnum('eligibility_status', ['verified', 'inactive', 'needs_follow_up'])
+
+export const insuranceEligibilityChecks = pgTable('insurance_eligibility_checks', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  payerName: text('payer_name').notNull(),
+  status: eligibilityStatusEnum('status').notNull(),
+  copayCents: integer('copay_cents'),
+  checkedByName: text('checked_by_name').notNull(),
+  checkedAt: timestamp('checked_at').defaultNow().notNull(),
 })
 
 export const documentStatusEnum = pgEnum('document_status', ['new', 'processed'])

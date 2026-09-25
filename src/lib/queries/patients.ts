@@ -2,6 +2,7 @@ import { getDb } from '@/db/client'
 import {
   patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications,
   formSubmissions, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
+  rooms, doctorAssignments, insuranceEligibilityChecks,
 } from '@/db/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
@@ -164,6 +165,9 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(charges).where(eq(charges.patientId, anonId))
   await db.delete(documents).where(eq(documents.patientId, anonId))
   await db.delete(faxes).where(eq(faxes.patientId, anonId))
+  await db.delete(insuranceEligibilityChecks).where(eq(insuranceEligibilityChecks.patientId, anonId))
+  await db.delete(doctorAssignments).where(eq(doctorAssignments.patientId, anonId))
+  await db.update(rooms).set({ status: 'available', occupiedByPatientId: null }).where(eq(rooms.occupiedByPatientId, anonId))
   await db.delete(patients).where(eq(patients.id, anonId))
 
   await invalidateCache(patientDetailCacheKey(anonId))

@@ -40,4 +40,13 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Issue and revoke Patient Portal access credentials',
     ],
   },
+  frontdesk: {
+    label: 'Front Desk / Reception',
+    summary: 'Handles walk-in and phone patient traffic at the point of check-in: rooming, doctor assignment, and insurance eligibility -- not the clinical or billing tools used by other roles.',
+    bullets: [
+      'Check patients in and assign rooms',
+      'Route patients to a provider for inpatient or outpatient visits',
+      'Record insurance eligibility checks',
+    ],
+  },
 }
