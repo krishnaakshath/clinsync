@@ -27,6 +27,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'View the Patients workbook, Trials & Protocols, and Calendar',
       'Review a patient\'s actual submitted answers in Client Forms',
       'Message patients directly',
+      'View the live bed/ward status board for their admitted patients',
     ],
   },
   admin: {
@@ -48,6 +49,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Route patients to a provider for inpatient or outpatient visits',
       'Record insurance eligibility checks',
       'View and manage billing, insurance, and payment status',
+      'View and manage the live bed/ward status board',
     ],
   },
 }
