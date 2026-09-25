@@ -157,6 +157,13 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(formSubmissions).where(eq(formSubmissions.patientId, anonId))
   await db.delete(allergies).where(eq(allergies.patientId, anonId))
   await db.delete(identityVerifications).where(eq(identityVerifications.patientId, anonId))
+  // doctorAssignments must be deleted before appointments -- doctorAssignments.appointmentId
+  // is a nullable FK to appointments(id) with no ON DELETE action, so Postgres would reject
+  // the appointments delete below with a foreign-key violation once a doctor assignment
+  // references an appointment (see the children-before-parents ordering already used above
+  // for screeningCriteriaResults before patientTrialScreenings).
+  await db.delete(insuranceEligibilityChecks).where(eq(insuranceEligibilityChecks.patientId, anonId))
+  await db.delete(doctorAssignments).where(eq(doctorAssignments.patientId, anonId))
   await db.delete(appointments).where(eq(appointments.patientId, anonId))
   await db.delete(messages).where(eq(messages.patientId, anonId))
   await db.delete(insuranceClaims).where(eq(insuranceClaims.patientId, anonId))
@@ -165,8 +172,6 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(charges).where(eq(charges.patientId, anonId))
   await db.delete(documents).where(eq(documents.patientId, anonId))
   await db.delete(faxes).where(eq(faxes.patientId, anonId))
-  await db.delete(insuranceEligibilityChecks).where(eq(insuranceEligibilityChecks.patientId, anonId))
-  await db.delete(doctorAssignments).where(eq(doctorAssignments.patientId, anonId))
   await db.update(rooms).set({ status: 'available', occupiedByPatientId: null }).where(eq(rooms.occupiedByPatientId, anonId))
   await db.delete(patients).where(eq(patients.id, anonId))
 
