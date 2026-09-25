@@ -64,7 +64,7 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
           <DialogTitle>Add New Patient</DialogTitle>
         </DialogHeader>
         <p className="-mt-2 text-xs text-muted-foreground">
-          This creates a new chart in Tebra -- Clinsync doesn&apos;t store patient records of its own.
+          This creates a new chart in your practice&apos;s EHR -- Clinsync doesn&apos;t store patient records of its own.
         </p>
 
         <div className="space-y-3">

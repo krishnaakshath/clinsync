@@ -14,7 +14,7 @@ export interface DeleteTarget {
  * shared by the Workbook's right-click menu and the Patient Detail page's
  * delete button so both go through the identical confirm step and DELETE
  * call. Deletes only Clinsync's own mirrored copy (see api/patients/[anonId]
- * DELETE): the underlying Tebra/IntakeQ record, if any, is untouched.
+ * DELETE): the underlying EHR/intake-system record, if any, is untouched.
  */
 export function DeletePatientDialog({ target, onClose, onDeleted }: { target: DeleteTarget | null; onClose: () => void; onDeleted: () => void }) {
   const [deleting, setDeleting] = useState(false)
@@ -50,7 +50,7 @@ export function DeletePatientDialog({ target, onClose, onDeleted }: { target: De
         <p className="text-sm text-muted-foreground">
           This permanently removes <span className="font-medium text-foreground">{target.name}</span> ({target.id}) and every record tied to
           them -- diagnoses, medications, forms, appointments, messages, billing -- from Clinsync. It disappears from the Patients tab, the
-          Workbook, and everywhere else in the app immediately. This does not affect their chart in Tebra or IntakeQ, and cannot be undone.
+          Workbook, and everywhere else in the app immediately. This does not affect their chart in your practice&apos;s EHR or intake system, and cannot be undone.
         </p>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>

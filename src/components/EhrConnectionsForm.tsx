@@ -42,13 +42,13 @@ export function EhrConnectionsForm({ initial, isAdmin }: {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Store API credentials here so they&apos;re ready to use once Tebra and IntakeQ issue real API access for this pilot.
+        Store API credentials here so they&apos;re ready to use once your intake/forms system and your practice EHR/PM system issue real API access for this pilot.
         Nothing in this app calls either API today — patient data is still mock/synthetic until that access is provisioned.
       </p>
 
       <div className="rounded-lg border border-border p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">IntakeQ</h3>
+          <h3 className="text-sm font-semibold text-foreground">Intake &amp; Forms System</h3>
           <StatusPill connected={intakeqConfigured} />
         </div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">API key</label>
@@ -57,7 +57,7 @@ export function EhrConnectionsForm({ initial, isAdmin }: {
           value={intakeqApiKey}
           onChange={(e) => setIntakeqApiKey(e.target.value)}
           disabled={!isAdmin}
-          placeholder={intakeqConfigured ? '•••••••••••••• (leave blank to keep current key)' : 'Paste IntakeQ API key'}
+          placeholder={intakeqConfigured ? '•••••••••••••• (leave blank to keep current key)' : 'Paste the intake system API key'}
           className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60"
         />
         {isAdmin && (
@@ -66,28 +66,28 @@ export function EhrConnectionsForm({ initial, isAdmin }: {
             disabled={!intakeqApiKey || saving === 'intakeq'}
             className="mt-3 rounded-md bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {saving === 'intakeq' ? 'Saving…' : 'Save IntakeQ key'}
+            {saving === 'intakeq' ? 'Saving…' : 'Save API key'}
           </button>
         )}
       </div>
 
       <div className="rounded-lg border border-border p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Tebra</h3>
+          <h3 className="text-sm font-semibold text-foreground">Practice EHR / PM System</h3>
           <StatusPill connected={tebraConfigured} />
         </div>
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Customer key</label>
-            <input type="password" value={tebraCustomerKey} onChange={(e) => setTebraCustomerKey(e.target.value)} disabled={!isAdmin} placeholder={tebraConfigured ? '•••••••••••••• (leave blank to keep current)' : 'Tebra customer key'} className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60" />
+            <input type="password" value={tebraCustomerKey} onChange={(e) => setTebraCustomerKey(e.target.value)} disabled={!isAdmin} placeholder={tebraConfigured ? '•••••••••••••• (leave blank to keep current)' : 'EHR/PM customer key'} className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">API user</label>
-            <input value={tebraUser} onChange={(e) => setTebraUser(e.target.value)} disabled={!isAdmin} placeholder={tebraConfigured ? '(leave blank to keep current)' : 'Tebra API username'} className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60" />
+            <input value={tebraUser} onChange={(e) => setTebraUser(e.target.value)} disabled={!isAdmin} placeholder={tebraConfigured ? '(leave blank to keep current)' : 'EHR/PM API username'} className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">API password</label>
-            <input type="password" value={tebraPassword} onChange={(e) => setTebraPassword(e.target.value)} disabled={!isAdmin} placeholder={tebraConfigured ? '•••••••••••••• (leave blank to keep current)' : 'Tebra API password'} className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60" />
+            <input type="password" value={tebraPassword} onChange={(e) => setTebraPassword(e.target.value)} disabled={!isAdmin} placeholder={tebraConfigured ? '•••••••••••••• (leave blank to keep current)' : 'EHR/PM API password'} className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60" />
           </div>
         </div>
         {isAdmin && (
@@ -96,7 +96,7 @@ export function EhrConnectionsForm({ initial, isAdmin }: {
             disabled={(!tebraCustomerKey && !tebraUser && !tebraPassword) || saving === 'tebra'}
             className="mt-3 rounded-md bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {saving === 'tebra' ? 'Saving…' : 'Save Tebra credentials'}
+            {saving === 'tebra' ? 'Saving…' : 'Save credentials'}
           </button>
         )}
       </div>
