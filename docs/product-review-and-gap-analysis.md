@@ -90,8 +90,8 @@ which policy text a given patient agreed to and when.
 | Encryption at rest | ⚠️ | Neon Postgres encrypts the database at rest at the infrastructure level (standard, HIPAA-acceptable). Additionally, ID numbers get application-level AES-256-GCM encryption (`src/lib/crypto.ts`). Most other PHI columns (names, diagnoses, medications) rely on infrastructure-level encryption only, which is common practice but worth knowing explicitly. |
 | Role-Based Access Control | ✅/⚠️ | Real RBAC exists (admin/PI/CRC), fixed and enforced this session. Not full "minimum necessary," though — Admin and CRC currently see every patient in the practice; only the PI role is scoped to "My Patients." |
 | Audit logging | ✅ | Extensive — `auditLog` table plus `logAudit()`/`logPatientPortalAction()` calls on essentially every read and write path, staff and patient side both. |
-| Automatic logoff | ⚠️ | **Staff sessions**: yes — 10 min idle warning, 12 min forced logout (`SessionTimeoutWarning`). **Patient portal sessions**: no equivalent exists — a patient portal session has a 1-hour max-age cookie but no idle-timeout warning/kick. |
-| Multi-Factor Authentication | ❌ | Confirmed absent — and the code already says so itself, in a comment on `patient-session.ts`: *"a patient portal session on a shared/public device is a real risk this pilot hasn't otherwise mitigated (no 'remember this device', no MFA)."* |
+| Automatic logoff | ✅ | **Staff sessions**: 10 min idle warning, 12 min forced logout (`SessionTimeoutWarning`). **Patient portal sessions**: same 10 min/12 min pattern via `PatientPortalSessionTimeoutWarning` (mounted in `patient-portal/(authenticated)/layout.tsx`). Both now covered — this row was stale as of 2026-09-23; verified current as of 2026-09-25. |
+| Multi-Factor Authentication | ✅ | A full TOTP MFA system now exists for staff, admin, and patient-portal logins alike (`src/lib/mfa.ts`, `mfa-pending-session.ts`, replay-protected via a Redis single-use claim per RFC 6238 §5.2). This row was stale as of 2026-09-23; verified current as of 2026-09-25. |
 | BAAs (Tebra, IntakeQ, cloud host) | N/A to code | A legal/business action for the practice to complete, not something to build. Flagged here only because it's a prerequisite for the real (non-mock) integrations. |
 
 ---
@@ -351,7 +351,7 @@ patient-portal foundation underneath it — not, and not yet positioned to be, a
 - Zero compliance-facing legal surface — no NPP, no ToS acceptance, no signature capture.
   For a real pilot handling real PHI, this is the single highest-priority gap, and it's a
   legal drafting task before it's an engineering one.
-- No MFA and no patient-side auto-logoff — both cheap to add, both currently missing.
+- ~~No MFA and no patient-side auto-logoff~~ — both have since been built (see the Technical Safeguards table above); this bullet is stale as of 2026-09-23.
 - Every "integration" (Tebra, IntakeQ) is a mock. The reconciliation *logic* is real and
   ready; the moment real API credentials exist, `src/lib/ehr-sync.ts` is the seam to plug
   them into — but until then, nothing here talks to a real external system.

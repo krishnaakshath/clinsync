@@ -21,12 +21,18 @@ a trial's criteria and marks every criterion:
 - **Potential Exclusion** — chart evidence clearly disqualifies
 
 Every verdict is backed by the exact chart quote it was derived from —
-never a summary, never a guess. **The rule engine never invents a "meets"
-or "excludes" verdict from absent evidence: an empty evidence set always
-defaults to "needs verification"** (`src/lib/eligibility.ts`,
-`src/lib/rule-engine.ts`). Humans — coordinators first, then the
-investigator — always make the actual eligibility call; the app only ever
-proposes.
+never a summary, never a guess. For criteria that positively require
+evidence (a diagnosis match, a rating-scale threshold), the rule engine
+never invents a "meets" verdict from absent evidence: no matching chart
+data always defaults to "needs verification". For exclusion-type criteria
+(an excluded medication class, a disqualifying diagnosis) and the age
+check, the absence of disqualifying evidence is itself a legitimate,
+positive finding, so those resolve directly to green or red rather than
+sitting in "needs verification" forever — see the per-criterion logic in
+`src/lib/eligibility.ts`. Either way, the verdict always names the exact
+evidence (or absence of it) it's based on; humans — coordinators first,
+then the investigator — always make the actual eligibility call, the app
+only ever proposes.
 
 Trial criteria (diagnosis codes, rating-scale thresholds, medication
 stability/washout rules, age range, exclusion diagnoses) are **data on the
