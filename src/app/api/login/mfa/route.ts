@@ -34,18 +34,30 @@ export async function POST(request: NextRequest) {
   const { allowed } = await checkStaffMfaRateLimit(getClientIp(request), identity)
   if (!allowed) return NextResponse.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 })
 
-  const mfaState = pending.userId === null ? await getAdminMfaState() : await getUserMfaState(pending.userId)
-  if (!mfaState?.mfaSecretEncrypted) return NextResponse.json({ error: 'Your login session expired. Please sign in again.' }, { status: 401 })
+  if (pending.method === 'sms' || pending.method === 'email') {
+    const { checkOtpVerifyRateLimit } = await import('@/lib/rate-limit')
+    const { verifyOtp } = await import('@/lib/otp-delivery')
+    const { allowed } = await checkOtpVerifyRateLimit(getClientIp(request), identity)
+    if (!allowed) return NextResponse.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 })
 
-  const secretBase32 = decryptSensitive(mfaState.mfaSecretEncrypted)
-  if (!(await verifyMfaCode(secretBase32, parsed.data.code, identity))) {
-    await logAudit({ role: pending.role, name: pending.name }, 'failed MFA code entry', null)
-    return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
-  }
+    if (!(await verifyOtp(identity, pending.method, parsed.data.code))) {
+      await logAudit({ role: pending.role, name: pending.name }, `failed ${pending.method} OTP entry`, null)
+      return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
+    }
+  } else {
+    const mfaState = pending.userId === null ? await getAdminMfaState() : await getUserMfaState(pending.userId)
+    if (!mfaState?.mfaSecretEncrypted) return NextResponse.json({ error: 'Your login session expired. Please sign in again.' }, { status: 401 })
 
-  if (pending.mode === 'enroll') {
-    if (pending.userId === null) await enableAdminMfa()
-    else await enableUserMfa(pending.userId)
+    const secretBase32 = decryptSensitive(mfaState.mfaSecretEncrypted)
+    if (!(await verifyMfaCode(secretBase32, parsed.data.code, identity))) {
+      await logAudit({ role: pending.role, name: pending.name }, 'failed MFA code entry', null)
+      return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
+    }
+
+    if (pending.mode === 'enroll') {
+      if (pending.userId === null) await enableAdminMfa()
+      else await enableUserMfa(pending.userId)
+    }
   }
 
   await clearPendingStaffMfaCookie()

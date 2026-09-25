@@ -133,3 +133,31 @@ describe('POST /api/login', () => {
     })
   })
 })
+
+describe('POST /api/login with mfaMethod sms/email', () => {
+  it('sends an SMS OTP and does not return a QR code when the account mfaMethod is sms', async () => {
+    vi.doMock('@/lib/otp-delivery', () => ({ generateAndSendOtp: vi.fn(async () => undefined), verifyOtp: vi.fn(async () => false) }))
+    vi.resetModules()
+    const [{ POST: loginPost }, { getDb }, { users }] = await Promise.all([
+      import('@/app/api/login/route'),
+      import('@/db/client'),
+      import('@/db/schema'),
+    ])
+    const { hashPassword } = await import('@/lib/password')
+    const [created] = await getDb().insert(users).values({
+      name: 'SMS Test User', email: 'sms-test-user@example.com', role: 'crc',
+      passwordHash: hashPassword('SmsTestPass123!'), mfaMethod: 'sms', phone: '+15551234567',
+    }).returning()
+
+    const req = new Request('http://localhost/api/login', { method: 'POST', body: JSON.stringify({ email: 'sms-test-user@example.com', password: 'SmsTestPass123!' }) })
+    const res = await loginPost(req as never)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.mfaRequired).toBe(true)
+    expect(body.mode).toBe('sms')
+    expect(body.qrDataUrl).toBeUndefined()
+
+    const { eq } = await import('drizzle-orm')
+    await getDb().delete(users).where(eq(users.id, created.id))
+  })
+})

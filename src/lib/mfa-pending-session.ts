@@ -23,11 +23,12 @@ export interface PendingStaffMfaSession {
   name: string
   mode: 'enroll' | 'verify'
   userId: number | null // null = the env-based admin account
+  method: 'totp' | 'sms' | 'email'
 }
 
 export async function setPendingStaffMfaCookie(session: PendingStaffMfaSession): Promise<void> {
   const store = await cookies()
-  const value = await new SignJWT({ kind: 'pending-staff-mfa', role: session.role, name: session.name, mode: session.mode, userId: session.userId })
+  const value = await new SignJWT({ kind: 'pending-staff-mfa', role: session.role, name: session.name, mode: session.mode, userId: session.userId, method: session.method })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${PENDING_MAX_AGE_SECONDS}s`)
@@ -45,9 +46,10 @@ export async function getPendingStaffMfaSession(): Promise<PendingStaffMfaSessio
       payload.kind === 'pending-staff-mfa' &&
       typeof payload.name === 'string' &&
       (payload.mode === 'enroll' || payload.mode === 'verify') &&
-      (payload.userId === null || typeof payload.userId === 'number')
+      (payload.userId === null || typeof payload.userId === 'number') &&
+      (payload.method === 'totp' || payload.method === 'sms' || payload.method === 'email')
     ) {
-      return { role: payload.role as Role, name: payload.name, mode: payload.mode, userId: payload.userId as number | null }
+      return { role: payload.role as Role, name: payload.name, mode: payload.mode, userId: payload.userId as number | null, method: payload.method }
     }
     return null
   } catch {

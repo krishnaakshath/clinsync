@@ -23,19 +23,19 @@ afterAll(() => { vi.unstubAllEnvs() })
 
 describe('pending staff MFA session', () => {
   it('round-trips an enroll-mode session for the env admin account', async () => {
-    await setPendingStaffMfaCookie({ role: 'admin', name: 'Test Admin', mode: 'enroll', userId: null })
+    await setPendingStaffMfaCookie({ role: 'admin', name: 'Test Admin', mode: 'enroll', userId: null, method: 'totp' })
     const session = await getPendingStaffMfaSession()
-    expect(session).toEqual({ role: 'admin', name: 'Test Admin', mode: 'enroll', userId: null })
+    expect(session).toEqual({ role: 'admin', name: 'Test Admin', mode: 'enroll', userId: null, method: 'totp' })
   })
 
   it('round-trips a verify-mode session for a DB-backed user', async () => {
-    await setPendingStaffMfaCookie({ role: 'crc', name: 'Test CRC', mode: 'verify', userId: 42 })
+    await setPendingStaffMfaCookie({ role: 'crc', name: 'Test CRC', mode: 'verify', userId: 42, method: 'sms' })
     const session = await getPendingStaffMfaSession()
-    expect(session).toEqual({ role: 'crc', name: 'Test CRC', mode: 'verify', userId: 42 })
+    expect(session).toEqual({ role: 'crc', name: 'Test CRC', mode: 'verify', userId: 42, method: 'sms' })
   })
 
   it('returns null after clearing', async () => {
-    await setPendingStaffMfaCookie({ role: 'admin', name: 'Test Admin', mode: 'verify', userId: null })
+    await setPendingStaffMfaCookie({ role: 'admin', name: 'Test Admin', mode: 'verify', userId: null, method: 'totp' })
     await clearPendingStaffMfaCookie()
     expect(await getPendingStaffMfaSession()).toBeNull()
   })

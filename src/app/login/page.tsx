@@ -15,7 +15,7 @@ const HIGHLIGHTS = [
 type Step =
   | { kind: 'password' }
   | { kind: 'enroll'; qrDataUrl: string; manualKey: string }
-  | { kind: 'verify' }
+  | { kind: 'verify'; method: 'totp' | 'sms' | 'email' }
 
 export default function LoginPage() {
   const router = useRouter()
@@ -40,7 +40,11 @@ export default function LoginPage() {
       return
     }
     const body = await res.json()
-    setStep(body.mode === 'enroll' ? { kind: 'enroll', qrDataUrl: body.qrDataUrl, manualKey: body.manualKey } : { kind: 'verify' })
+    if (body.mode === 'enroll') {
+      setStep({ kind: 'enroll', qrDataUrl: body.qrDataUrl, manualKey: body.manualKey })
+    } else {
+      setStep({ kind: 'verify', method: body.mode as 'totp' | 'sms' | 'email' })
+    }
   }
 
   async function submitMfaCode(code: string): Promise<string | null> {
@@ -143,8 +147,12 @@ export default function LoginPage() {
             )}
             {step.kind === 'verify' && (
               <MfaCodeStep
-                title="Enter your code"
-                description="Open your authenticator app and enter the current 6-digit code."
+                title={step.method === 'sms' ? 'Check your phone' : step.method === 'email' ? 'Check your email' : 'Enter your code'}
+                description={
+                  step.method === 'sms' ? 'We texted a 6-digit code to your phone. Enter it below.'
+                  : step.method === 'email' ? 'We emailed a 6-digit code to you. Enter it below.'
+                  : 'Open your authenticator app and enter the current 6-digit code.'
+                }
                 onSubmit={submitMfaCode}
                 onBack={() => setStep({ kind: 'password' })}
               />

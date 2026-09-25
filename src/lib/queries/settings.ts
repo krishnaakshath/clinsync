@@ -58,9 +58,9 @@ export async function updateEhrCredentials(input: EhrCredentialsInput) {
   await getDb().update(appSettings).set(patch).where(eq(appSettings.id, current.id))
 }
 
-export async function getAdminMfaState(): Promise<{ mfaSecretEncrypted: string | null; mfaEnabled: boolean }> {
+export async function getAdminMfaState(): Promise<{ mfaSecretEncrypted: string | null; mfaEnabled: boolean; mfaMethod: 'totp' | 'sms' | 'email'; phone: string | null }> {
   const settings = await getAppSettings()
-  return { mfaSecretEncrypted: settings.adminMfaSecretEncrypted, mfaEnabled: settings.adminMfaEnabled }
+  return { mfaSecretEncrypted: settings.adminMfaSecretEncrypted, mfaEnabled: settings.adminMfaEnabled, mfaMethod: settings.adminMfaMethod, phone: settings.adminPhone }
 }
 
 export async function setAdminMfaSecret(secretEncrypted: string): Promise<void> {
