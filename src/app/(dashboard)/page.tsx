@@ -18,9 +18,9 @@ export default async function DashboardHomePage() {
   // duplicating /doctor's assignment-matching logic in two places.
   if (session.role === 'pi') redirect('/doctor')
   // Called and awaited directly (not `<FrontDeskDashboard session={session} />`) so this
-  // page resolves to a plain, already-rendered element tree -- consistent with every other
-  // async page component in this app, which await their own data before returning JSX,
-  // rather than nesting an unresolved async component inside another one's return value.
+  // page resolves to a plain, already-rendered element tree instead of an unresolved async
+  // component nested inside another one's return value -- React's client renderer (used by
+  // @testing-library/react in tests) can't render an async component directly as JSX.
   if (session.role === 'frontdesk') return await FrontDeskDashboard({ session })
 
   const now = new Date()

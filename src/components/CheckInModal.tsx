@@ -39,10 +39,7 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
     setError(body?.error ?? 'Could not check in this patient.')
   }
 
-  // Provider selection isn't gated here, mirroring the room-picker below: the
-  // API's zod schema (`providerId: z.number().int().positive()`) is the real
-  // enforcement, so the UI doesn't block a submit attempt on it.
-  const canSubmit = Boolean(patientId) && Boolean(reason) && (visitType === 'outpatient' || roomId !== '') && !submitting
+  const canSubmit = Boolean(patientId) && providerId !== '' && Boolean(reason) && (visitType === 'outpatient' || roomId !== '') && !submitting
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
