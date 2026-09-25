@@ -24,6 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const template = await getFormTemplate(Number(id))
   if (!template) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  await logAudit(session, `viewed form template ${id}`, null)
   return NextResponse.json(template)
 }
 

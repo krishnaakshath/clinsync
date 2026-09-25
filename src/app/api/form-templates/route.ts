@@ -25,6 +25,7 @@ const createTemplateSchema = z.object({
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  await logAudit(session, 'viewed form templates list', null)
   return NextResponse.json(await listFormTemplates())
 }
 

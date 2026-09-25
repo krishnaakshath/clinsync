@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
-import { trials } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { trials, auditLog } from '@/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -45,6 +45,12 @@ describe('GET /api/trials', () => {
     const body = await response.json()
     expect(body.trials.length).toBe(2)
     expect(body.trials[0].diagnosisCodes).toBeDefined()
+  })
+
+  it('logs an audit entry when the trial list is viewed', async () => {
+    await listTrials(new NextRequest('http://localhost/api/trials'))
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe('viewed trials list')
   })
 })
 

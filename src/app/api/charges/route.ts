@@ -18,6 +18,7 @@ const createChargeSchema = z.object({
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  await logAudit(session, 'viewed charges list', null)
   return NextResponse.json(await listCharges())
 }
 

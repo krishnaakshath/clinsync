@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     sortBy: url.searchParams.get('sortBy') === 'ratingOverall' ? ('ratingOverall' as const) : ('sentAt' as const),
     sortDir: url.searchParams.get('sortDir') === 'asc' ? ('asc' as const) : ('desc' as const),
   }
+  await logAudit(session, 'viewed experience surveys list', null)
   return NextResponse.json(await listReviews(filters))
 }
 

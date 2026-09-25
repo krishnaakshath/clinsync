@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, afterAll } from 'vitest'
 import { GET as listBroadcasts, POST as createBroadcast } from '@/app/api/broadcasts/route'
+import { GET as getOneBroadcast } from '@/app/api/broadcasts/[id]/route'
 import { GET as recipientPreview } from '@/app/api/broadcasts/recipients/route'
 import { getDb } from '@/db/client'
-import { broadcasts } from '@/db/schema'
-import { inArray } from 'drizzle-orm'
+import { broadcasts, auditLog } from '@/db/schema'
+import { inArray, desc } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -22,6 +23,22 @@ describe('GET /api/broadcasts', () => {
     const res = await listBroadcasts()
     const body = await res.json()
     expect(body.length).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('GET /api/broadcasts audit logging', () => {
+  it('logs an audit entry when the broadcast list is viewed', async () => {
+    await listBroadcasts()
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe('viewed broadcasts list')
+  })
+
+  it('logs an audit entry when a single broadcast is viewed', async () => {
+    const [existing] = await getDb().select().from(broadcasts).limit(1)
+    const req = new Request(`http://localhost/api/broadcasts/${existing.id}`)
+    await getOneBroadcast(req as never, { params: Promise.resolve({ id: String(existing.id) }) })
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe(`viewed broadcast ${existing.id}`)
   })
 })
 

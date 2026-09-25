@@ -28,6 +28,7 @@ const createBroadcastSchema = z
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  await logAudit(session, 'viewed broadcasts list', null)
   return NextResponse.json(await listBroadcasts())
 }
 

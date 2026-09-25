@@ -2,8 +2,8 @@ import { describe, it, expect, vi, afterAll } from 'vitest'
 import { GET, POST } from '@/app/api/charges/route'
 import { GET as getOne, PATCH } from '@/app/api/charges/[id]/route'
 import { getDb } from '@/db/client'
-import { charges } from '@/db/schema'
-import { inArray } from 'drizzle-orm'
+import { charges, auditLog } from '@/db/schema'
+import { inArray, desc } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -22,6 +22,23 @@ describe('GET /api/charges', () => {
     const res = await GET()
     const body = await res.json()
     expect(body.length).toBeGreaterThanOrEqual(11)
+  })
+})
+
+describe('GET /api/charges audit logging', () => {
+  it('logs an audit entry when the charges list is viewed', async () => {
+    await GET()
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe('viewed charges list')
+  })
+
+  it('logs an audit entry when a single charge is viewed', async () => {
+    const [existing] = await getDb().select().from(charges).limit(1)
+    const req = new Request(`http://localhost/api/charges/${existing.id}`)
+    await getOne(req as never, { params: Promise.resolve({ id: String(existing.id) }) })
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe(`viewed charge ${existing.id}`)
+    expect(latest.patientId).toBe(existing.patientId)
   })
 })
 

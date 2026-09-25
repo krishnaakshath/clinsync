@@ -14,6 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const charge = await getCharge(Number(id))
   if (!charge) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  await logAudit(session, `viewed charge ${id}`, charge.patientId)
   return NextResponse.json(charge)
 }
 

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { inArray } from 'drizzle-orm'
+import { inArray, desc } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
-import { users } from '@/db/schema'
+import { users, auditLog } from '@/db/schema'
 import { GET as listUsers, POST as createUser } from '@/app/api/users/route'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -38,6 +38,12 @@ describe('GET /api/users', () => {
     vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
     const res = await listUsers()
     expect(res.status).toBe(403)
+  })
+
+  it('logs an audit entry when the staff roster is viewed', async () => {
+    await listUsers()
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe('viewed staff roster')
   })
 
   it('returns the staff roster without any password field', async () => {

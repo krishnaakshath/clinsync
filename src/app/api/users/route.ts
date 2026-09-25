@@ -15,6 +15,7 @@ export async function GET() {
   if (session instanceof NextResponse) return session
   if (session.role !== 'admin') return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 })
 
+  await logAudit(session, 'viewed staff roster', null)
   const roster = await listAllUsers()
   return NextResponse.json(roster)
 }

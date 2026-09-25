@@ -22,6 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const review = await getReview(Number(id))
   if (!review) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  await logAudit(session, `viewed experience survey ${id}`, review.patientId)
   return NextResponse.json(review)
 }
 

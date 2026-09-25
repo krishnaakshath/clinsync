@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { formSubmissions, reviews } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { formSubmissions, reviews, auditLog } from '@/db/schema'
+import { eq, and, desc } from 'drizzle-orm'
 import { GET as listReviews, POST as sendSurvey } from '@/app/api/reviews/route'
-import { PUT as recordResponse } from '@/app/api/reviews/[id]/route'
+import { GET as getOneReview, PUT as recordResponse } from '@/app/api/reviews/[id]/route'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -13,6 +13,24 @@ describe('GET /api/reviews', () => {
     const res = await listReviews(req as never)
     const body = await res.json()
     expect(body.length).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('GET /api/reviews audit logging', () => {
+  it('logs an audit entry when the survey list is viewed', async () => {
+    const req = new Request('http://localhost/api/reviews')
+    await listReviews(req as never)
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe('viewed experience surveys list')
+  })
+
+  it('logs an audit entry when a single survey is viewed', async () => {
+    const [existing] = await getDb().select().from(reviews).limit(1)
+    const req = new Request(`http://localhost/api/reviews/${existing.id}`)
+    await getOneReview(req as never, { params: Promise.resolve({ id: String(existing.id) }) })
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe(`viewed experience survey ${existing.id}`)
+    expect(latest.patientId).toBe(existing.patientId)
   })
 })
 

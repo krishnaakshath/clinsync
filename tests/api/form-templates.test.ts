@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { GET, POST } from '@/app/api/form-templates/route'
+import { GET as getOneTemplate } from '@/app/api/form-templates/[id]/route'
 import { getDb } from '@/db/client'
-import { formTemplates } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { formTemplates, auditLog } from '@/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -23,6 +24,22 @@ describe('GET /api/form-templates', () => {
     const res = await GET()
     const body = await res.json()
     expect(body.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('GET /api/form-templates audit logging', () => {
+  it('logs an audit entry when the template list is viewed', async () => {
+    await GET()
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe('viewed form templates list')
+  })
+
+  it('logs an audit entry when a single template is viewed', async () => {
+    const [existing] = await getDb().select().from(formTemplates).limit(1)
+    const req = new Request(`http://localhost/api/form-templates/${existing.id}`)
+    await getOneTemplate(req as never, { params: Promise.resolve({ id: String(existing.id) }) })
+    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest.action).toBe(`viewed form template ${existing.id}`)
   })
 })
 
