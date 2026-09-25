@@ -39,7 +39,7 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
     setError(body?.error ?? 'Could not check in this patient.')
   }
 
-  const canSubmit = Boolean(patientId) && providerId !== '' && Boolean(reason) && (visitType === 'outpatient' || roomId !== '') && !submitting
+  const canSubmit = Boolean(patientId) && providerId !== '' && Boolean(reason) && (visitType === 'outpatient' || roomId !== '' || rooms.length === 0) && !submitting
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>

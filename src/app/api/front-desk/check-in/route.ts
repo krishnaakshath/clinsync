@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { eq } from 'drizzle-orm'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { getDb } from '@/db/client'
+import { patients, providers } from '@/db/schema'
 import { assignRoomToPatient } from '@/lib/queries/rooms'
 import { createDoctorAssignment } from '@/lib/queries/doctor-assignments'
 
@@ -26,9 +29,18 @@ export async function POST(request: NextRequest) {
 
   const { patientId, providerId, visitType, urgency, reason, roomId } = parsed.data
 
-  if (visitType === 'inpatient' && !roomId) {
-    return NextResponse.json({ error: 'roomId is required for an inpatient check-in' }, { status: 400 })
+  if (visitType === 'outpatient' && roomId) {
+    return NextResponse.json({ error: 'roomId is only valid for an inpatient check-in' }, { status: 400 })
   }
+
+  // Verify the patient and provider actually exist BEFORE touching a room --
+  // a bad providerId must never be able to strand a room as occupied with no
+  // valid assignment behind it.
+  const [patientRow] = await getDb().select({ id: patients.id }).from(patients).where(eq(patients.id, patientId))
+  if (!patientRow) return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
+
+  const [providerRow] = await getDb().select({ id: providers.id }).from(providers).where(eq(providers.id, providerId))
+  if (!providerRow) return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
 
   if (roomId) {
     const assigned = await assignRoomToPatient(roomId, patientId)

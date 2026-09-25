@@ -32,11 +32,49 @@ describe('POST /api/front-desk/check-in', () => {
     expect(body.status).toBe('pending')
   })
 
-  it('requires a roomId for an inpatient check-in', async () => {
+  it('allows an inpatient check-in with no roomId (room assigned once one frees up)', async () => {
     const providers = await listActiveProviders()
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'inpatient', urgency: 'urgent', reason: 'Admission', providerId: providers[0].id }) })
     const res = await POST(req as never)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    createdAssignmentIds.push(body.id)
+    expect(body.roomId).toBeNull()
+  })
+
+  it('rejects a roomId on an outpatient check-in', async () => {
+    const providers = await listActiveProviders()
+    const [room] = await getDb().insert(rooms).values({ ward: 'Test Ward', roomNumber: '303', bedNumber: 'A', status: 'available' }).returning()
+    createdRoomIds.push(room.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'outpatient', urgency: 'routine', reason: 'Follow-up', providerId: providers[0].id, roomId: room.id }) })
+    const res = await POST(req as never)
     expect(res.status).toBe(400)
+  })
+
+  it('returns 404 when the patient does not exist', async () => {
+    const providers = await listActiveProviders()
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-NOPE', visitType: 'outpatient', urgency: 'routine', reason: 'Follow-up', providerId: providers[0].id }) })
+    const res = await POST(req as never)
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 404 when the provider does not exist', async () => {
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'outpatient', urgency: 'routine', reason: 'Follow-up', providerId: 999999 }) })
+    const res = await POST(req as never)
+    expect(res.status).toBe(404)
+  })
+
+  it('does not occupy a room when the providerId does not exist', async () => {
+    const [room] = await getDb().insert(rooms).values({ ward: 'Test Ward', roomNumber: '304', bedNumber: 'A', status: 'available' }).returning()
+    createdRoomIds.push(room.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'inpatient', urgency: 'urgent', reason: 'Admission', providerId: 999999, roomId: room.id }) })
+    const res = await POST(req as never)
+    expect(res.status).toBe(404)
+
+    const [reloaded] = await getDb().select().from(rooms).where(eq(rooms.id, room.id))
+    expect(reloaded.status).toBe('available')
   })
 
   it('assigns the given room and flips it to occupied for an inpatient check-in', async () => {

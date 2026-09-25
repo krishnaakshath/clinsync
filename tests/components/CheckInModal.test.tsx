@@ -38,4 +38,24 @@ describe('CheckInModal', () => {
 
     vi.unstubAllGlobals()
   })
+
+  it('allows submitting an inpatient check-in with no room selected when no rooms exist', () => {
+    render(<CheckInModal providers={PROVIDERS} rooms={[]} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText(/inpatient/i))
+    fireEvent.change(screen.getByLabelText(/patient id/i), { target: { value: 'RD-0001' } })
+    fireEvent.change(screen.getByLabelText(/assign to doctor/i), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText(/reason/i), { target: { value: 'Admission' } })
+
+    expect(screen.getByText('Check In')).not.toBeDisabled()
+  })
+
+  it('disables submit for an inpatient visit when rooms exist but none is selected', () => {
+    render(<CheckInModal providers={PROVIDERS} rooms={ROOMS} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText(/inpatient/i))
+    fireEvent.change(screen.getByLabelText(/patient id/i), { target: { value: 'RD-0001' } })
+    fireEvent.change(screen.getByLabelText(/assign to doctor/i), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText(/reason/i), { target: { value: 'Admission' } })
+
+    expect(screen.getByText('Check In')).toBeDisabled()
+  })
 })
