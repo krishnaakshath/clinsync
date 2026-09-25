@@ -412,7 +412,7 @@ export const appointments = pgTable('appointments', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
-export const roomStatusEnum = pgEnum('room_status', ['available', 'occupied'])
+export const roomStatusEnum = pgEnum('room_status', ['available', 'occupied', 'dirty', 'blocked'])
 
 export const rooms = pgTable('rooms', {
   id: serial('id').primaryKey(),
@@ -420,6 +420,7 @@ export const rooms = pgTable('rooms', {
   roomNumber: text('room_number').notNull(),
   bedNumber: text('bed_number').notNull(),
   status: roomStatusEnum('status').default('available').notNull(),
+  blockedReason: text('blocked_reason'),
   occupiedByPatientId: text('occupied_by_patient_id').references(() => patients.id),
 })
 
@@ -440,6 +441,37 @@ export const doctorAssignments = pgTable('doctor_assignments', {
   appointmentId: integer('appointment_id').references(() => appointments.id),
   declineReason: text('decline_reason'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const admissionTypeEnum = pgEnum('admission_type', ['elective', 'emergency', 'transfer_in'])
+export const admissionStatusEnum = pgEnum('admission_status', ['admitted', 'discharged'])
+
+export const admissions = pgTable('admissions', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  currentRoomId: integer('current_room_id').references(() => rooms.id),
+  attendingProviderId: integer('attending_provider_id').notNull().references(() => providers.id),
+  admissionType: admissionTypeEnum('admission_type').default('elective').notNull(),
+  status: admissionStatusEnum('status').default('admitted').notNull(),
+  admittedAt: timestamp('admitted_at').defaultNow().notNull(),
+  dischargedAt: timestamp('discharged_at'),
+  dischargeDiagnosis: text('discharge_diagnosis'),
+  dischargeDrugs: text('discharge_drugs'),
+  dischargeDevices: text('discharge_devices'),
+  dischargeDiet: text('discharge_diet'),
+  dischargeSummaryNotes: text('discharge_summary_notes'),
+  followUpAppointmentId: integer('follow_up_appointment_id').references(() => appointments.id),
+  createdFromAssignmentId: integer('created_from_assignment_id').references(() => doctorAssignments.id),
+})
+
+export const admissionTransfers = pgTable('admission_transfers', {
+  id: serial('id').primaryKey(),
+  admissionId: integer('admission_id').notNull().references(() => admissions.id),
+  fromRoomId: integer('from_room_id').references(() => rooms.id),
+  toRoomId: integer('to_room_id').notNull().references(() => rooms.id),
+  reason: text('reason').notNull(),
+  transferredByName: text('transferred_by_name').notNull(),
+  transferredAt: timestamp('transferred_at').defaultNow().notNull(),
 })
 
 export const eligibilityStatusEnum = pgEnum('eligibility_status', ['verified', 'inactive', 'needs_follow_up'])
