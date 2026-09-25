@@ -9,7 +9,7 @@ import {
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
-import { IpmgIcon } from '@/components/IpmgLogo'
+import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 
 type Icon = React.ComponentType<{ className?: string }>
 
@@ -92,10 +92,9 @@ export function LeftNav({ role }: { role: Role }) {
 
   return (
     <nav className="w-60 shrink-0 overflow-y-auto bg-sidebar p-3">
-      <div className="mb-1 flex items-center rounded-lg bg-white/95 px-2.5 py-2">
-        <IpmgIcon className="h-5 w-auto" />
+      <div className="mb-4 px-2.5 py-2">
+        <ClinsyncLogo className="text-lg font-semibold tracking-tight text-sidebar-foreground" />
       </div>
-      <p className="mb-4 px-2.5 text-[11px] font-medium text-sidebar-foreground/50">Clinsync</p>
       <GroupLabel>Workspace</GroupLabel>
       <ul className="space-y-0.5">
         {items.map((item) => (
