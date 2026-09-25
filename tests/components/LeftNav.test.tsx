@@ -17,4 +17,12 @@ describe('LeftNav', () => {
     expect(activeLink.className).toMatch(/rounded-full/)
     expect(activeLink.className).not.toMatch(/border-l-2/)
   })
+
+  it('shows Check-In and Assignments for frontdesk, but hides admin/crc-only items', () => {
+    render(<LeftNav role="frontdesk" />)
+    expect(screen.getByRole('link', { name: /check-in/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /assignments/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /workbook/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /form templates/i })).not.toBeInTheDocument()
+  })
 })

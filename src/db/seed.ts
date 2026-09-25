@@ -599,6 +599,7 @@ export async function seed() {
     { name: 'Jamie Ruiz', email: 'jruiz.demo@example.com', role: 'crc', passwordHash: hashPassword('CoordinatorDemo123!') },
     { name: 'Dr. R. Kunam', email: 'rkunam.demo@example.com', role: 'pi', passwordHash: hashPassword('DoctorDemo123!') },
     { name: 'Sam Patel', email: 'spatel.demo@example.com', role: 'admin' },
+    { name: 'Taylor Nguyen', email: 'tnguyen.demo@example.com', role: 'frontdesk', passwordHash: hashPassword('FrontDeskDemo123!') },
   ])
 
   for (const p of HERO_PATIENTS) {

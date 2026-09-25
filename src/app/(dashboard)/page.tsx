@@ -8,6 +8,7 @@ import { listAppointmentsInRange } from '@/lib/queries/appointments'
 import { listAllUsers } from '@/lib/queries/users'
 import { AdminDashboard } from '@/components/dashboards/AdminDashboard'
 import { CoordinatorDashboard } from '@/components/dashboards/CoordinatorDashboard'
+import { FrontDeskDashboard } from '@/components/dashboards/FrontDeskDashboard'
 
 export default async function DashboardHomePage() {
   const session = await requireSessionOrRedirect()
@@ -16,6 +17,7 @@ export default async function DashboardHomePage() {
   // a real separate route rather than a conditional render here avoids
   // duplicating /doctor's assignment-matching logic in two places.
   if (session.role === 'pi') redirect('/doctor')
+  if (session.role === 'frontdesk') return <FrontDeskDashboard session={session} />
 
   const now = new Date()
   const rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)

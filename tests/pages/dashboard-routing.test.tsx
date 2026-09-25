@@ -26,4 +26,13 @@ describe('dashboard role routing', () => {
     await DashboardHomePage()
     expect(mockRedirect).toHaveBeenCalledWith('/doctor')
   })
+
+  it('renders the FrontDeskDashboard for a frontdesk session', async () => {
+    const auth = await import('@/lib/auth')
+    vi.mocked(auth.requireSessionOrRedirect).mockResolvedValueOnce({ role: 'frontdesk', name: 'Taylor Nguyen' })
+    const { render, screen } = await import('@testing-library/react')
+    const jsx = await DashboardHomePage()
+    render(jsx)
+    expect(screen.getByText(/front desk/i)).toBeInTheDocument()
+  })
 })

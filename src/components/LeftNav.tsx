@@ -7,6 +7,7 @@ import {
   Calendar, FileText, FileSignature, MessageSquare, Wallet, Receipt, ShieldCheck, HandCoins,
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
+  ClipboardCheck, ListChecks,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
@@ -35,6 +36,8 @@ const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc'] as Role[] },
   { href: '/client-forms', label: 'Client Forms', icon: FileSignature },
+  { href: '/front-desk/check-in', label: 'Check-In', icon: ClipboardCheck, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
+  { href: '/front-desk/assignments', label: 'Assignments', icon: ListChecks, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
   { href: '/messages', label: 'Messages', icon: MessageSquare },
 ]
 
@@ -87,7 +90,7 @@ export function LeftNav({ role }: { role: Role }) {
   const pathname = usePathname()
   const items = ITEMS.filter((item) => !item.roles || item.roles.includes(role))
   const trailingItems = TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
-  const showBilling = role === 'admin' || role === 'crc'
+  const showBilling = role === 'admin' || role === 'crc' || role === 'frontdesk'
   const billingActive = pathname?.startsWith('/billing') ?? false
   const [billingOpen, setBillingOpen] = useState(billingActive)
 
