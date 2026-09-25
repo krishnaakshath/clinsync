@@ -1,19 +1,26 @@
-# Clinsync — IPMG Research Pre-Screening Workbook
+# Clinsync
 
 **Live:** [clinsync-phi.vercel.app](https://clinsync-phi.vercel.app)
 
-A pilot build for a client engagement (Symbiosys Technologies → Inland
-Psychiatric Medical Group), demonstrating the product ahead of real
-IntakeQ/Tebra API credentials. All patient data is fictional, seeded from
-`src/db/seed.ts` — no real patient data is used anywhere in this build.
+Clinsync is a general-purpose practice-operations and clinical pre-screening
+platform, built by Symbiosys Technologies. All patient data in this build is
+fictional, seeded from `src/db/seed.ts` — no real patient data is used
+anywhere in this repository.
+
+Clinsync is its own product, not a wrapper around another vendor's software.
+It integrates (read-only, via mocked connectors today — see
+`src/connectors/*.mock.ts`) with a practice's existing intake/forms system
+and its EHR/PM system to pull referral and clinical chart data into one
+place, but nothing in its own UI, exports, or documentation ever names those
+external systems — every screen uses Clinsync's own, generic language for
+where data comes from.
 
 ## What it does
 
-Clinsync reconciles referral data from **IntakeQ** and clinical chart data
-from **Tebra** (both read-only, both mocked here — see
-`src/connectors/*.mock.ts`) into a single review workbook for research
-coordinators and investigators. A rule engine screens each patient against
-a trial's criteria and marks every criterion:
+Clinsync reconciles referral data and clinical chart data from two source
+systems into a single review workbook for research coordinators and
+investigators. A rule engine screens each patient against a trial's criteria
+and marks every criterion:
 
 - **Meets** — chart evidence clearly satisfies the criterion
 - **Needs Verification** — evidence is missing, ambiguous, or the two
@@ -37,19 +44,24 @@ only ever proposes.
 Trial criteria (diagnosis codes, rating-scale thresholds, medication
 stability/washout rules, age range, exclusion diagnoses) are **data on the
 `trials` table, not code** — see the JSONB columns in `src/db/schema.ts`.
-Nothing in the screening logic is specific to depression or any other
-single condition, since IPMG runs trials across multiple conditions (MDD,
-ADHD, and others) and a new trial should only ever require a new row,
-never a new code path.
+Nothing in the screening logic is specific to any single condition, since a
+practice can run trials across multiple conditions, and a new trial should
+only ever require a new row, never a new code path.
+
+Beyond pre-screening, Clinsync also covers day-to-day practice operations:
+scheduling, a patient chart/medical record, billing and insurance-claim
+tracking, a secure patient portal, staff/patient messaging, broadcasts,
+experience surveys, and a full audit trail — see **Screens** below.
 
 ## Roles and sign-in
 
-Staff (admin, principal investigator, coordinator) share one login flow at
-`/login` and one session cookie — only one staff identity can be active per
-browser at a time. Patients sign in separately at `/patient-portal/login`
-with a patient ID and a portal password issued by staff; that session uses
-a completely distinct cookie and can never be reinterpreted as a staff
-session (see `src/lib/auth.ts` vs. `src/lib/patient-session.ts`).
+Staff (**admin**, **principal investigator (PI)**, **coordinator (CRC)**)
+share one login flow at `/login` and one session cookie — only one staff
+identity can be active per browser at a time. Patients sign in separately
+at `/patient-portal/login` with a patient ID and a portal password issued
+by staff; that session uses a completely distinct cookie and can never be
+reinterpreted as a staff session (see `src/lib/auth.ts` vs.
+`src/lib/patient-session.ts`).
 
 Every write is role-checked server-side, not just hidden in the UI — e.g.
 practice settings, EHR connection fields, and provider-profile edits are
@@ -58,11 +70,9 @@ admin-only regardless of what a client sends.
 ## Screens
 
 **Workspace**
-- **Home** — real-time stats (peak scheduling hours, total patients
-  screened/unscreened, average patient-experience rating), a
-  patients-by-month chart, a screening-status breakdown, and the day's
-  appointments.
-- **My Patients** — an investigator's own assigned-patient view.
+- **Home** — role-specific dashboard (Admin, Coordinator, or Principal
+  Investigator's "My Patients") with real-time stats, a patients-by-month
+  chart, a screening-status breakdown, and the day's appointments.
 - **Patients** — the main workbook: every patient, their overall status,
   inclusion/exclusion criteria met, and a trial filter.
 - **Patient Detail** — screening evidence per criterion, identity
@@ -79,9 +89,12 @@ admin-only regardless of what a client sends.
 - **Form Templates** — a question editor for intake forms, including
   answer options for choice-type questions.
 - **Client Forms** — every intake form sent to a patient, its completion
-  status, and a readable view of the submitted answers.
+  status, and a readable view of the submitted answers (open to both PI
+  and coordinator sessions).
 - **Messages** — a per-patient thread for staff to message a patient
   directly; mirrored in the patient's own portal.
+- **Audit Log** (admin only) — every recorded staff and patient-portal
+  action across the app, for HIPAA-facing PHI-access monitoring.
 
 **Billing** — charges, insurance collections, patient collections,
 statements, an A/R dashboard, analytics, and a simulated virtual-card
@@ -91,13 +104,23 @@ payment demo (no real payment processing).
 encounters, insurance collections, unsigned notes), document/fax intake
 with processing status, patient broadcasts (simulated SMS/email, never
 sent to a real patient), post-screening experience surveys, a pipeline
-performance dashboard, and Settings (practice info, EHR connection
-placeholders, auto-classification toggle, provider roster, and a
+performance dashboard, and Settings (practice info, EHR/intake-system
+connection credentials, auto-classification toggle, provider roster, and a
 role-capability summary on each user's own account).
 
 **Patient Portal** (`/patient-portal`) — a separate, patient-facing
 surface with its own sidebar: overview, forms to complete, medications,
 appointments, and messages with the care team.
+
+**In development** — a Front Desk/Reception role and dashboard (patient
+registration/check-in, inpatient-vs-outpatient triage, doctor assignment,
+room assignment, insurance-eligibility verification) is specified in
+`docs/superpowers/specs/2026-09-25-front-desk-reception.md` and planned in
+`docs/superpowers/plans/2026-09-25-front-desk-reception.md`, as the first
+phase of a broader expansion toward full hospital-operations coverage
+(inpatient bed/ward management, pharmacy, and stronger authentication —
+see those specs and any newer ones under `docs/superpowers/specs/` for the
+current roadmap).
 
 ## Run & operate
 
@@ -105,8 +128,8 @@ appointments, and messages with the care team.
 npm install
 npm run dev              # http://localhost:3000 — redirects to /login
 npm test                 # full Vitest suite (loads .env.local via dotenv-cli)
-npm run build            # production build + typecheck
-npm run db:seed          # seed the demo trials/patients — safe to re-run, tops up rather than wipes if already seeded
+npm run build             # production build + typecheck
+npm run db:seed           # seed the demo trials/patients — safe to re-run, tops up rather than wipes if already seeded
 ```
 
 ### Database changes — read before touching the schema
@@ -176,9 +199,12 @@ per-patient random password generation instead.
   a real, since-fixed session-cookie-exfiltration vector.
 - Every read and write is attributed and logged via `src/lib/audit.ts`
   (staff) or `src/lib/patient-portal-audit.ts` (patients) — audit entries
-  always carry a real, non-null session, never a fallback role.
+  always carry a real, non-null session, never a fallback role. Admin can
+  review the full log at `/audit-log`.
 - Request bodies are validated against a strict Zod allowlist on every
   write route — no mass-assignment from raw JSON.
+- TOTP-based multi-factor authentication is mandatory for every staff and
+  patient-portal account (`src/lib/mfa.ts`).
 - Login is rate-limited per IP and, for the patient portal, also on an
   IP-independent global bucket keyed on patient ID (`src/lib/rate-limit.ts`).
 - The Excel export (`src/lib/excel-export.ts`) sanitizes every cell
@@ -202,10 +228,10 @@ driver, `drizzle-orm/neon-http`), Upstash Redis (read-through cache,
 - `src/app/(dashboard)/*` — the staff-facing screens
 - `src/app/patient-portal/*` — the patient-facing portal (login outside
   the `(authenticated)` route group, the portal itself inside it)
-- `src/connectors/*.mock.ts` — mock IntakeQ/Tebra connectors with the same
-  function signatures the real, read-only integrations will need later
-- `public/branding/` — IPMG's logo assets, used throughout the UI
-  alongside the Clinsync product name
+- `src/connectors/*.mock.ts` — mock connectors for the two external
+  systems Clinsync integrates with (intake/forms, and EHR/PM), sharing the
+  same function signatures the real, read-only integrations will need
+  once credentials are provisioned
 - `docs/superpowers/specs/` — design specs (product scope, UI/UX)
 - `docs/superpowers/plans/` — implementation plans
 
