@@ -1175,11 +1175,9 @@ Expected: FAIL — `transferAdmission` doesn't exist yet.
 
 - [ ] **Step 3: Implement `transferAdmission`**
 
-Append to `src/lib/queries/admissions.ts`:
+In `src/lib/queries/admissions.ts`, add `rooms` to the existing top-of-file `import { admissions, admissionTransfers } from '@/db/schema'` line (making it `import { admissions, admissionTransfers, rooms } from '@/db/schema'`) — do not add a second, separate `import` statement for the same module; this repo's ESLint config flags duplicate imports from one module. Then append to the file:
 
 ```ts
-import { rooms } from '@/db/schema'
-
 export interface TransferResult {
   ok: boolean
   error?: string
@@ -1441,11 +1439,10 @@ git commit -m "feat: add inpatient transfer workflow"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/lib/queries/admissions.test.ts`:
+Add `appointments` to this test file's existing `import { rooms, providers, patients, admissions, admissionTransfers } from '@/db/schema'` line (do not add a second import statement for the same module). Then append to `tests/lib/queries/admissions.test.ts`:
 
 ```ts
 import { dischargeAdmission } from '@/lib/queries/admissions'
-import { appointments } from '@/db/schema'
 
 describe('dischargeAdmission', () => {
   it('discharges, frees the room to dirty, and stores the 5 Ds', async () => {
@@ -1524,11 +1521,9 @@ Expected: FAIL — `dischargeAdmission` doesn't exist yet.
 
 - [ ] **Step 3: Implement `dischargeAdmission`**
 
-Append to `src/lib/queries/admissions.ts`:
+In `src/lib/queries/admissions.ts`, add `appointments` to the top-of-file `@/db/schema` import (by now it should read `import { admissions, admissionTransfers, rooms, appointments } from '@/db/schema'` — do not add a second import statement for the same module). Then append to the file:
 
 ```ts
-import { appointments } from '@/db/schema'
-
 export interface DischargeInput {
   dischargeDiagnosis: string
   dischargeDrugs: string
