@@ -990,8 +990,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
-import { appointments } from '@/db/schema'
+import { appointments, doctorAssignments } from '@/db/schema'
 import { hasSchedulingConflict } from '@/lib/queries/appointments'
 import { scheduleAssignment } from '@/lib/queries/doctor-assignments'
 
@@ -1020,7 +1021,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const db = getDb()
-  const [assignmentRow] = await db.select().from((await import('@/db/schema')).doctorAssignments).where((await import('drizzle-orm')).eq((await import('@/db/schema')).doctorAssignments.id, assignmentId))
+  const [assignmentRow] = await db.select().from(doctorAssignments).where(eq(doctorAssignments.id, assignmentId))
   if (!assignmentRow) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
 
   if (await hasSchedulingConflict(assignmentRow.providerId, startsAt, endsAt)) {
@@ -1041,8 +1042,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   return NextResponse.json(updated, { status: 200 })
 }
 ```
-
-(The inline `await import(...)` calls for `doctorAssignments`/`eq` avoid a second top-level import block purely for one lookup — replace with static imports at the top of the file instead, matching every other route in this codebase: `import { doctorAssignments } from '@/db/schema'` and `import { eq } from 'drizzle-orm'`. Written this way here only to keep the step's code block self-contained; **use static imports in the actual file**.)
 
 - [ ] **Step 13: Implement `src/app/api/front-desk/assignments/[id]/decline/route.ts`**
 
@@ -1082,10 +1081,19 @@ Expected: PASS (all 3 tests).
 
 - [ ] **Step 15: Add the "Assigned to you" section to the PI dashboard**
 
-Append to `tests/pages/doctor.test.tsx`:
+**Note:** `tests/pages/doctor.test.tsx` already has an existing test asserting `getByText(/assigned to you/i)` against the page's subtitle copy ("Patients currently assigned to you, {session.name}.") — so the new test below (a) must use `getByRole('heading', { name: /assigned to you/i })` to target the new section's own `<h2>`, not the ambiguous substring match, and (b) must call `vi.resetModules()` before `vi.doMock`, because this file's top-level `import DoctorPortalPage from '@/app/(dashboard)/doctor/page'` already resolved and cached that module — a later `vi.doMock` + dynamic `await import(...)` of the same specifier without a reset first returns the already-cached, unmocked module instance, so the mock silently never applies. Append to `tests/pages/doctor.test.tsx`:
 
 ```ts
-  it('shows a pending assignment in the "Assigned to you" queue', async () => {
+  it('shows a pending assignment in its own "Assigned to you" queue section', async () => {
+    vi.resetModules()
+    vi.doMock('@/lib/auth', () => ({ requireSessionOrRedirect: vi.fn(async () => ({ role: 'pi', name: 'Dr. R. Kunam' })) }))
+    vi.doMock('@/lib/audit', () => ({ logAudit: vi.fn(async () => undefined) }))
+    vi.doMock('@/lib/queries/patients', () => ({
+      listPatientsWithStatus: vi.fn(async () => [
+        { id: 'RD-0001', overallStatus: 'green', nameTebra: 'Jane Doe', nameIntakeq: 'Jane Doe', dobTebra: null, dobIntakeq: '1990-01-01', currentProvider: 'Dr. R. Kunam', referralType: null, lastCommunication: null, criteriaSummary: null },
+      ]),
+    }))
+    vi.doMock('@/lib/queries/providers', () => ({ listActiveProviders: vi.fn(async () => [{ id: 1, name: 'Dr. R. Kunam' }]) }))
     vi.doMock('@/lib/queries/doctor-assignments', () => ({
       listPendingAssignmentsForProvider: vi.fn(async () => [
         { id: 1, patientId: 'RD-0001', providerId: 1, visitType: 'outpatient', urgency: 'urgent', reason: 'New patient intake', status: 'pending', roomId: null, assignedByName: 'Taylor Nguyen', appointmentId: null, declineReason: null, createdAt: new Date() },
@@ -1095,7 +1103,7 @@ Append to `tests/pages/doctor.test.tsx`:
     const jsx = await DoctorPortalPageWithAssignments()
     const { render, screen } = await import('@testing-library/react')
     render(jsx)
-    expect(screen.getByText(/assigned to you/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /assigned to you/i })).toBeInTheDocument()
     expect(screen.getByText(/new patient intake/i)).toBeInTheDocument()
   })
 ```
@@ -1790,12 +1798,14 @@ export function EligibilityCheckModal({ onClose }: { onClose: () => void }) {
 
 - [ ] **Step 7: Write the failing dashboard-content test**
 
-Extend the Task 2 test in `tests/pages/dashboard-routing.test.tsx` (replace it with this fuller version):
+**Note:** this file's top-level `import DashboardHomePage from '@/app/(dashboard)/page'` (after all the top-level `vi.mock` calls) already resolved and cached that module for the whole file. The Task 2 test that dynamically re-imports it after a plain `vi.mocked(...).mockResolvedValueOnce(...)` override works fine because it doesn't need to swap any *other* module — but this new test needs `listAvailableRooms`/`listAllAssignments`/`listActiveProviders` mocked too (real dependencies `FrontDeskDashboard` now calls), so it must call `vi.resetModules()` first and redo every mock the page's import chain needs via `vi.doMock`, exactly like the pattern in `tests/pages/audit-log.test.tsx`. Replace the Task 2 test in `tests/pages/dashboard-routing.test.tsx` with this fuller version:
 
 ```ts
   it('renders the FrontDeskDashboard with KPI strip and queue for a frontdesk session', async () => {
-    const auth = await import('@/lib/auth')
-    vi.mocked(auth.requireSessionOrRedirect).mockResolvedValueOnce({ role: 'frontdesk', name: 'Taylor Nguyen' })
+    vi.resetModules()
+    vi.doMock('next/navigation', () => ({ redirect: mockRedirect }))
+    vi.doMock('@/lib/auth', () => ({ requireSessionOrRedirect: vi.fn(async () => ({ role: 'frontdesk', name: 'Taylor Nguyen' })) }))
+    vi.doMock('@/lib/audit', () => ({ logAudit: vi.fn(async () => undefined) }))
     vi.doMock('@/lib/queries/rooms', () => ({ listAvailableRooms: vi.fn(async () => [{ id: 1, ward: 'Ward A', roomNumber: '101', bedNumber: 'A' }]) }))
     vi.doMock('@/lib/queries/doctor-assignments', () => ({ listAllAssignments: vi.fn(async () => [
       { id: 1, patientId: 'RD-0001', providerId: 1, visitType: 'outpatient', urgency: 'urgent', reason: 'Test visit', status: 'pending', roomId: null, assignedByName: 'Taylor Nguyen', appointmentId: null, declineReason: null, createdAt: new Date() },
@@ -1809,6 +1819,8 @@ Extend the Task 2 test in `tests/pages/dashboard-routing.test.tsx` (replace it w
     expect(screen.getByText('Test visit')).toBeInTheDocument()
   })
 ```
+
+(`mockRedirect` is the `vi.hoisted` binding already declared at the top of this file — it's still in scope for the new `vi.doMock('next/navigation', ...)` call above.)
 
 - [ ] **Step 8: Run it to confirm it fails**
 
