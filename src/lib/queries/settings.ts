@@ -6,7 +6,7 @@ import { encryptSensitive } from '@/lib/crypto'
 // Single-row settings table: always operate on row id 1 (created by the seed).
 export async function getAppSettings() {
   const [row] = await getDb().select().from(appSettings)
-  return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null, adminMfaSecretEncrypted: null, adminMfaEnabled: false }
+  return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null, adminMfaSecretEncrypted: null, adminMfaEnabled: false, adminMfaMethod: 'totp' as const, adminPhone: null }
 }
 
 // What the Settings page actually renders -- booleans for whether each EHR

@@ -1,9 +1,10 @@
 'use client'
 import { useState } from 'react'
 
-export function MfaMethodPicker({ currentMethod, currentPhone }: { currentMethod: 'totp' | 'sms' | 'email'; currentPhone: string | null }) {
+export function MfaMethodPicker({ email, currentMethod, currentPhone }: { email: string; currentMethod: 'totp' | 'sms' | 'email'; currentPhone: string | null }) {
   const [method, setMethod] = useState(currentMethod)
   const [phone, setPhone] = useState(currentPhone ?? '')
+  const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -15,7 +16,7 @@ export function MfaMethodPicker({ currentMethod, currentPhone }: { currentMethod
     const res = await fetch('/api/account/mfa-method', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method, ...(method === 'sms' && phone ? { phone } : {}) }),
+      body: JSON.stringify({ method, email, password, ...(method === 'sms' && phone ? { phone } : {}) }),
     })
     setSaving(false)
     if (!res.ok) {
@@ -24,6 +25,7 @@ export function MfaMethodPicker({ currentMethod, currentPhone }: { currentMethod
       return
     }
     setSaved(true)
+    setPassword('')
   }
 
   return (
@@ -43,9 +45,17 @@ export function MfaMethodPicker({ currentMethod, currentPhone }: { currentMethod
           className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
         />
       )}
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Confirm your password"
+        aria-label="Confirm your password"
+        className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+      />
       {error && <p className="text-xs text-destructive">{error}</p>}
       {saved && <p className="text-xs text-success">Saved — you&apos;ll use this method next time you sign in.</p>}
-      <button onClick={save} disabled={saving} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50">
+      <button onClick={save} disabled={saving || !password} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50">
         {saving ? 'Saving…' : 'Save'}
       </button>
     </div>

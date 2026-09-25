@@ -103,7 +103,7 @@ export default async function SettingsPage() {
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Security</h2>
         <p className="mb-3 text-sm text-muted-foreground">Two-factor authentication is required for every staff account. If you&apos;ve lost your device, reset it here and set it up again on your next sign-in.</p>
         <div className="space-y-3">
-          <MfaMethodPicker currentMethod={currentMfaMethod} currentPhone={currentPhone} />
+          <MfaMethodPicker email={currentUserEmail} currentMethod={currentMfaMethod} currentPhone={currentPhone} />
           <StaffMfaSelfResetForm email={currentUserEmail} />
         </div>
       </section>

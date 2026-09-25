@@ -84,7 +84,8 @@ async function startStaffMfaChallenge({ role, name, userId, ip, mfaMethod, phone
     try {
       await generateAndSendOtp(identity, mfaMethod, destination)
     } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : `Could not send a ${mfaMethod} code.` }, { status: 500 })
+      console.error(`Failed to send ${mfaMethod} OTP:`, err)
+      return NextResponse.json({ error: `Could not send your ${mfaMethod === 'sms' ? 'text' : 'email'} code. Contact your admin.` }, { status: 500 })
     }
 
     await setPendingStaffMfaCookie({ role, name, mode: 'verify', userId, method: mfaMethod })

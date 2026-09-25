@@ -25,9 +25,14 @@ const TEST_DB_USER_PASSWORD = 'pi-test-pass-123'
 // Mocked here so re-running this file within the same sliding window can't
 // make an unrelated later test fail with 429; rate-limit.ts is unit-tested
 // separately with a throwaway key.
-vi.mock('@/lib/rate-limit', () => ({
-  checkLoginRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
-}))
+vi.mock('@/lib/rate-limit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/rate-limit')>()
+  return {
+    ...actual,
+    checkLoginRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+    checkOtpSendRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  }
+})
 
 // A correct admin password now always starts the mandatory MFA challenge,
 // which reads -- and, if the admin isn't enrolled yet, WRITES a fresh secret
