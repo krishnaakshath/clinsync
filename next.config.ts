@@ -4,6 +4,13 @@ import type { NextConfig } from "next";
 // audits. HSTS only matters in production (over HTTP in dev it's a no-op,
 // but sending it there is still harmless).
 const nextConfig: NextConfig = {
+  // nodemailer isn't on Next's short list of packages auto-opted-out of
+  // Server Components bundling (see serverExternalPackages docs) -- without
+  // this, Turbopack tries to bundle it for the server graph and fails with
+  // "Module not found: Can't resolve 'nodemailer'" even though it's
+  // correctly installed, since nodemailer's own use of Node-specific
+  // features (TLS/DNS internals in its SMTP transport) isn't bundler-safe.
+  serverExternalPackages: ['nodemailer'],
   experimental: {
     // Neon's HTTP driver (@neondatabase/serverless via drizzle-orm/neon-http)
     // issues its queries as `fetch()` calls under the hood. Next's dev-only
