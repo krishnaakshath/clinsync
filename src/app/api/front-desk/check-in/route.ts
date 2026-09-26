@@ -7,6 +7,7 @@ import { getDb } from '@/db/client'
 import { patients, providers } from '@/db/schema'
 import { assignRoomToPatient } from '@/lib/queries/rooms'
 import { createDoctorAssignment } from '@/lib/queries/doctor-assignments'
+import { createAdmission, getActiveAdmissionForPatient } from '@/lib/queries/admissions'
 
 const checkInSchema = z.object({
   patientId: z.string().min(1),
@@ -42,6 +43,26 @@ export async function POST(request: NextRequest) {
   const [providerRow] = await getDb().select({ id: providers.id }).from(providers).where(eq(providers.id, providerId))
   if (!providerRow) return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
 
+  // Checking in an inpatient IS starting their admission -- there's no
+  // separate "start an admission" screen. Guard against double-admitting a
+  // patient who's already an active inpatient (e.g. reception accidentally
+  // re-checks someone in): the existing admission remains the current one.
+  //
+  // This lookup MUST happen before any room is claimed. If a room were
+  // claimed first and this guard then fired, the just-claimed room would be
+  // left permanently `occupied` with no admission ever pointing at it --
+  // nothing else in the app knows to free it. When the patient is already
+  // admitted AND a room was requested, reject the whole check-in instead:
+  // moving an already-admitted patient into a different room is what
+  // Transfer is for, not a second check-in.
+  const existingActive = visitType === 'inpatient' ? await getActiveAdmissionForPatient(patientId) : null
+  if (existingActive && roomId) {
+    return NextResponse.json(
+      { error: 'This patient is already admitted. Use Transfer to move them to a different room.' },
+      { status: 409 },
+    )
+  }
+
   if (roomId) {
     const assigned = await assignRoomToPatient(roomId, patientId)
     if (!assigned) {
@@ -58,6 +79,16 @@ export async function POST(request: NextRequest) {
     roomId: roomId ?? null,
     assignedByName: session.name,
   })
+
+  if (visitType === 'inpatient' && !existingActive) {
+    await createAdmission({
+      patientId,
+      roomId: roomId ?? null,
+      attendingProviderId: providerId,
+      admissionType: 'elective',
+      createdFromAssignmentId: created.id,
+    })
+  }
 
   await logAudit(session, `checked in patient (${visitType})`, patientId)
   return NextResponse.json(created, { status: 201 })

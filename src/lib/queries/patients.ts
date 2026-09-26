@@ -2,7 +2,7 @@ import { getDb } from '@/db/client'
 import {
   patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications,
   formSubmissions, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
-  rooms, doctorAssignments, insuranceEligibilityChecks,
+  rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers,
 } from '@/db/schema'
 import { eq, inArray, or } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
@@ -162,7 +162,17 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   // the appointments delete below with a foreign-key violation once a doctor assignment
   // references an appointment (see the children-before-parents ordering already used above
   // for screeningCriteriaResults before patientTrialScreenings).
+  //
+  // admissionTransfers -> admissions -> doctorAssignments -> appointments, in that order:
+  // admissionTransfers.admissionId references admissions(id), and admissions itself
+  // references both doctorAssignments(id) (createdFromAssignmentId) and appointments(id)
+  // (followUpAppointmentId) -- the same FK-ordering discipline applied one level deeper.
   await db.delete(insuranceEligibilityChecks).where(eq(insuranceEligibilityChecks.patientId, anonId))
+  const patientAdmissionIds = (await db.select({ id: admissions.id }).from(admissions).where(eq(admissions.patientId, anonId))).map((a) => a.id)
+  if (patientAdmissionIds.length > 0) {
+    await db.delete(admissionTransfers).where(inArray(admissionTransfers.admissionId, patientAdmissionIds))
+  }
+  await db.delete(admissions).where(eq(admissions.patientId, anonId))
   await db.delete(doctorAssignments).where(eq(doctorAssignments.patientId, anonId))
   await db.delete(appointments).where(eq(appointments.patientId, anonId))
   await db.delete(messages).where(eq(messages.patientId, anonId))

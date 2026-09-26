@@ -7,7 +7,7 @@ import {
   Calendar, FileText, FileSignature, MessageSquare, Wallet, Receipt, ShieldCheck, HandCoins,
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
-  ClipboardCheck, ListChecks,
+  ClipboardCheck, ListChecks, BedDouble,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
@@ -38,6 +38,7 @@ const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/client-forms', label: 'Client Forms', icon: FileSignature },
   { href: '/front-desk/check-in', label: 'Check-In', icon: ClipboardCheck, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
   { href: '/front-desk/assignments', label: 'Assignments', icon: ListChecks, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
+  { href: '/inpatient/beds', label: 'Beds', icon: BedDouble, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
   { href: '/messages', label: 'Messages', icon: MessageSquare },
 ]
 
