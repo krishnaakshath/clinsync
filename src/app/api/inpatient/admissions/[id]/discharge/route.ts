@@ -5,6 +5,9 @@ import { logAudit } from '@/lib/audit'
 import { getAdmissionById, dischargeAdmission } from '@/lib/queries/admissions'
 import { listActiveProviders } from '@/lib/queries/providers'
 import { hasSchedulingConflict } from '@/lib/queries/appointments'
+import { createSignature } from '@/lib/queries/signatures'
+
+const DISCHARGE_ATTESTATION = 'I attest that this discharge summary is accurate and complete.'
 
 const dischargeSchema = z.object({
   dischargeDiagnosis: z.string().min(1),
@@ -14,6 +17,7 @@ const dischargeSchema = z.object({
   dischargeSummaryNotes: z.string().min(1),
   followUpStartsAt: z.string().min(1).optional(),
   followUpEndsAt: z.string().min(1).optional(),
+  typedName: z.string().trim().min(1),
 }).strict()
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -66,5 +70,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   await logAudit(session, 'discharged patient', admission.patientId)
+
+  // Insert the discharge signature as a SEPARATE step after the
+  // authoritative discharge write above -- same sequential-not-transactional
+  // posture dischargeAdmission itself already documents for its own
+  // room-freeing/follow-up-appointment steps (this driver has no
+  // multi-statement transactions). If this insert throws, the admission is
+  // already correctly discharged -- the medically important fact -- and the
+  // missing signature is left as a genuine, visible "Not yet signed" gap on
+  // the chart (Task 4) rather than a silently swallowed error or a blocked
+  // discharge.
+  try {
+    await createSignature({
+      signableType: 'admission_discharge',
+      signableId: admissionId,
+      signerTypedName: parsed.data.typedName,
+      signerRole: session.role,
+      attestationText: DISCHARGE_ATTESTATION,
+    })
+  } catch (err) {
+    console.error(`Failed to record discharge signature for admission ${admissionId}:`, err)
+  }
+
   return NextResponse.json({ ok: true, followUpAppointmentId: result.followUpAppointmentId ?? null })
 }

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { eq, ne } from 'drizzle-orm'
+import { eq, ne, and } from 'drizzle-orm'
 import { POST } from '@/app/api/inpatient/admissions/[id]/discharge/route'
 import { getDb } from '@/db/client'
-import { admissions, patients, appointments, providers } from '@/db/schema'
+import { admissions, patients, appointments, providers, signatures } from '@/db/schema'
 import { createAdmission } from '@/lib/queries/admissions'
 
 let sessionRole: 'admin' | 'pi' | 'frontdesk' = 'pi'
@@ -16,7 +16,11 @@ afterEach(async () => {
   sessionRole = 'pi'
   sessionName = 'Dr. Chen'
   while (createdAppointmentIds.length > 0) await getDb().delete(appointments).where(eq(appointments.id, createdAppointmentIds.pop()!))
-  while (createdAdmissionIds.length > 0) await getDb().delete(admissions).where(eq(admissions.id, createdAdmissionIds.pop()!))
+  while (createdAdmissionIds.length > 0) {
+    const admissionId = createdAdmissionIds.pop()!
+    await getDb().delete(signatures).where(and(eq(signatures.signableType, 'admission_discharge'), eq(signatures.signableId, admissionId)))
+    await getDb().delete(admissions).where(eq(admissions.id, admissionId))
+  }
 })
 
 describe('POST /api/inpatient/admissions/[id]/discharge', () => {
@@ -25,7 +29,17 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
     const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 1, admissionType: 'elective', createdFromAssignmentId: null })
     createdAdmissionIds.push(admission.id)
 
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: '', dischargeSummaryNotes: 'E' }) })
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: '', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen' }) })
+    const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects a discharge missing typedName', async () => {
+    const [patientRow] = await getDb().select().from(patients).limit(1)
+    const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 1, admissionType: 'elective', createdFromAssignmentId: null })
+    createdAdmissionIds.push(admission.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E' }) })
     const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
     expect(res.status).toBe(400)
   })
@@ -35,9 +49,23 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
     const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 1, admissionType: 'elective', createdFromAssignmentId: null })
     createdAdmissionIds.push(admission.id)
 
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E' }) })
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen' }) })
     const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
     expect(res.status).toBe(200)
+  })
+
+  it('inserts a signature row alongside a successful discharge', async () => {
+    const [patientRow] = await getDb().select().from(patients).limit(1)
+    const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 1, admissionType: 'elective', createdFromAssignmentId: null })
+    createdAdmissionIds.push(admission.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen' }) })
+    const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
+    expect(res.status).toBe(200)
+
+    const rows = await getDb().select().from(signatures).where(and(eq(signatures.signableType, 'admission_discharge'), eq(signatures.signableId, admission.id)))
+    expect(rows).toHaveLength(1)
+    expect(rows[0].signerTypedName).toBe('Dr. Chen')
   })
 
   it('rejects a PI discharging an admission they are not the attending provider for', async () => {
@@ -49,7 +77,7 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
     const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: otherProviderRow.id, admissionType: 'elective', createdFromAssignmentId: null })
     createdAdmissionIds.push(admission.id)
 
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E' }) })
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen' }) })
     const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
     expect(res.status).toBe(403)
   })
@@ -58,7 +86,7 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
     const [patientRow] = await getDb().select().from(patients).limit(1)
     const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 1, admissionType: 'elective', createdFromAssignmentId: null })
     createdAdmissionIds.push(admission.id)
-    const body = JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E' })
+    const body = JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen' })
     await POST(new Request('http://localhost', { method: 'POST', body }) as never, { params: Promise.resolve({ id: String(admission.id) }) })
 
     const res = await POST(new Request('http://localhost', { method: 'POST', body }) as never, { params: Promise.resolve({ id: String(admission.id) }) })
@@ -73,7 +101,7 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
     const startsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     const endsAt = new Date(startsAt.getTime() - 60 * 1000)
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({
-      dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E',
+      dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen',
       followUpStartsAt: startsAt.toISOString(), followUpEndsAt: endsAt.toISOString(),
     }) })
     const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
@@ -101,7 +129,7 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
     createdAppointmentIds.push(existingAppt.id)
 
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({
-      dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E',
+      dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen',
       followUpStartsAt: startsAt.toISOString(), followUpEndsAt: endsAt.toISOString(),
     }) })
     const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
@@ -109,5 +137,31 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
 
     const updated = await getDb().select().from(admissions).where(eq(admissions.id, admission.id))
     expect(updated[0].status).toBe('admitted')
+  })
+
+  it('discharge still succeeds and the admission is still discharged even if recording the signature fails', async () => {
+    const [patientRow] = await getDb().select().from(patients).limit(1)
+    const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 1, admissionType: 'elective', createdFromAssignmentId: null })
+    createdAdmissionIds.push(admission.id)
+
+    vi.doMock('@/lib/queries/signatures', () => ({
+      createSignature: vi.fn(async () => { throw new Error('simulated signature insert failure') }),
+    }))
+    vi.resetModules()
+    const { POST: postWithFailingSignature } = await import('@/app/api/inpatient/admissions/[id]/discharge/route')
+
+    try {
+      const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen' }) })
+      const res = await postWithFailingSignature(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.ok).toBe(true)
+
+      const updated = await getDb().select().from(admissions).where(eq(admissions.id, admission.id))
+      expect(updated[0].status).toBe('discharged')
+    } finally {
+      vi.doUnmock('@/lib/queries/signatures')
+      vi.resetModules()
+    }
   })
 })
