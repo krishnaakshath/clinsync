@@ -529,7 +529,15 @@ export const medicationFormEnum = pgEnum('medication_form', ['tablet', 'capsule'
 
 export const medications = pgTable('medications', {
   id: serial('id').primaryKey(),
-  name: text('name').notNull(),
+  // UNIQUE (live-DB migration: medications_name_unique) -- added post-launch
+  // by the final whole-branch review after a rename-without-cleanup bug
+  // (seed matched by name before inserting, so renaming brand names to
+  // generic names left the old brand-named rows in place instead of
+  // updating them) produced 13 duplicate catalog rows with independently
+  // split inventory. This constraint makes that failure mode impossible
+  // going forward: a future rename-without-cleanup throws instead of
+  // silently duplicating.
+  name: text('name').notNull().unique(),
   genericName: text('generic_name'),
   medicationClass: text('medication_class').notNull(),
   commonDose: text('common_dose'),
