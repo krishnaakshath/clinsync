@@ -443,6 +443,26 @@ export const appointments = pgTable('appointments', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+export const bookingRequestStatusEnum = pgEnum('booking_request_status', ['pending', 'confirmed', 'declined'])
+
+export const bookingRequests = pgTable('booking_requests', {
+  id: serial('id').primaryKey(),
+  requesterName: text('requester_name').notNull(),
+  requesterDob: date('requester_dob').notNull(),
+  requesterEmail: text('requester_email'),
+  requesterPhone: text('requester_phone'),
+  preferredProviderId: integer('preferred_provider_id').references(() => providers.id),
+  preferredDateRangeStart: date('preferred_date_range_start').notNull(),
+  preferredDateRangeEnd: date('preferred_date_range_end').notNull(),
+  reason: text('reason').notNull(),
+  status: bookingRequestStatusEnum('status').default('pending').notNull(),
+  submittedAt: timestamp('submitted_at').defaultNow().notNull(),
+  reviewedByName: text('reviewed_by_name'),
+  reviewedAt: timestamp('reviewed_at'),
+  declineReason: text('decline_reason'),
+  resultingAppointmentId: integer('resulting_appointment_id').references(() => appointments.id),
+})
+
 export const roomStatusEnum = pgEnum('room_status', ['available', 'occupied', 'dirty', 'blocked'])
 
 export const rooms = pgTable('rooms', {
