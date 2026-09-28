@@ -48,6 +48,30 @@ describe('telemedicine session lifecycle', () => {
     expect(second.ok).toBe(false)
   })
 
+  it('two genuinely concurrent creates for the same appointment: exactly one wins, the loser gets a clean ok:false (not an unhandled exception)', async () => {
+    const { appt } = await makeAppointment()
+
+    // Fired together via Promise.all against the real connection pool -- not
+    // sequential calls disguised as concurrent -- so both requests' SELECT
+    // pre-checks race for real, and the loser must hit the INSERT's unique
+    // constraint (appointmentId.unique()) rather than the pre-check.
+    const [resultA, resultB] = await Promise.all([
+      createTelemedicineSession(appt.id),
+      createTelemedicineSession(appt.id),
+    ])
+
+    const okCount = [resultA.ok, resultB.ok].filter(Boolean).length
+    expect(okCount).toBe(1)
+
+    const loser = resultA.ok ? resultB : resultA
+    expect(loser.ok).toBe(false)
+    expect(loser.error).toBe('A telemedicine session already exists for this appointment')
+
+    // Only one row actually landed in the table.
+    const rows = await getDb().select().from(telemedicineSessions).where(eq(telemedicineSessions.appointmentId, appt.id))
+    expect(rows).toHaveLength(1)
+  })
+
   it('transitions scheduled -> waiting -> in_progress as each side joins, then completed on end', async () => {
     const { appt } = await makeAppointment()
     const { session } = await createTelemedicineSession(appt.id)

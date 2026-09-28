@@ -51,12 +51,32 @@ export async function getSessionByToken(token: string): Promise<TelemedicineSess
   return row ? mapRow(row) : null
 }
 
+const ALREADY_EXISTS_ERROR = 'A telemedicine session already exists for this appointment'
+// Postgres SQLSTATE for unique_violation -- the `node-postgres` driver
+// (src/db/client.ts uses `pg`, not the Neon HTTP driver) throws plain
+// Error-like objects carrying this on `.code` for any constraint violation.
+const POSTGRES_UNIQUE_VIOLATION = '23505'
+
 export async function createTelemedicineSession(appointmentId: number): Promise<{ ok: boolean; error?: string; session?: TelemedicineSessionRow }> {
   const [existing] = await getDb().select().from(telemedicineSessions).where(eq(telemedicineSessions.appointmentId, appointmentId))
-  if (existing) return { ok: false, error: 'A telemedicine session already exists for this appointment' }
+  if (existing) return { ok: false, error: ALREADY_EXISTS_ERROR }
 
   const patientJoinToken = randomBytes(32).toString('base64url')
-  const [created] = await getDb().insert(telemedicineSessions).values({ appointmentId, patientJoinToken }).returning()
+  let created: typeof telemedicineSessions.$inferSelect
+  try {
+    ;[created] = await getDb().insert(telemedicineSessions).values({ appointmentId, patientJoinToken }).returning()
+  } catch (error) {
+    // Two concurrent calls for the same appointmentId can both pass the
+    // SELECT above before either INSERTs -- the loser hits this unique
+    // constraint (telemedicineSessions.appointmentId.unique(), from Task 1)
+    // instead of the pre-check. Without this catch, that loser would surface
+    // as an unhandled 500 instead of the same clean `{ ok: false }` shape
+    // the pre-check already returns for the non-racing case.
+    if ((error as { code?: string }).code === POSTGRES_UNIQUE_VIOLATION) {
+      return { ok: false, error: ALREADY_EXISTS_ERROR }
+    }
+    throw error
+  }
 
   const session = await getSessionById(created.id)
   return { ok: true, session: session! }
