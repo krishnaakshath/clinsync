@@ -6,10 +6,12 @@ import { patients, providers, labTests, labOrders, labResults } from '@/db/schem
 type Role = 'admin' | 'pi' | 'crc' | 'frontdesk'
 let sessionRole: Role = 'admin'
 let sessionName = 'Test User'
-// This session's name deliberately doesn't match the mocked provider's name
-// below, so order creation exercises the "no match -> fall back to the
-// first active provider" branch (see Step 1's resolution in the order
-// route) -- this file's focus is role gating, not identity matching.
+// This default session name deliberately doesn't match the mocked
+// provider's name below, so order creation exercises the "no match ->
+// fall back to the first active provider" branch for 'admin' (see Step 1's
+// resolution in the order route, narrowed to 'admin' only per review) and
+// the "no match -> reject" branch for 'pi'. Individual tests override this
+// where they need a real name match instead.
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: sessionRole, name: sessionName })) }))
 
 let mockProviderId = 1
@@ -76,15 +78,27 @@ describe('lab order lifecycle routes — role gating (asymmetric collect gate)',
       createdOrderIds.push(body.id)
     })
 
-    it('allows pi (201)', async () => {
+    it('allows pi whose session name matches a provider (201, real match — not the admin-only fallback)', async () => {
       sessionRole = 'pi'
+      sessionName = 'Dr. Chen' // matches the mocked provider's name below
       const [patientRow] = await getDb().select().from(patients).limit(1)
       const [test] = await getDb().select().from(labTests).limit(1)
       const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ labTestId: test.id }) })
       const res = await createOrder(req as never, { params: Promise.resolve({ anonId: patientRow.id }) })
       expect(res.status).toBe(201)
       const body = await res.json()
+      expect(body.orderedByProviderId).toBe(mockProviderId)
       createdOrderIds.push(body.id)
+    })
+
+    it('rejects a pi session whose name matches no provider, rather than silently misattributing the order (fail closed — matches discharge route precedent)', async () => {
+      sessionRole = 'pi'
+      sessionName = 'Someone Unmatched' // does not match the mocked provider's name
+      const [patientRow] = await getDb().select().from(patients).limit(1)
+      const [test] = await getDb().select().from(labTests).limit(1)
+      const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ labTestId: test.id }) })
+      const res = await createOrder(req as never, { params: Promise.resolve({ anonId: patientRow.id }) })
+      expect(res.status).toBe(403)
     })
   })
 
