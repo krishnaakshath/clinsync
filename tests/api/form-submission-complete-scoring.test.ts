@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { PUT as updateSubmissionRoute } from '@/app/api/form-submissions/[id]/route'
 import { getDb } from '@/db/client'
 import { patients, formTemplates, formSubmissions, formSubmissionScores } from '@/db/schema'
-import { getScoreForSubmission } from '@/lib/queries/form-submission-scoring'
+import { getScoreForSubmission, type ScoringRule } from '@/lib/queries/form-submission-scoring'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'admin', name: 'Test Staff' })) }))
 
@@ -22,7 +22,7 @@ function req(body: unknown) {
   return new Request('http://localhost', { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } })
 }
 
-async function makeTemplate(scoringRule: unknown) {
+async function makeTemplate(scoringRule: ScoringRule | null) {
   const db = getDb()
   const [template] = await db.insert(formTemplates).values({
     name: `Route Hook Test ${Date.now()}`, category: 'Screening Questionnaires', diagnosisTag: 'Test',
