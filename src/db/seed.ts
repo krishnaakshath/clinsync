@@ -893,9 +893,17 @@ export async function seed() {
       category: 'Screening Questionnaires',
       diagnosisTag: 'Major Depressive Disorder',
       questions: [
-        { id: 'q1', label: 'Little interest or pleasure in doing things', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], hipaaSensitive: true, required: true },
-        { id: 'q2', label: 'Feeling down, depressed, or hopeless', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], hipaaSensitive: true, required: true },
+        { id: 'q1', label: 'Little interest or pleasure in doing things', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q2', label: 'Feeling down, depressed, or hopeless', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q3', label: 'Trouble falling or staying asleep, or sleeping too much', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q4', label: 'Feeling tired or having little energy', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q5', label: 'Poor appetite or overeating', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q6', label: 'Feeling bad about yourself — or that you are a failure or have let yourself or your family down', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q7', label: 'Trouble concentrating on things, such as reading or watching television', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q8', label: 'Moving or speaking so slowly that other people could have noticed, or the opposite — being so fidgety or restless that you have been moving around a lot more than usual', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q9', label: 'Thoughts that you would be better off dead, or of hurting yourself in some way', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
       ],
+      scoringRule: { questionIds: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9'], bands: [{ min: 0, max: 4, label: 'Minimal' }, { min: 5, max: 9, label: 'Mild' }, { min: 10, max: 14, label: 'Moderate' }, { min: 15, max: 19, label: 'Moderately Severe' }, { min: 20, max: 27, label: 'Severe' }] },
     },
     {
       name: 'ASRS-v1.1 (ADHD Screening)',
@@ -904,6 +912,21 @@ export async function seed() {
       questions: [
         { id: 'q1', label: 'How often do you have trouble wrapping up the final details of a project?', type: 'select', options: ['Never', 'Rarely', 'Sometimes', 'Often', 'Very Often'], hipaaSensitive: true, required: true },
       ],
+    },
+    {
+      name: 'GAD-7 (Anxiety Screening)',
+      category: 'Screening Questionnaires',
+      diagnosisTag: 'Generalized Anxiety Disorder',
+      questions: [
+        { id: 'q1', label: 'Feeling nervous, anxious, or on edge', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q2', label: 'Not being able to stop or control worrying', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q3', label: 'Worrying too much about different things', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q4', label: 'Trouble relaxing', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q5', label: "Being so restless that it's hard to sit still", type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q6', label: 'Becoming easily annoyed or irritable', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q7', label: 'Feeling afraid as if something awful might happen', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+      ],
+      scoringRule: { questionIds: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'], bands: [{ min: 0, max: 4, label: 'Minimal' }, { min: 5, max: 9, label: 'Mild' }, { min: 10, max: 14, label: 'Moderate' }, { min: 15, max: 21, label: 'Severe' }] },
     },
   ])
 
