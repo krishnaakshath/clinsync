@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
 // Purely presentational, controlled input widget -- it does NOT perform the
@@ -23,14 +23,19 @@ export function SignatureCapture({
   const [typedName, setTypedName] = useState('')
   const [attested, setAttested] = useState(false)
   const canSubmit = typedName.trim().length > 0 && attested && !submitting
+  // Unique per instance -- the patient portal forms list can render one
+  // SignatureCapture per unsigned consent form (2+ seeded templates), so a
+  // hardcoded id would duplicate across the DOM and make `<label htmlFor>`
+  // focus the wrong input.
+  const typedNameId = useId()
 
   return (
     <div className="space-y-2">
-      <label htmlFor="signature-typed-name" className="block text-xs font-medium text-muted-foreground">
+      <label htmlFor={typedNameId} className="block text-xs font-medium text-muted-foreground">
         Type your full legal name to sign
       </label>
       <input
-        id="signature-typed-name"
+        id={typedNameId}
         value={typedName}
         onChange={(e) => setTypedName(e.target.value)}
         placeholder="Full legal name"

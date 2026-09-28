@@ -54,7 +54,15 @@ export default async function PatientPortalFormsPage() {
                     )}
                   </div>
                 </div>
-                {f.category === 'Consent Forms' && f.status !== 'completed' && (
+                {/* Only offer signing once the patient has actually opened/started this
+                    form (status 'partial' -- there are real answers on file). A 'sent'
+                    submission has never been opened and has no answers yet; signing it
+                    here would attest to content the patient never saw, and would
+                    permanently kill the token (via isSubmissionTokenValid) before they
+                    ever got to answer the form's real questions. The sign route enforces
+                    this same rule independently -- this client-side gate is UX, not the
+                    security boundary. */}
+                {f.category === 'Consent Forms' && f.status === 'partial' && (
                   <SignConsentFormAction patientId={session.patientId} formSubmissionId={f.id} />
                 )}
               </li>

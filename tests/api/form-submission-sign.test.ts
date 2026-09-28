@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { POST } from '@/app/api/patients/[anonId]/form-submissions/[id]/sign/route'
 import { getDb } from '@/db/client'
@@ -24,17 +24,26 @@ afterEach(async () => {
   sessionPatientId = PATIENT_ID
   while (createdSubmissionIds.length > 0) {
     const id = createdSubmissionIds.pop()!
-    await getDb().delete(signatures).where(eq(signatures.signableId, id))
+    // Scope to (signableType, signableId), not signableId alone -- on the
+    // shared Neon DB an admission_discharge signature with the same small
+    // integer id (plausible from a concurrent worktree run) would otherwise
+    // get deleted by this suite's cleanup.
+    await getDb().delete(signatures).where(and(eq(signatures.signableType, 'form_submission'), eq(signatures.signableId, id)))
     await getDb().delete(formSubmissions).where(eq(formSubmissions.id, id))
   }
   while (createdTemplateIds.length > 0) await getDb().delete(formTemplates).where(eq(formTemplates.id, createdTemplateIds.pop()!))
 })
 
-async function makeSubmission(category: string, status: 'sent' | 'partial' | 'completed' = 'partial', patientId: string = PATIENT_ID) {
+async function makeSubmission(
+  category: string,
+  status: 'sent' | 'partial' | 'completed' = 'partial',
+  patientId: string = PATIENT_ID,
+  answers?: Record<string, string>
+) {
   const db = getDb()
   const [template] = await db.insert(formTemplates).values({ name: `Test ${category} ${Date.now()}`, category, diagnosisTag: 'test', questions: [] }).returning()
   createdTemplateIds.push(template.id)
-  const [submission] = await db.insert(formSubmissions).values({ templateId: template.id, patientId, status }).returning()
+  const [submission] = await db.insert(formSubmissions).values({ templateId: template.id, patientId, status, ...(answers ? { answers } : {}) }).returning()
   createdSubmissionIds.push(submission.id)
   return submission
 }
@@ -44,8 +53,8 @@ function req(body: unknown) {
 }
 
 describe('POST /api/patients/[anonId]/form-submissions/[id]/sign', () => {
-  it('signs a consent-category submission and marks it completed', async () => {
-    const submission = await makeSubmission('Consent Forms')
+  it('signs a consent-category submission that has real answers and marks it completed', async () => {
+    const submission = await makeSubmission('Consent Forms', 'partial', PATIENT_ID, { q1: 'yes' })
     const res = await POST(req({ typedName: 'Maria Alvarez' }) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })
     expect(res.status).toBe(200)
 
@@ -53,6 +62,21 @@ describe('POST /api/patients/[anonId]/form-submissions/[id]/sign', () => {
     expect(updated.status).toBe('completed')
     const sigRows = await getDb().select().from(signatures).where(eq(signatures.signableId, submission.id))
     expect(sigRows.some((s) => s.signableType === 'form_submission' && s.signerTypedName === 'Maria Alvarez')).toBe(true)
+  })
+
+  it('rejects signing a sent-status submission that has no answers yet (Critical fix)', async () => {
+    // status 'sent' with no answers set -- the patient has never opened this
+    // form. Signing it would attest to content never seen, and completing it
+    // would permanently kill the access token (isSubmissionTokenValid),
+    // stranding the patient before they could ever answer the real questions.
+    const submission = await makeSubmission('Consent Forms', 'sent')
+    const res = await POST(req({ typedName: 'Maria Alvarez' }) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })
+    expect(res.status).toBe(400)
+
+    const [unchanged] = await getDb().select().from(formSubmissions).where(eq(formSubmissions.id, submission.id))
+    expect(unchanged.status).toBe('sent')
+    const sigRows = await getDb().select().from(signatures).where(and(eq(signatures.signableType, 'form_submission'), eq(signatures.signableId, submission.id)))
+    expect(sigRows).toHaveLength(0)
   })
 
   it('rejects a non-consent-category template', async () => {

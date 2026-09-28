@@ -68,6 +68,40 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
     expect(rows[0].signerTypedName).toBe('Dr. Chen')
   })
 
+  it('rejects a non-admin signer typing a name that does not match their own session name', async () => {
+    // Mirrors signNote's exact posture (encounter-notes.ts): typedName must
+    // match the authenticated signer, unless they're an admin.
+    const [patientRow] = await getDb().select().from(patients).limit(1)
+    const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 1, admissionType: 'elective', createdFromAssignmentId: null })
+    createdAdmissionIds.push(admission.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Someone Else' }) })
+    const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
+    expect(res.status).toBe(403)
+
+    const updated = await getDb().select().from(admissions).where(eq(admissions.id, admission.id))
+    expect(updated[0].status).toBe('admitted')
+    const rows = await getDb().select().from(signatures).where(and(eq(signatures.signableType, 'admission_discharge'), eq(signatures.signableId, admission.id)))
+    expect(rows).toHaveLength(0)
+  })
+
+  it('allows an admin to discharge with a typed name that does not match their own session name (admin override)', async () => {
+    sessionRole = 'admin'
+    sessionName = 'Admin User'
+    const [patientRow] = await getDb().select().from(patients).limit(1)
+    const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 1, admissionType: 'elective', createdFromAssignmentId: null })
+    createdAdmissionIds.push(admission.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E', typedName: 'Dr. Chen' }) })
+    const res = await POST(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
+    expect(res.status).toBe(200)
+
+    const updated = await getDb().select().from(admissions).where(eq(admissions.id, admission.id))
+    expect(updated[0].status).toBe('discharged')
+    const rows = await getDb().select().from(signatures).where(and(eq(signatures.signableType, 'admission_discharge'), eq(signatures.signableId, admission.id)))
+    expect(rows[0].signerTypedName).toBe('Dr. Chen')
+  })
+
   it('rejects a PI discharging an admission they are not the attending provider for', async () => {
     const [patientRow] = await getDb().select().from(patients).limit(1)
     // Must be a real providers.id (FK-enforced) that isn't 1 -- `listActiveProviders`
@@ -159,6 +193,13 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
 
       const updated = await getDb().select().from(admissions).where(eq(admissions.id, admission.id))
       expect(updated[0].status).toBe('discharged')
+
+      // Prove the mocked createSignature actually fired (and the route's
+      // catch swallowed the throw) rather than this test passing vacuously
+      // because vi.doMock silently failed to engage -- no signature row
+      // should exist for this admission.
+      const rows = await getDb().select().from(signatures).where(and(eq(signatures.signableType, 'admission_discharge'), eq(signatures.signableId, admission.id)))
+      expect(rows).toHaveLength(0)
     } finally {
       vi.doUnmock('@/lib/queries/signatures')
       vi.resetModules()

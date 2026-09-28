@@ -31,6 +31,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!submission || submission.patientId !== anonId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (submission.category !== 'Consent Forms') return NextResponse.json({ error: 'This form does not require a signature' }, { status: 400 })
   if (submission.status === 'completed') return NextResponse.json({ error: 'This form has already been completed' }, { status: 409 })
+  // The actual security boundary against signing a form the patient never
+  // opened (the client-side gate in forms/page.tsx that only offers this
+  // action for status 'partial' is UX, not enforcement -- a direct POST here
+  // must be rejected independently). A 'sent' submission has never been
+  // opened and has no real answers yet; signing it would attest to content
+  // the signer demonstrably never saw, and -- because completing it kills
+  // the access token via isSubmissionTokenValid -- would permanently strip
+  // the patient's ability to ever answer the form's actual questions.
+  if (!submission.answers || Object.keys(submission.answers).length === 0) {
+    return NextResponse.json({ error: 'This form must be started before it can be signed' }, { status: 400 })
+  }
 
   // Insert the signature FIRST, then a conditional UPDATE guarded by
   // status != 'completed' -- same sequential, non-transactional two-write

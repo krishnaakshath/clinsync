@@ -35,6 +35,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const admission = await getAdmissionById(admissionId)
   if (!admission) return NextResponse.json({ error: 'Admission not found' }, { status: 404 })
 
+  // Mirrors signNote's exact posture (encounter-notes.ts): the typed name
+  // must match the authenticated signer's own session name, unless the
+  // signer is an admin (admin override, same as signNote). Without this,
+  // `typedName` is an arbitrary free-text field with no tie to who's
+  // actually signing -- the chart displays it as authoritative fact
+  // ("Signed by {signerTypedName}"), so an unchecked mismatch would let a PI
+  // attest a discharge under a name that isn't their own.
+  if (parsed.data.typedName !== session.name && session.role !== 'admin') {
+    return NextResponse.json({ error: 'The typed name must match your own name to sign this discharge' }, { status: 403 })
+  }
+
   if (session.role === 'pi') {
     const lastName = session.name.trim().split(/\s+/).pop() ?? session.name
     const providersList = await listActiveProviders()
@@ -90,6 +101,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })
   } catch (err) {
     console.error(`Failed to record discharge signature for admission ${admissionId}:`, err)
+    // Make this queryable, not just console noise -- a missing discharge
+    // signature is exactly the kind of gap this product's audit trail
+    // exists to surface.
+    await logAudit(session, 'discharge signature failed to record', admission.patientId)
   }
 
   return NextResponse.json({ ok: true, followUpAppointmentId: result.followUpAppointmentId ?? null })

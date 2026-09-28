@@ -8,6 +8,7 @@ import { logAudit } from '@/lib/audit'
 import { getFormSubmission } from '@/lib/queries/form-submissions'
 import { maybeAutoClassify } from '@/lib/auto-classify'
 import { recordFormChartDiscrepancies } from '@/lib/queries/discrepancies'
+import { getLatestSignatureForSignable } from '@/lib/queries/signatures'
 
 const updateSubmissionSchema = z.object({
   status: z.enum(['sent', 'partial', 'completed']),
@@ -34,6 +35,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const existing = await getFormSubmission(Number(id))
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Mirrors the patient-portal sign route's gate: a consent-category
+  // submission may only reach 'completed' with a real signature attached.
+  // This staff-side route never creates a signature itself (that's a
+  // patient-portal-only action), so it can only require one to already
+  // exist -- closing off the previously-unenumerated hole where any
+  // authenticated staff member could mark a consent form completed with no
+  // attestation at all, staff or patient.
+  if (parsed.data.status === 'completed' && existing.category === 'Consent Forms') {
+    const signature = await getLatestSignatureForSignable('form_submission', Number(id))
+    if (!signature) return NextResponse.json({ error: 'This consent form must be signed before it can be marked completed' }, { status: 400 })
+  }
 
   const completedDate = parsed.data.status === 'completed' ? new Date() : null
   await getDb().update(formSubmissions).set({ ...parsed.data, completedDate }).where(eq(formSubmissions.id, Number(id)))
