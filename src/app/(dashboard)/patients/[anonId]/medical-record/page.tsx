@@ -5,6 +5,7 @@ import { PatientAvatar } from '@/components/PatientAvatar'
 import { AllergyBadge } from '@/components/AllergyBadge'
 import { NoteForm, NoteCard } from '@/components/NoteForm'
 import { InsuranceCardUpload } from '@/components/InsuranceCardUpload'
+import { CarePlanSection } from '@/components/CarePlanSection'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
@@ -12,6 +13,7 @@ import { listNotesForPatient } from '@/lib/queries/encounter-notes'
 import { getPayerName } from '@/lib/queries/payers'
 import { listDispensesForPatient } from '@/lib/queries/medication-dispenses'
 import { listMedicationsWithInventory } from '@/lib/queries/medications'
+import { listCarePlansForPatient } from '@/lib/queries/care-plans'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -84,6 +86,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const dispenses = await listDispensesForPatient(anonId)
   const medicationCatalog = await listMedicationsWithInventory()
   const medicationById = new Map(medicationCatalog.map((m) => [m.id, m]))
+  const carePlans = await listCarePlansForPatient(anonId)
   await logAudit(session, 'viewed patient medical record', anonId)
 
   const name = patient.nameTebra ?? patient.nameIntakeq
@@ -168,6 +171,10 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
             })}
           </div>
         )}
+      </section>
+
+      <section className={SECTION}>
+        <CarePlanSection patientId={anonId} plans={carePlans} canWrite={['admin', 'pi'].includes(session.role)} />
       </section>
 
       <section className={SECTION}>
