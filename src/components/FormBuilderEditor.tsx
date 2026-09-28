@@ -9,6 +9,7 @@ interface Question {
   label: string
   type: 'text' | 'textarea' | 'date' | 'select' | 'checkbox'
   options?: string[]
+  optionScores?: (number | null)[]
   hipaaSensitive: boolean
   required: boolean
 }
@@ -48,11 +49,22 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
   }
 
   function addOption(id: string) {
-    setQuestions(questions.map((q) => (q.id === id ? { ...q, options: [...(q.options ?? []), ''] } : q)))
+    setQuestions(questions.map((q) => (q.id === id ? {
+      ...q,
+      options: [...(q.options ?? []), ''],
+      // A newly added option has no score yet -- push `null` (distinguishable
+      // from a real 0-point option) to keep optionScores in lockstep with
+      // options, only when the question actually has scores to keep in sync.
+      optionScores: q.optionScores ? [...q.optionScores, null] : q.optionScores,
+    } : q)))
   }
 
   function removeOption(id: string, index: number) {
-    setQuestions(questions.map((q) => (q.id === id ? { ...q, options: (q.options ?? []).filter((_, i) => i !== index) } : q)))
+    setQuestions(questions.map((q) => (q.id === id ? {
+      ...q,
+      options: (q.options ?? []).filter((_, i) => i !== index),
+      optionScores: q.optionScores ? q.optionScores.filter((_, i) => i !== index) : q.optionScores,
+    } : q)))
   }
 
   function updateOption(id: string, index: number, value: string) {
@@ -66,7 +78,9 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
       const target = index + direction
       if (target < 0 || target >= opts.length) return q
       ;[opts[index], opts[target]] = [opts[target], opts[index]]
-      return { ...q, options: opts }
+      const scores = q.optionScores ? [...q.optionScores] : undefined
+      if (scores) [scores[index], scores[target]] = [scores[target], scores[index]]
+      return { ...q, options: opts, optionScores: scores ?? q.optionScores }
     }))
   }
 

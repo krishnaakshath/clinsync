@@ -14,6 +14,9 @@ const questionSchema = z.object({
   optionScores: z.array(z.number().nullable()).optional(),
   hipaaSensitive: z.boolean(),
   required: z.boolean(),
+}).refine((q) => !q.optionScores || q.optionScores.length === (q.options ?? []).length, {
+  message: 'optionScores must have the same length as options',
+  path: ['optionScores'],
 })
 
 const createTemplateSchema = z.object({

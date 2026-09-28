@@ -15,6 +15,9 @@ const updateTemplateSchema = z.object({
     id: z.string(), label: z.string(), type: z.enum(['text', 'textarea', 'date', 'select', 'checkbox']),
     options: z.array(z.string()).optional(), optionScores: z.array(z.number().nullable()).optional(),
     hipaaSensitive: z.boolean(), required: z.boolean(),
+  }).refine((q) => !q.optionScores || q.optionScores.length === (q.options ?? []).length, {
+    message: 'optionScores must have the same length as options',
+    path: ['optionScores'],
   })).optional(),
   scoringRule: z.object({
     questionIds: z.array(z.string()),
