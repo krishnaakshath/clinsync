@@ -232,11 +232,16 @@ describe('checkBookingRequestRateLimit', () => {
     // remainder across repeated test runs within the same window, this
     // asserts the deterministic property -- saturating it with more calls
     // than its cap can ever hold -- rather than a specific call index.
-    const results: boolean[] = []
-    for (let i = 0; i < 25; i++) {
-      const { allowed } = await checkBookingRequestRateLimit(`203.0.${113 + (i % 5)}.${i}`)
-      results.push(allowed)
-    }
-    expect(results.some((allowed) => allowed === false)).toBe(true)
-  })
+    // The cap is 200-per-600s (raised from an original 20 -- see the
+    // comment on getBookingRequestGlobalLimiter in rate-limit.ts for why a
+    // flat, identity-independent cap that low was itself a denial-of-service
+    // risk against the whole practice), so this needs well past 200 calls
+    // to reliably saturate it -- issued concurrently (not a 210-call
+    // sequential loop) so the real Upstash round trips don't blow the
+    // suite's default per-test timeout.
+    const calls = Array.from({ length: 210 }, (_, i) =>
+      checkBookingRequestRateLimit(`203.0.${113 + (i % 5)}.${i}`))
+    const results = await Promise.all(calls)
+    expect(results.some(({ allowed }) => allowed === false)).toBe(true)
+  }, 30000)
 })

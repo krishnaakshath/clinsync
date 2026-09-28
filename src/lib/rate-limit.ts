@@ -282,8 +282,18 @@ export async function checkOtpVerifyRateLimit(ip: string, identity: string): Pro
 // against a botnet rotating (or spoofing) addresses to dodge the per-IP
 // bucket. Tighter than login's 5-per-60s: this gates a lower-frequency
 // legitimate action (nobody submits multiple real booking requests per
-// minute), so the per-IP window is 3-per-300s and the global backstop is
-// 20-per-600s.
+// minute), so the per-IP window is 3-per-300s.
+//
+// The global backstop itself was originally 20-per-600s, but -- unlike
+// every other bucket in this file -- it isn't keyed on any identity, so
+// that cap is shared by every legitimate patient across the whole practice
+// at once. A single trivial actor (no botnet needed, just one script making
+// 20 requests) could burn the entire bucket in seconds and then 429 every
+// real patient for the practice for the next 10 minutes. Raised to
+// 200-per-600s: still a real hard backstop against a genuine bot/DDoS burst
+// (200 submissions in 10 minutes is far outside plausible organic volume
+// for one practice's public booking widget), but no longer trivially
+// exhausted by ordinary legitimate traffic or a single bad actor.
 let _bookingRequestLimiter: Ratelimit | null = null
 function getBookingRequestLimiter() {
   if (!_bookingRequestLimiter) {
@@ -301,7 +311,7 @@ function getBookingRequestGlobalLimiter() {
   if (!_bookingRequestGlobalLimiter) {
     _bookingRequestGlobalLimiter = new Ratelimit({
       redis: getRedis(),
-      limiter: Ratelimit.slidingWindow(20, '600 s'),
+      limiter: Ratelimit.slidingWindow(200, '600 s'),
       prefix: 'ratelimit:booking-request-global',
     })
   }
@@ -327,5 +337,8 @@ export async function checkBookingRequestRateLimit(ip: string): Promise<{ allowe
 // this from an afterAll in the test that saturates the bucket so it can
 // never do that regardless of run order.
 export async function __resetBookingRequestGlobalBucketForTests(): Promise<void> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('__resetBookingRequestGlobalBucketForTests must never be called in production')
+  }
   await getBookingRequestGlobalLimiter().resetUsedTokens('global')
 }
