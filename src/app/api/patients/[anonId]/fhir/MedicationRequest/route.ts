@@ -15,5 +15,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ano
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await logAudit(session, 'exported FHIR MedicationRequest bundle', anonId)
-  return NextResponse.json(buildBundle(medicationEpisodesToFhir(data.medicationEpisodeRows)))
+  return new NextResponse(JSON.stringify(buildBundle(medicationEpisodesToFhir(data.medicationEpisodeRows))), {
+    headers: {
+      'Content-Type': 'application/fhir+json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${anonId}-fhir-medicationrequest.json"`,
+    },
+  })
 }

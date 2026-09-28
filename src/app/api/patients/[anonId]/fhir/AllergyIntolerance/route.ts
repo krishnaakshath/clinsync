@@ -15,5 +15,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ano
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await logAudit(session, 'exported FHIR AllergyIntolerance bundle', anonId)
-  return NextResponse.json(buildBundle(allergiesToFhir(data.allergyRows)))
+  return new NextResponse(JSON.stringify(buildBundle(allergiesToFhir(data.allergyRows))), {
+    headers: {
+      'Content-Type': 'application/fhir+json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${anonId}-fhir-allergyintolerance.json"`,
+    },
+  })
 }

@@ -14,5 +14,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ano
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await logAudit(session, 'exported full FHIR Bundle', anonId)
-  return NextResponse.json(buildFullBundle(data))
+  return new NextResponse(JSON.stringify(buildFullBundle(data)), {
+    headers: {
+      'Content-Type': 'application/fhir+json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${anonId}-fhir-bundle.json"`,
+    },
+  })
 }

@@ -14,5 +14,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ano
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await logAudit(session, 'exported FHIR Patient resource', anonId)
-  return NextResponse.json(patientToFhir(data.patient))
+  return new NextResponse(JSON.stringify(patientToFhir(data.patient)), {
+    headers: {
+      'Content-Type': 'application/fhir+json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${anonId}-fhir-patient.json"`,
+    },
+  })
 }
