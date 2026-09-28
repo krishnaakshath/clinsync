@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileText, Pill, MessageSquare, LockKeyhole } from 'lucide-react'
-import { IpmgIcon } from '@/components/IpmgLogo'
+import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 import { MfaCodeStep } from '@/components/mfa/MfaCodeStep'
 
 const HIGHLIGHTS = [
@@ -69,7 +69,7 @@ export default function PatientPortalLoginPage() {
       <div className="relative w-full max-w-md">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-            <IpmgIcon className="h-8 w-auto" />
+            <ClinsyncLogo className="h-8 w-auto" />
           </div>
           <div>
             <p className="text-lg font-semibold tracking-tight text-foreground">Clinsync Patient Portal</p>

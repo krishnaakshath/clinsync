@@ -1,6 +1,6 @@
 import { getIntakePortalData } from '@/lib/queries/intake-portal'
 import { IntakePortalForm } from '@/components/IntakePortalForm'
-import { IpmgWordmark } from '@/components/IpmgLogo'
+import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 
 export default async function IntakePortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -20,7 +20,7 @@ export default async function IntakePortalPage({ params }: { params: Promise<{ t
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-lg rounded-xl border border-primary/10 bg-card p-8 shadow-sm">
         <div className="mb-6 flex items-center gap-2">
-          <IpmgWordmark className="h-8 w-auto" />
+          <ClinsyncLogo className="h-8 w-auto" />
           <span className="text-xs text-muted-foreground">via Clinsync</span>
         </div>
         <h1 className="mb-1 text-xl font-semibold text-foreground">{data.templateName}</h1>
@@ -39,7 +39,7 @@ function PortalMessage({ title, body }: { title: string; body: string }) {
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl border border-primary/10 bg-card p-8 text-center shadow-sm">
         <div className="mb-4 flex flex-col items-center gap-1">
-          <IpmgWordmark className="h-8 w-auto" />
+          <ClinsyncLogo className="h-8 w-auto" />
           <span className="text-xs text-muted-foreground">via Clinsync</span>
         </div>
         <h1 className="mb-2 text-lg font-semibold text-foreground">{title}</h1>
