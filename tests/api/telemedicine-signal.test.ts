@@ -168,4 +168,26 @@ describe('POST /api/appointments/[id]/telemedicine', () => {
     const second = await createSessionRoute(jsonReq({}) as never, { params: Promise.resolve({ id: String(appt.id) }) })
     expect(second.status).toBe(409)
   })
+
+  it('a 409 (session already exists) recovers the SAME session\'s real id/patientJoinToken, not a new one (final review fix, Important #1)', async () => {
+    sessionRole = 'admin'
+    sessionName = 'Admin User'
+    const appt = await makeAppointment(MATCHING_PROVIDER_ID)
+
+    const first = await createSessionRoute(jsonReq({}) as never, { params: Promise.resolve({ id: String(appt.id) }) })
+    expect(first.status).toBe(201)
+    const firstBody = await first.json()
+
+    // Simulate a "second click" -- staff refreshed or double-clicked after
+    // already creating a session for this appointment, before copying the
+    // join link. The 409 body must now carry that same first session's
+    // id/token, not just a bare error string, so the UI can recover it.
+    const second = await createSessionRoute(jsonReq({}) as never, { params: Promise.resolve({ id: String(appt.id) }) })
+    expect(second.status).toBe(409)
+    const secondBody = await second.json()
+
+    expect(secondBody.id).toBe(firstBody.id)
+    expect(secondBody.patientJoinToken).toBe(firstBody.patientJoinToken)
+    expect(typeof secondBody.error).toBe('string')
+  })
 })

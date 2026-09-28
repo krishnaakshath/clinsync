@@ -42,6 +42,15 @@ export async function getSessionById(id: number): Promise<TelemedicineSessionRow
   return row ? mapRow(row) : null
 }
 
+export async function getSessionByAppointmentId(appointmentId: number): Promise<TelemedicineSessionRow | null> {
+  const [row] = await getDb()
+    .select({ session: telemedicineSessions, appointment: appointments })
+    .from(telemedicineSessions)
+    .innerJoin(appointments, eq(telemedicineSessions.appointmentId, appointments.id))
+    .where(eq(telemedicineSessions.appointmentId, appointmentId))
+  return row ? mapRow(row) : null
+}
+
 export async function getSessionByToken(token: string): Promise<TelemedicineSessionRow | null> {
   const [row] = await getDb()
     .select({ session: telemedicineSessions, appointment: appointments })

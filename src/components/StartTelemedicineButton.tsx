@@ -8,6 +8,7 @@ export function StartTelemedicineButton({ appointmentId }: { appointmentId: numb
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<{ id: number; joinLink: string } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
 
   async function start() {
     setStarting(true)
@@ -17,6 +18,16 @@ export function StartTelemedicineButton({ appointmentId }: { appointmentId: numb
 
     if (res.status === 409) {
       const body = await res.json().catch(() => null)
+      // A 409 means a session already exists for this appointment -- most
+      // often because staff refreshed or double-clicked after already
+      // creating one. The route now recovers that existing session's
+      // id/token (see the create route's comment), so re-render the same
+      // copy-link/join-call UI instead of a dead-end error: this makes
+      // clicking the button again effectively idempotent.
+      if (body?.id != null && body?.patientJoinToken) {
+        setSession({ id: body.id, joinLink: `${window.location.origin}/telemedicine/join/${body.patientJoinToken}` })
+        return
+      }
       setError(body?.error ?? 'A telemedicine session already exists for this appointment.')
       return
     }
@@ -38,17 +49,30 @@ export function StartTelemedicineButton({ appointmentId }: { appointmentId: numb
 
   async function copyLink() {
     if (!session) return
-    await navigator.clipboard.writeText(session.joinLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    setCopyFailed(false)
+    try {
+      await navigator.clipboard.writeText(session.joinLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // navigator.clipboard.writeText rejects on a non-secure context or a
+      // denied permission -- without this catch that's an unhandled promise
+      // rejection with no user feedback. The join link is still shown as
+      // selectable text in the input below, so staff can still copy it
+      // manually.
+      setCopyFailed(true)
+    }
   }
 
   if (session) {
     return (
-      <div className="flex items-center gap-2">
-        <input readOnly value={session.joinLink} onFocus={(e) => e.currentTarget.select()} className="w-40 truncate rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground" />
-        <Button type="button" size="xs" variant="outline" onClick={copyLink}>{copied ? 'Copied' : 'Copy link'}</Button>
-        <Link href={`/telemedicine/${session.id}`} className="text-xs font-medium text-primary hover:underline">Join call</Link>
+      <div className="flex flex-col items-start gap-1">
+        <div className="flex items-center gap-2">
+          <input readOnly value={session.joinLink} onFocus={(e) => e.currentTarget.select()} className="w-40 truncate rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground" />
+          <Button type="button" size="xs" variant="outline" onClick={copyLink}>{copied ? 'Copied' : 'Copy link'}</Button>
+          <Link href={`/telemedicine/${session.id}`} className="text-xs font-medium text-primary hover:underline">Join call</Link>
+        </div>
+        {copyFailed && <p className="text-xs text-destructive">Couldn&apos;t copy automatically — select and copy the link above.</p>}
       </div>
     )
   }

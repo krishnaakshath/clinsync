@@ -58,6 +58,7 @@ export function TelemedicineCallScreen({ role, pollUrl, initialStatus, onEnd }: 
   const localStreamRef = useRef<MediaStream | null>(null)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lastSeenIdRef = useRef(0)
+  const pollInFlightRef = useRef(false)
 
   const [sessionStatus, setSessionStatus] = useState<TelemedicineSessionStatus>(initialStatus)
   const [connectionState, setConnectionState] = useState<RTCPeerConnectionState>('new')
@@ -108,6 +109,23 @@ export function TelemedicineCallScreen({ role, pollUrl, initialStatus, onEnd }: 
     pc.onconnectionstatechange = () => setConnectionState(pc.connectionState)
 
     async function poll() {
+      // Reentrancy guard: setInterval doesn't wait for the previous tick's
+      // fetch/negotiation chain to finish. If one poll's work (a whole
+      // setRemoteDescription/createAnswer/postSignal chain for an offer, for
+      // instance) outruns POLL_INTERVAL_MS, the next tick would otherwise
+      // start a second, overlapping poll that could reprocess the same
+      // signal and double-post an answer. pollInFlightRef makes ticks that
+      // arrive while one is still running a no-op instead.
+      if (pollInFlightRef.current) return
+      pollInFlightRef.current = true
+      try {
+        await pollOnce()
+      } finally {
+        pollInFlightRef.current = false
+      }
+    }
+
+    async function pollOnce() {
       const forParam = role === 'provider' ? '&for=patient' : ''
       let res: Response
       try {
@@ -157,7 +175,12 @@ export function TelemedicineCallScreen({ role, pollUrl, initialStatus, onEnd }: 
       // build one -- ending is provider-initiated, matching Global
       // Constraints' explicit route split). It learns the call is over the
       // same way it learns anything else: the next poll's sessionStatus.
-      if (role === 'patient' && data.sessionStatus === 'completed') {
+      // Not patient-only: the provider's own handleEndCall already calls
+      // teardown()/setEnded() locally, but if the session is ended some
+      // other way (an admin ending it from a different tab/session), the
+      // provider side must also reach this terminal state instead of
+      // polling forever showing a stale "Connected"/"Connecting…" status.
+      if (data.sessionStatus === 'completed') {
         teardown()
         setEnded(true)
       }
