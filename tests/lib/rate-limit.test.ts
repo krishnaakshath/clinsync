@@ -161,7 +161,10 @@ describe('checkAccountMfaResetRateLimit', () => {
   it('treats the email case-insensitively, so varying its case does not buy fresh attempts', async () => {
     const ip = '203.0.119.2'
     const email = `rl-test-acct-reset-case-${Date.now()}@example.com`
-    for (let i = 0; i < 5; i++) await checkAccountMfaResetRateLimit(ip, email)
+    for (let i = 0; i < 5; i++) {
+      const { allowed } = await checkAccountMfaResetRateLimit(ip, email)
+      expect(allowed).toBe(true)
+    }
     const upper = await checkAccountMfaResetRateLimit(ip, email.toUpperCase())
     expect(upper.allowed).toBe(false)
   })
