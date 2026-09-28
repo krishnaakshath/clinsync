@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { POST } from '@/app/api/front-desk/eligibility-check/route'
 import { getDb } from '@/db/client'
-import { insuranceEligibilityChecks } from '@/db/schema'
+import { insuranceEligibilityChecks, payers, patients } from '@/db/schema'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'frontdesk', name: 'Taylor Nguyen' })) }))
 
@@ -13,7 +13,8 @@ afterEach(async () => {
 
 describe('POST /api/front-desk/eligibility-check', () => {
   it('records and returns a simulated eligibility result', async () => {
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', payerName: 'Aetna' }) })
+    const [payer] = await getDb().select().from(payers).limit(1)
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', payerId: payer.id }) })
     const res = await POST(req as never)
     expect(res.status).toBe(201)
     const body = await res.json()
@@ -22,16 +23,35 @@ describe('POST /api/front-desk/eligibility-check', () => {
   })
 
   it('returns 403 for a pi session', async () => {
+    const [payer] = await getDb().select().from(payers).limit(1)
     const auth = await import('@/lib/auth')
     vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Dr. Kunam' })
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', payerName: 'Aetna' }) })
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', payerId: payer.id }) })
     const res = await POST(req as never)
     expect(res.status).toBe(403)
   })
 
   it('rejects a payload with an unknown field', async () => {
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', payerName: 'Aetna', extra: true }) })
+    const [payer] = await getDb().select().from(payers).limit(1)
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', payerId: payer.id, extra: true }) })
     const res = await POST(req as never)
+    expect(res.status).toBe(400)
+  })
+
+  it('accepts a payerId instead of free-text payerName and returns a richer eligibility response', async () => {
+    const [payer] = await getDb().select().from(payers).limit(1)
+    const [patientRow] = await getDb().select().from(patients).limit(1)
+    const res = await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: patientRow.id, payerId: payer.id }) }) as never)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    createdIds.push(body.id)
+    expect(body.payerId).toBe(payer.id)
+    expect('deductibleRemainingCents' in body).toBe(true)
+  })
+
+  it('rejects a payerId that does not exist', async () => {
+    const [patientRow] = await getDb().select().from(patients).limit(1)
+    const res = await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: patientRow.id, payerId: 999999 }) }) as never)
     expect(res.status).toBe(400)
   })
 })
