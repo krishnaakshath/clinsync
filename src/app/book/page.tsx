@@ -14,10 +14,31 @@ export default async function PublicBookingPage() {
   const windowEnd = new Date(today)
   windowEnd.setDate(windowEnd.getDate() + 90)
 
-  const [providers, existingAppointments] = await Promise.all([
+  const [providerRows, appointmentRows] = await Promise.all([
     listActiveProviders(),
     listAppointmentsInRange(today, windowEnd),
   ])
+
+  // Narrow at the SERVER boundary, not just in a TypeScript type -- props
+  // passed to a Client Component are serialized whole into the RSC flight
+  // payload embedded in this page's HTML, regardless of a narrower prop
+  // type (`Pick<>` is compile-time only and strips nothing at runtime).
+  // `listAppointmentsInRange()`'s full rows carry patient names, patient
+  // IDs, and visit reasons -- real PHI -- that must never reach this
+  // genuinely unauthenticated page. Pre-aggregate to a per-provider count
+  // instead of ever sending a per-appointment row across the boundary; the
+  // widget's "already booked" hint only ever needed a count, never the rows.
+  const providerAppointmentCounts: Record<number, number> = {}
+  for (const appointment of appointmentRows) {
+    providerAppointmentCounts[appointment.providerId] =
+      (providerAppointmentCounts[appointment.providerId] ?? 0) + 1
+  }
+
+  // Same treatment for providers -- lower stakes (name/specialty, not PHI)
+  // but still explicitly narrowed to plain literal objects containing only
+  // the fields the form renders, so nothing wider than that ever crosses
+  // the server/client boundary on this page.
+  const providers = providerRows.map((p) => ({ id: p.id, name: p.name, specialty: p.specialty }))
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-secondary/40 px-4 py-10">
@@ -39,7 +60,7 @@ export default async function PublicBookingPage() {
               appointment. We&apos;ll reach out to confirm a time.
             </p>
           </div>
-          <PublicBookingForm providers={providers} existingAppointments={existingAppointments} />
+          <PublicBookingForm providers={providers} providerAppointmentCounts={providerAppointmentCounts} />
         </div>
       </div>
     </div>

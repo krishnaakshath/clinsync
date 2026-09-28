@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import type { AppointmentWithDetails } from '@/lib/queries/appointments'
 
 interface ProviderOption {
   id: number
@@ -32,9 +31,14 @@ function mapFieldErrors(details: unknown): FieldErrors {
   return out
 }
 
-export function PublicBookingForm({ providers, existingAppointments }: {
+export function PublicBookingForm({ providers, providerAppointmentCounts }: {
   providers: ProviderOption[]
-  existingAppointments: Pick<AppointmentWithDetails, 'providerId' | 'startsAt'>[]
+  // Pre-aggregated server-side -- never per-appointment rows. See the
+  // comment in src/app/book/page.tsx for why: this is the one genuinely
+  // unauthenticated page in the app, and a per-appointment row (even one
+  // "narrowed" only by a TypeScript type) would leak PHI into the RSC
+  // payload embedded in this page's HTML.
+  providerAppointmentCounts: Record<number, number>
 }) {
   const [requesterName, setRequesterName] = useState('')
   const [requesterDob, setRequesterDob] = useState('')
@@ -52,17 +56,12 @@ export function PublicBookingForm({ providers, existingAppointments }: {
 
   // Read-only hint only -- this widget never shows or claims an exact open
   // slot, per spec §1. It just gives the requester a rough sense of how
-  // busy their selected provider already is in the range they picked.
-  let existingCount: number | null = null
-  if (preferredProviderId !== '' && preferredDateRangeStart && preferredDateRangeEnd) {
-    const rangeStart = new Date(preferredDateRangeStart)
-    const rangeEnd = new Date(preferredDateRangeEnd)
-    existingCount = existingAppointments.filter((a) => {
-      if (a.providerId !== preferredProviderId) return false
-      const startsAt = new Date(a.startsAt)
-      return startsAt >= rangeStart && startsAt <= rangeEnd
-    }).length
-  }
+  // busy their selected provider already is, from a per-provider count
+  // computed server-side over the page's whole display window (not scoped
+  // to the requester's chosen date range -- see providerAppointmentCounts'
+  // doc comment on the prop above for why no per-appointment data crosses
+  // the server/client boundary at all).
+  const existingCount = preferredProviderId !== '' ? (providerAppointmentCounts[preferredProviderId] ?? 0) : null
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -184,7 +183,7 @@ export function PublicBookingForm({ providers, existingAppointments }: {
         </select>
         {existingCount !== null && (
           <p className="mt-1 text-xs text-muted-foreground">
-            {existingCount} appointment{existingCount === 1 ? '' : 's'} already booked with this provider in your selected range. This is a read-only estimate, not an open-slot count.
+            {existingCount} appointment{existingCount === 1 ? '' : 's'} already on the schedule with this provider in the next 90 days. This is a read-only estimate, not an open-slot count.
           </p>
         )}
       </div>
