@@ -480,6 +480,41 @@ export const admissionTransfers = pgTable('admission_transfers', {
   transferredAt: timestamp('transferred_at').defaultNow().notNull(),
 })
 
+export const noteTypeEnum = pgEnum('note_type', ['progress', 'nursing', 'intake'])
+export const noteStatusEnum = pgEnum('note_status', ['draft', 'signed'])
+
+export const encounterNotes = pgTable('encounter_notes', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  appointmentId: integer('appointment_id').references(() => appointments.id),
+  admissionId: integer('admission_id').references(() => admissions.id),
+  noteType: noteTypeEnum('note_type').default('progress').notNull(),
+  authorName: text('author_name').notNull(),
+  authorRole: roleEnum('author_role').notNull(),
+  subjective: text('subjective'),
+  objective: text('objective'),
+  assessment: text('assessment'),
+  plan: text('plan'),
+  status: noteStatusEnum('status').default('draft').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  signedAt: timestamp('signed_at'),
+})
+
+export const marStatusEnum = pgEnum('mar_status', ['scheduled', 'given', 'held', 'refused'])
+
+export const medicationAdministrations = pgTable('medication_administrations', {
+  id: serial('id').primaryKey(),
+  admissionId: integer('admission_id').notNull().references(() => admissions.id),
+  medicationEpisodeId: integer('medication_episode_id').references(() => medicationEpisodes.id),
+  medicationName: text('medication_name').notNull(),
+  dose: text('dose').notNull(),
+  scheduledFor: timestamp('scheduled_for').notNull(),
+  status: marStatusEnum('status').default('scheduled').notNull(),
+  administeredAt: timestamp('administered_at'),
+  administeredByName: text('administered_by_name'),
+  notes: text('notes'),
+})
+
 export const eligibilityStatusEnum = pgEnum('eligibility_status', ['verified', 'inactive', 'needs_follow_up'])
 
 export const insuranceEligibilityChecks = pgTable('insurance_eligibility_checks', {
