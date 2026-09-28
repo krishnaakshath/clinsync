@@ -10,6 +10,8 @@ export interface ClientFormRow {
   status: string
   sentDate: Date
   completedDate: Date | null
+  totalScore: number | null
+  bandLabel: string | null
 }
 
 // Whole-row navigation to the submitted answers, matching the row-click
@@ -43,7 +45,10 @@ export function ClientFormsTable({ submissions }: { submissions: ClientFormRow[]
               <td className="p-3 font-medium text-foreground">{s.patientName}</td>
               <td className="p-3 text-foreground">{s.templateName}</td>
               <td className="p-3 text-foreground">{s.diagnosisTag}</td>
-              <td className="p-3 text-foreground capitalize">{s.status}</td>
+              <td className="p-3 text-foreground capitalize">
+                {s.status}
+                {s.bandLabel !== null && <span className="normal-case"> · Score: {s.totalScore} ({s.bandLabel})</span>}
+              </td>
               <td className="p-3 text-muted-foreground">{new Date(s.sentDate).toLocaleDateString()}</td>
               <td className="p-3 text-muted-foreground">{s.completedDate ? new Date(s.completedDate).toLocaleDateString() : '—'}</td>
               <td className="p-3 text-muted-foreground"><ChevronRight className="h-4 w-4" aria-hidden="true" /></td>

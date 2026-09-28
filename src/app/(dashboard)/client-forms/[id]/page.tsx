@@ -16,7 +16,10 @@ export default async function ClientFormDetailPage({ params }: { params: Promise
     <div className="max-w-2xl">
       <Link href="/client-forms" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-primary">← Client Forms</Link>
       <h1 className="mb-1 text-2xl font-bold text-foreground">{submission.templateName}</h1>
-      <p className="mb-6 text-sm text-muted-foreground">{submission.patientName} · <span className="capitalize">{submission.status}</span></p>
+      <p className="mb-6 text-sm text-muted-foreground">
+        {submission.patientName} · <span className="capitalize">{submission.status}</span>
+        {submission.bandLabel !== null && <> · Score: {submission.totalScore} ({submission.bandLabel})</>}
+      </p>
       <div className="space-y-3">
         {submission.questions.map((q) => {
           const rawValue = submission.answers?.[q.id]

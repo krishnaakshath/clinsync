@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { CalendarClock, CalendarCheck2, Stethoscope, Pill } from 'lucide-react'
+import { CalendarClock, CalendarCheck2, Stethoscope, Pill, ClipboardList } from 'lucide-react'
 import { BackLink } from '@/components/BackLink'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { AllergyBadge } from '@/components/AllergyBadge'
@@ -12,6 +12,7 @@ import { listNotesForPatient } from '@/lib/queries/encounter-notes'
 import { getPayerName } from '@/lib/queries/payers'
 import { listDispensesForPatient } from '@/lib/queries/medication-dispenses'
 import { listMedicationsWithInventory } from '@/lib/queries/medications'
+import { listFormSubmissions } from '@/lib/queries/form-submissions'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -84,6 +85,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const dispenses = await listDispensesForPatient(anonId)
   const medicationCatalog = await listMedicationsWithInventory()
   const medicationById = new Map(medicationCatalog.map((m) => [m.id, m]))
+  const screeningSubmissions = (await listFormSubmissions({ patientId: anonId, status: 'completed' })).filter((s) => s.bandLabel !== null)
   await logAudit(session, 'viewed patient medical record', anonId)
 
   const name = patient.nameTebra ?? patient.nameIntakeq
@@ -190,6 +192,27 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
                 </li>
               )
             })}
+          </ul>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_HEADING}>Screening Questionnaires</h2>
+        {screeningSubmissions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No screening questionnaires completed.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {screeningSubmissions.map((s) => (
+              <li key={`screening-${s.id}`} className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm">
+                <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{s.templateName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Completed {formatDate(s.completedDate)} · Score: {s.totalScore} ({s.bandLabel})
+                  </p>
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </section>
