@@ -60,6 +60,7 @@ export async function getFormSubmission(id: number) {
     answers: row.submission.answers,
     templateName: row.template.name,
     questions: row.template.questions,
+    category: row.template.category,
     patientName: row.patient.nameTebra ?? row.patient.nameIntakeq,
   }
 }
