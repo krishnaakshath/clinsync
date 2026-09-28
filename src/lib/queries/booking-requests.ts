@@ -3,6 +3,8 @@ import { bookingRequests, appointments } from '@/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
 import { hasSchedulingConflict } from '@/lib/queries/appointments'
 
+export type BookingRequestRow = typeof bookingRequests.$inferSelect
+
 export interface CreateBookingRequestInput {
   requesterName: string
   requesterDob: string
