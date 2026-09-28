@@ -465,10 +465,18 @@ async function seedMedications() {
   const toInsert = MEDICATIONS_SEED.filter((m) => !existingNames.has(m.name))
   if (toInsert.length > 0) await db.insert(medications).values(toInsert)
 
+  // Scoped to the intended 15-drug catalog (MEDICATIONS_SEED), not every row
+  // currently in `medications` -- iterating the full table would also grant
+  // inventory (and therefore dashboard visibility/dispensability) to any
+  // stray row, including leaked test rows from a buggy test helper (see
+  // tests/lib/queries/medication-dispenses.test.ts's makeMedWithStock, fixed
+  // separately) or a future rename-without-cleanup duplicate.
+  const seededNames = new Set(MEDICATIONS_SEED.map((m) => m.name))
   const allMeds = await db.select({ id: medications.id, name: medications.name }).from(medications)
+  const intendedMeds = allMeds.filter((m) => seededNames.has(m.name))
   const existingInventory = await db.select({ medicationId: medicationInventory.medicationId }).from(medicationInventory)
   const medsWithInventory = new Set(existingInventory.map((i) => i.medicationId))
-  for (const med of allMeds) {
+  for (const med of intendedMeds) {
     if (medsWithInventory.has(med.id)) continue
     const stock = MEDICATION_INVENTORY_SEED[med.name] ?? { quantityOnHand: 50, reorderThreshold: 10, unit: 'units' }
     await db.insert(medicationInventory).values({ medicationId: med.id, ...stock })
