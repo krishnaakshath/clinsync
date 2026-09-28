@@ -28,6 +28,7 @@ import {
   faxes,
   broadcasts,
   reviews,
+  labTests,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -381,6 +382,32 @@ async function seedPayers() {
   if (toInsert.length > 0) await db.insert(payers).values(toInsert)
 }
 
+// Lab test catalog -- standalone reference data (like the payer directory
+// above), independent of whether the rest of the DB has been seeded.
+const LAB_TESTS_SEED: { name: string; code: string; defaultUnit: string | null; referenceRange: string }[] = [
+  { name: 'CBC with differential', code: 'CBC-DIFF', defaultUnit: 'cells/mcL', referenceRange: '4.5-11.0 x10^3/mcL' },
+  { name: 'Comprehensive Metabolic Panel', code: 'CMP', defaultUnit: null, referenceRange: 'See individual analytes' },
+  { name: 'TSH', code: 'TSH', defaultUnit: 'mIU/L', referenceRange: '0.4-4.0' },
+  { name: 'Lipid Panel', code: 'LIPID', defaultUnit: 'mg/dL', referenceRange: 'Total chol <200' },
+  { name: 'HbA1c', code: 'HBA1C', defaultUnit: '%', referenceRange: '4.0-5.6' },
+  { name: 'Lithium level', code: 'LITH', defaultUnit: 'mEq/L', referenceRange: '0.6-1.2' },
+  { name: 'Valproic acid level', code: 'VPA', defaultUnit: 'mcg/mL', referenceRange: '50-100' },
+  { name: 'Urine drug screen', code: 'UDS', defaultUnit: null, referenceRange: 'Negative' },
+  { name: 'Prolactin', code: 'PRL', defaultUnit: 'ng/mL', referenceRange: '4-15.2' },
+  { name: 'Vitamin D, 25-OH', code: 'VITD', defaultUnit: 'ng/mL', referenceRange: '30-100' },
+]
+
+async function seedLabTests() {
+  const db = getDb()
+  // Idempotent per-row by code, same discipline as seedPayers() above --
+  // insert only the codes not already present, so this is safe to call
+  // unconditionally on every seed() run without duplicating rows.
+  const existing = await db.select({ code: labTests.code }).from(labTests)
+  const existingCodes = new Set(existing.map((t) => t.code))
+  const toInsert = LAB_TESTS_SEED.filter((t) => !existingCodes.has(t.code))
+  if (toInsert.length > 0) await db.insert(labTests).values(toInsert)
+}
+
 // Best-effort payerId match for a claim's free-text payerName -- mirrors the
 // "payerName contains payer.name" rule the original (now-deleted) migration
 // script's backfill used: e.g. 'Aetna' and 'Cigna' match exactly, but
@@ -628,6 +655,14 @@ export async function seed() {
   if (payerCount === 0) {
     await seedPayers()
     console.log('Seeded payer directory (14 payers).')
+  }
+
+  // Lab test catalog is likewise standalone reference data -- top it up
+  // unconditionally for the same reason as the payer directory above.
+  const [{ labTestCount }] = await db.select({ labTestCount: sql<number>`count(*)::int` }).from(labTests)
+  if (labTestCount === 0) {
+    await seedLabTests()
+    console.log('Seeded lab test catalog (10 tests).')
   }
 
   // Guard against re-seeding a shared dev database that already has data.

@@ -606,3 +606,36 @@ export const messages = pgTable('messages', {
   readByPatientAt: timestamp('read_by_patient_at'),
   readByProviderAt: timestamp('read_by_provider_at'),
 })
+
+export const labOrderStatusEnum = pgEnum('lab_order_status', ['ordered', 'collected', 'resulted', 'cancelled'])
+export const labResultFlagEnum = pgEnum('lab_result_flag', ['normal', 'abnormal', 'critical'])
+
+export const labTests = pgTable('lab_tests', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  code: text('code').notNull(),
+  defaultUnit: text('default_unit'),
+  referenceRange: text('reference_range'),
+})
+
+export const labOrders = pgTable('lab_orders', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  labTestId: integer('lab_test_id').notNull().references(() => labTests.id),
+  orderedByProviderId: integer('ordered_by_provider_id').notNull().references(() => providers.id),
+  status: labOrderStatusEnum('status').default('ordered').notNull(),
+  orderedAt: timestamp('ordered_at').defaultNow().notNull(),
+  collectedAt: timestamp('collected_at'),
+})
+
+export const labResults = pgTable('lab_results', {
+  id: serial('id').primaryKey(),
+  labOrderId: integer('lab_order_id').notNull().references(() => labOrders.id).unique(),
+  value: text('value').notNull(),
+  unit: text('unit'),
+  referenceRange: text('reference_range'),
+  flag: labResultFlagEnum('flag').default('normal').notNull(),
+  resultedByName: text('resulted_by_name').notNull(),
+  resultedAt: timestamp('resulted_at').defaultNow().notNull(),
+  notes: text('notes'),
+})
