@@ -11,6 +11,7 @@ import {
   screeningCriteriaResults,
   identityMatches,
   users,
+  payers,
   charges,
   insuranceClaims,
   patientStatements,
@@ -342,8 +343,60 @@ async function seedDocumentsAndFaxes() {
   ])
 }
 
+// Payer reference directory -- 14 major US health plans covering the
+// commercial/medicare/medicaid/tricare payerType split. This used to exist
+// only as live database state from a since-deleted scratch migration
+// script, which meant a fresh/reset DB had an empty payer dropdown
+// everywhere and tests/lib/queries/payers.test.ts failed outright. Names,
+// payerIds, and types below match what that script actually inserted
+// (reconstructed from the live shared dev DB and the payer directory test's
+// assertions), so re-seeding a fresh database reproduces the same directory
+// the rest of this branch was built and reviewed against.
+const PAYERS_SEED: { name: string; payerId: string; payerType: 'commercial' | 'medicare' | 'medicaid' | 'tricare' | 'other' }[] = [
+  { name: 'Aetna', payerId: '60054', payerType: 'commercial' },
+  { name: 'UnitedHealthcare', payerId: '87726', payerType: 'commercial' },
+  { name: 'Cigna', payerId: '62308', payerType: 'commercial' },
+  { name: 'Humana', payerId: '61101', payerType: 'commercial' },
+  { name: 'Anthem Blue Cross of California', payerId: '47198', payerType: 'commercial' },
+  { name: 'Blue Shield of California', payerId: '47163', payerType: 'commercial' },
+  { name: 'Kaiser Permanente', payerId: '94134', payerType: 'commercial' },
+  { name: 'Molina Healthcare', payerId: '38333', payerType: 'commercial' },
+  { name: 'Ambetter (Centene)', payerId: '68069', payerType: 'commercial' },
+  { name: 'Oscar Health', payerId: '72187', payerType: 'commercial' },
+  { name: 'Health Net', payerId: '95567', payerType: 'commercial' },
+  { name: 'Medicare (Noridian, CA)', payerId: '00590', payerType: 'medicare' },
+  { name: 'Medi-Cal', payerId: '12X0', payerType: 'medicaid' },
+  { name: 'TRICARE', payerId: '99726', payerType: 'tricare' },
+]
+
+async function seedPayers() {
+  const db = getDb()
+  // Idempotent per-row (not just a top-level count guard): insert only the
+  // names that aren't already present, so this is also safe to call from
+  // the "already seeded" top-up path without duplicating rows if it's ever
+  // called more than once or a caller partially seeded the directory by hand.
+  const existing = await db.select({ name: payers.name }).from(payers)
+  const existingNames = new Set(existing.map((p) => p.name))
+  const toInsert = PAYERS_SEED.filter((p) => !existingNames.has(p.name))
+  if (toInsert.length > 0) await db.insert(payers).values(toInsert)
+}
+
+// Best-effort payerId match for a claim's free-text payerName -- mirrors the
+// "payerName contains payer.name" rule the original (now-deleted) migration
+// script's backfill used: e.g. 'Aetna' and 'Cigna' match exactly, but
+// 'Blue Shield' does NOT match the seeded 'Blue Shield of California' (the
+// claim's shorter free-text name isn't a superstring of the payer's full
+// legal name), and likewise 'United Healthcare' doesn't match
+// 'UnitedHealthcare' (no space) and 'Medicare' doesn't match 'Medicare
+// (Noridian, CA)'. Those three stay payerId: null, same as the original
+// migration's backfill left them -- a real gap, not a bug in the matcher.
+function matchPayerId(allPayers: { id: number; name: string }[], payerName: string): number | null {
+  return allPayers.find((p) => payerName.toLowerCase().includes(p.name.toLowerCase()))?.id ?? null
+}
+
 async function seedBilling() {
   const db = getDb()
+  const allPayers = await db.select({ id: payers.id, name: payers.name }).from(payers)
 
   const chargeRows = await db.insert(charges).values([
     // Workflow-state charges (not yet submitted -- excluded from A/R).
@@ -428,11 +481,11 @@ async function seedBilling() {
   const chargeRd5Submitted = byDos('2026-09-01')
 
   await db.insert(insuranceClaims).values([
-    { chargeId: chargeRd1Submitted.id, patientId: 'RD-0001', payerName: 'Blue Shield', billedAmountCents: 15000, paidAmountCents: 15000, status: 'paid', submittedDate: '2026-09-05' },
-    { chargeId: chargeRd2Submitted.id, patientId: 'RD-0002', payerName: 'Aetna', billedAmountCents: 20000, paidAmountCents: null, status: 'waiting_adjudication', submittedDate: '2026-08-10' },
-    { chargeId: chargeRd3Submitted.id, patientId: 'RD-0003', payerName: 'Cigna', billedAmountCents: 12500, paidAmountCents: 0, status: 'denied', submittedDate: '2026-07-05', notes: 'Missing prior authorization on file.' },
-    { chargeId: chargeRd6Submitted.id, patientId: 'RD-0006', payerName: 'United Healthcare', billedAmountCents: 30000, paidAmountCents: null, status: 'needs_investigation', submittedDate: '2026-05-25', notes: 'Payer requesting additional medical records.' },
-    { chargeId: chargeRd4Submitted.id, patientId: 'RD-0004', payerName: 'Medicare', billedAmountCents: 9000, paidAmountCents: 0, status: 'rejected', submittedDate: '2026-03-01', notes: 'Invalid procedure code modifier.' },
+    { chargeId: chargeRd1Submitted.id, patientId: 'RD-0001', payerName: 'Blue Shield', payerId: matchPayerId(allPayers, 'Blue Shield'), billedAmountCents: 15000, paidAmountCents: 15000, status: 'paid', submittedDate: '2026-09-05' },
+    { chargeId: chargeRd2Submitted.id, patientId: 'RD-0002', payerName: 'Aetna', payerId: matchPayerId(allPayers, 'Aetna'), billedAmountCents: 20000, paidAmountCents: null, status: 'waiting_adjudication', submittedDate: '2026-08-10' },
+    { chargeId: chargeRd3Submitted.id, patientId: 'RD-0003', payerName: 'Cigna', payerId: matchPayerId(allPayers, 'Cigna'), billedAmountCents: 12500, paidAmountCents: 0, status: 'denied', submittedDate: '2026-07-05', notes: 'Missing prior authorization on file.' },
+    { chargeId: chargeRd6Submitted.id, patientId: 'RD-0006', payerName: 'United Healthcare', payerId: matchPayerId(allPayers, 'United Healthcare'), billedAmountCents: 30000, paidAmountCents: null, status: 'needs_investigation', submittedDate: '2026-05-25', notes: 'Payer requesting additional medical records.' },
+    { chargeId: chargeRd4Submitted.id, patientId: 'RD-0004', payerName: 'Medicare', payerId: matchPayerId(allPayers, 'Medicare'), billedAmountCents: 9000, paidAmountCents: 0, status: 'rejected', submittedDate: '2026-03-01', notes: 'Invalid procedure code modifier.' },
   ])
 
   // Two mock payments: one Luhn-valid ("success"), one Luhn-invalid
@@ -565,6 +618,17 @@ async function clearExistingData() {
 
 export async function seed() {
   const db = getDb()
+
+  // Payer directory is standalone reference data, independent of whether
+  // the rest of the DB has been seeded -- top it up unconditionally (before
+  // either branch below, since seedBilling() in both paths looks payers up
+  // to backfill insurance_claims.payerId) so a fresh DB always has it, and
+  // re-running this script against an already-seeded DB never duplicates it.
+  const [{ payerCount }] = await db.select({ payerCount: sql<number>`count(*)::int` }).from(payers)
+  if (payerCount === 0) {
+    await seedPayers()
+    console.log('Seeded payer directory (14 payers).')
+  }
 
   // Guard against re-seeding a shared dev database that already has data.
   // Several parallel feature branches now have their own tables with FK

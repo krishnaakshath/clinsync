@@ -146,6 +146,12 @@ describe('POST /api/patients', () => {
     expect(response.status).toBe(400)
   })
 
+  it('rejects a pi session -- patient creation (which can carry insurance fields) is admin/crc/frontdesk only, matching the insurance-card route', async () => {
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    const response = await createPatient(req({ name: 'Test Patient', dob: '1990-01-01' }))
+    expect(response.status).toBe(403)
+  })
+
   it('creates the chart in Tebra first, then mirrors it into a new patient row', async () => {
     const response = await createPatient(req({
       name: 'Test Patient',
