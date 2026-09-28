@@ -24,4 +24,11 @@ export async function proxy(request: NextRequest) {
 // referenced directly by <img> tags on unauthenticated pages (both login
 // screens, the intake portal) -- without this exclusion those requests hit
 // this same staff-session gate and redirect to /login, breaking the image.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal).*)'] }
+// book is excluded the same way: /book (src/app/book/page.tsx) is the public
+// booking-request widget -- a cold, unauthenticated visitor from the
+// practice's public website, with no account and no staff-sent token.
+// Placing it outside the (dashboard) route group only avoids that layout's
+// own getSession() check; without this exclusion too, this proxy's
+// codebase-wide session gate would still redirect every /book request to
+// /login before the page ever rendered.
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|book).*)'] }
