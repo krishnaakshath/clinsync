@@ -407,6 +407,10 @@ export const appSettings = pgTable('app_settings', {
   adminMfaEnabled: boolean('admin_mfa_enabled').default(false).notNull(),
   adminMfaMethod: mfaMethodEnum('admin_mfa_method').default('totp').notNull(),
   adminPhone: text('admin_phone'),
+  // Plaintext by design, not AES-encrypted like the *Encrypted credential
+  // columns above -- this is a shared lobby-device PIN, not a third-party
+  // credential or PHI. See this plan's "Scope decisions" #4.
+  queueDisplayPin: text('queue_display_pin'),
 })
 
 export const appointmentStatusEnum = pgEnum('appointment_status', ['scheduled', 'completed', 'cancelled', 'no_show'])
@@ -471,6 +475,13 @@ export const doctorAssignments = pgTable('doctor_assignments', {
   assignedByName: text('assigned_by_name').notNull(),
   appointmentId: integer('appointment_id').references(() => appointments.id),
   declineReason: text('decline_reason'),
+  // DEFAULT 0 is a safety net, not a real ticket number -- this is a single
+  // shared Neon DB used by every branch/worktree in this repo, and other
+  // branches' code (unaware of this column) inserts doctorAssignments rows
+  // without setting it. Real assignments always get a real sequential
+  // number explicitly from the ticket-generation code (see Task 2), which
+  // never relies on this default.
+  queueTicketNumber: integer('queue_ticket_number').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
