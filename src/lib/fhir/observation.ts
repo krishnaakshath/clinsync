@@ -7,7 +7,7 @@ export interface FhirObservation {
   status: 'final'
   subject: FhirReference
   code: FhirCodeableConcept
-  valueQuantity?: { value: number; unit: string }
+  valueQuantity?: { value: number; unit?: string }
   valueString?: string
   referenceRange?: { text: string }[]
   interpretation: FhirCodeableConcept[]
@@ -29,7 +29,7 @@ export function observationToFhir(patientId: string, order: PatientLabOrderRow):
   if (!order.result) return null
   const { result } = order
   const numeric = Number(result.value)
-  const isNumeric = result.value.trim() !== '' && !Number.isNaN(numeric)
+  const isNumeric = result.value.trim() !== '' && Number.isFinite(numeric)
 
   return {
     resourceType: 'Observation',
@@ -37,7 +37,7 @@ export function observationToFhir(patientId: string, order: PatientLabOrderRow):
     status: 'final',
     subject: { reference: `Patient/${patientId}` },
     code: { text: order.testName, coding: [{ code: order.testCode, display: order.testName }] },
-    ...(isNumeric ? { valueQuantity: { value: numeric, unit: result.unit ?? '' } } : { valueString: result.value }),
+    ...(isNumeric ? { valueQuantity: { value: numeric, ...(result.unit ? { unit: result.unit } : {}) } } : { valueString: result.value }),
     ...(result.referenceRange ? { referenceRange: [{ text: result.referenceRange }] } : {}),
     interpretation: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation', code: INTERPRETATION_CODE[result.flag] }] }],
     effectiveDateTime: result.resultedAt.toISOString(),
