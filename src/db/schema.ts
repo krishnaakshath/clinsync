@@ -715,3 +715,31 @@ export const labResults = pgTable('lab_results', {
   resultedAt: timestamp('resulted_at').defaultNow().notNull(),
   notes: text('notes'),
 })
+
+export const employmentStatusEnum = pgEnum('employment_status', ['active', 'on_leave', 'terminated'])
+
+// A staff directory that deliberately mixes three linkage shapes: some rows
+// are both a system `users` login AND a clinical `providers` row (e.g. a
+// prescribing psychiatrist who also logs into the app), some are only one
+// or the other, and some (front-desk/facilities roles) are neither -- see
+// the seed data below and spec §1. Both FKs are therefore nullable, not
+// `.notNull()`, matching users.id/providers.id's own serial/integer shape.
+export const staffMembers = pgTable('staff_members', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  providerId: integer('provider_id').references(() => providers.id),
+  name: text('name').notNull(),
+  department: text('department').notNull(),
+  title: text('title').notNull(),
+  employmentStatus: employmentStatusEnum('employment_status').default('active').notNull(),
+  hireDate: date('hire_date').notNull(),
+  terminationDate: date('termination_date'),
+})
+
+export const staffCredentials = pgTable('staff_credentials', {
+  id: serial('id').primaryKey(),
+  staffMemberId: integer('staff_member_id').notNull().references(() => staffMembers.id),
+  credentialType: text('credential_type').notNull(),
+  credentialNumber: text('credential_number'),
+  expiresOn: date('expires_on'),
+})

@@ -6,6 +6,7 @@ import { listFormTemplates } from '@/lib/queries/form-templates'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listAppointmentsInRange } from '@/lib/queries/appointments'
 import { listAllUsers } from '@/lib/queries/users'
+import { listExpiringOrExpiredCredentials } from '@/lib/queries/staff-credentials'
 import { AdminDashboard } from '@/components/dashboards/AdminDashboard'
 import { CoordinatorDashboard } from '@/components/dashboards/CoordinatorDashboard'
 import { FrontDeskDashboard } from '@/components/dashboards/FrontDeskDashboard'
@@ -30,12 +31,13 @@ export default async function DashboardHomePage() {
   const rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
   const rangeEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-  const [data, templates, patients, appointmentsInRange, allStaff] = await Promise.all([
+  const [data, templates, patients, appointmentsInRange, allStaff, expiringCredentials] = await Promise.all([
     getDashboardData(),
     listFormTemplates(),
     listPatientsWithStatus(null),
     listAppointmentsInRange(rangeStart, rangeEnd),
     listAllUsers(),
+    listExpiringOrExpiredCredentials(),
   ])
   await logAudit(session, 'viewed home dashboard', null)
 
@@ -56,5 +58,7 @@ export default async function DashboardHomePage() {
     staffByRole,
   }
 
-  return session.role === 'admin' ? <AdminDashboard {...props} /> : <CoordinatorDashboard {...props} />
+  return session.role === 'admin'
+    ? <AdminDashboard {...props} expiringCredentials={expiringCredentials} />
+    : <CoordinatorDashboard {...props} />
 }

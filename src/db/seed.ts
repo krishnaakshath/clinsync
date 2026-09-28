@@ -33,6 +33,8 @@ import {
   medications,
   medicationInventory,
   labTests,
+  staffMembers,
+  staffCredentials,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -512,6 +514,78 @@ async function seedMedications() {
   }
 }
 
+// Staff roster -- deliberately mixes three linkage shapes per spec §1: some
+// staff are both a system user AND a clinical provider, some are only one,
+// and some (front-desk/facilities roles) are neither. Matched by name
+// against the demo `users` rows and `PROVIDER_ROSTER` providers already
+// seeded above, rather than hardcoded ids, since insertion order can vary.
+const STAFF_SEED: {
+  name: string
+  linkUserEmail: string | null
+  linkProviderName: string | null
+  department: string
+  title: string
+  employmentStatus: 'active' | 'on_leave' | 'terminated'
+  hireDate: string
+  terminationDate: string | null
+}[] = [
+  { name: 'Dr. Rajiv Kunam', linkUserEmail: 'rkunam.demo@example.com', linkProviderName: 'Dr. Rajiv Kunam', department: 'Clinical', title: 'Psychiatrist', employmentStatus: 'active', hireDate: '2021-03-01', terminationDate: null },
+  { name: 'Dr. Elena Bosch', linkUserEmail: null, linkProviderName: 'Dr. Elena Bosch', department: 'Clinical', title: 'Psychiatrist', employmentStatus: 'active', hireDate: '2022-06-15', terminationDate: null },
+  { name: 'Priya Sundaram', linkUserEmail: null, linkProviderName: 'Priya Sundaram', department: 'Clinical', title: 'Psychiatric Nurse Practitioner', employmentStatus: 'active', hireDate: '2023-01-10', terminationDate: null },
+  { name: 'Jamie Ruiz', linkUserEmail: 'jruiz.demo@example.com', linkProviderName: null, department: 'Research', title: 'Clinical Research Coordinator', employmentStatus: 'active', hireDate: '2022-09-01', terminationDate: null },
+  { name: 'Sam Patel', linkUserEmail: 'spatel.demo@example.com', linkProviderName: null, department: 'Administration', title: 'Practice Administrator', employmentStatus: 'active', hireDate: '2020-11-01', terminationDate: null },
+  { name: 'Taylor Nguyen', linkUserEmail: 'tnguyen.demo@example.com', linkProviderName: null, department: 'Front Desk', title: 'Front Desk Coordinator', employmentStatus: 'active', hireDate: '2023-04-20', terminationDate: null },
+  { name: 'Morgan Reyes', linkUserEmail: null, linkProviderName: null, department: 'Front Desk', title: 'Receptionist', employmentStatus: 'active', hireDate: '2024-02-01', terminationDate: null },
+  { name: 'Casey Boone', linkUserEmail: null, linkProviderName: null, department: 'Facilities', title: 'Housekeeping', employmentStatus: 'on_leave', hireDate: '2021-08-15', terminationDate: null },
+  { name: 'Riley Foster', linkUserEmail: null, linkProviderName: null, department: 'Administration', title: 'Billing Specialist', employmentStatus: 'terminated', hireDate: '2019-05-01', terminationDate: '2026-06-30' },
+]
+
+// Credential dates are computed relative to seed time, not hardcoded, so the
+// 60-day warning window and the "already expired" state always have real
+// demo data to show regardless of when this seed script actually runs.
+function daysFromNow(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+const STAFF_CREDENTIALS_SEED: { staffName: string; credentialType: string; credentialNumber: string | null; expiresOn: string | null }[] = [
+  { staffName: 'Dr. Rajiv Kunam', credentialType: 'State Medical License', credentialNumber: 'CA-MD-48213', expiresOn: daysFromNow(400) },
+  { staffName: 'Dr. Rajiv Kunam', credentialType: 'DEA Registration', credentialNumber: 'BK1234563', expiresOn: daysFromNow(30) }, // inside the 60-day warning window
+  { staffName: 'Dr. Elena Bosch', credentialType: 'State Medical License', credentialNumber: 'CA-MD-51902', expiresOn: daysFromNow(-15) }, // already expired
+  { staffName: 'Dr. Elena Bosch', credentialType: 'Board Certification', credentialNumber: 'ABPN-88213', expiresOn: daysFromNow(500) },
+  { staffName: 'Priya Sundaram', credentialType: 'State NP License', credentialNumber: 'CA-NP-33012', expiresOn: daysFromNow(200) },
+  { staffName: 'Priya Sundaram', credentialType: 'DEA Registration', credentialNumber: 'MS9988771', expiresOn: daysFromNow(55) }, // inside the 60-day warning window
+]
+
+async function seedStaff() {
+  const db = getDb()
+  const existingStaff = await db.select({ name: staffMembers.name }).from(staffMembers)
+  const existingNames = new Set(existingStaff.map((s) => s.name))
+  const toInsert = STAFF_SEED.filter((s) => !existingNames.has(s.name))
+  if (toInsert.length === 0) return
+
+  const allUsers = await db.select({ id: users.id, email: users.email }).from(users)
+  const userByEmail = new Map(allUsers.map((u) => [u.email, u.id]))
+  const allProviders = await db.select({ id: providers.id, name: providers.name }).from(providers)
+  const providerByName = new Map(allProviders.map((p) => [p.name, p.id]))
+
+  const inserted = await db.insert(staffMembers).values(toInsert.map((s) => ({
+    name: s.name,
+    userId: s.linkUserEmail ? (userByEmail.get(s.linkUserEmail) ?? null) : null,
+    providerId: s.linkProviderName ? (providerByName.get(s.linkProviderName) ?? null) : null,
+    department: s.department,
+    title: s.title,
+    employmentStatus: s.employmentStatus,
+    hireDate: s.hireDate,
+    terminationDate: s.terminationDate,
+  }))).returning()
+
+  const staffIdByName = new Map(inserted.map((s) => [s.name, s.id]))
+  const credentialRows = STAFF_CREDENTIALS_SEED
+    .filter((c) => staffIdByName.has(c.staffName))
+    .map((c) => ({ staffMemberId: staffIdByName.get(c.staffName)!, credentialType: c.credentialType, credentialNumber: c.credentialNumber, expiresOn: c.expiresOn }))
+  if (credentialRows.length > 0) await db.insert(staffCredentials).values(credentialRows)
+}
+
 async function seedBilling() {
   const db = getDb()
   const allPayers = await db.select({ id: payers.id, name: payers.name }).from(payers)
@@ -731,6 +805,12 @@ async function clearExistingData() {
   await db.delete(formTemplates)
   await db.delete(appointments)
   await db.delete(patients)
+  // staffCredentials/staffMembers FK into providers/users, so both must be
+  // deleted before providers/users below -- previously missing here, which
+  // left a half-wipe FK-violation trap on the shared dev DB (final
+  // whole-branch review, Important #1).
+  await db.delete(staffCredentials)
+  await db.delete(staffMembers)
   await db.delete(providers)
   await db.delete(users)
   await db.delete(trials)
@@ -796,6 +876,14 @@ export async function seed() {
     if (roomCount === 0) {
       await seedRooms()
       console.log('Seeded rooms (patients table was already populated).')
+    }
+    // Staff directory links to both `users` and `providers` by name, so it
+    // must run after the providerCount top-up above -- a shared dev DB
+    // seeded before this branch's schema existed won't have staff rows yet.
+    const [{ staffCount }] = await db.select({ staffCount: sql<number>`count(*)::int` }).from(staffMembers)
+    if (staffCount === 0) {
+      await seedStaff()
+      console.log('Seeded staff directory (patients table was already populated).')
     }
     // seedFillerPatients() skips any id that already exists, so it's safe to
     // call again here to top up the roster with any new FILLER_NAMES entries
@@ -866,6 +954,7 @@ export async function seed() {
 
   await seedFillerPatients()
   await seedProvidersAndAppointments()
+  await seedStaff()
   await seedRooms()
   await seedBilling()
   await seedDocumentsAndFaxes()

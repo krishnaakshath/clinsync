@@ -1,11 +1,12 @@
 import Link from 'next/link'
-import { FileClock, ClipboardCheck, LayoutTemplate, Clock, Users, Star, Send, CheckCircle2, Fingerprint, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react'
+import { FileClock, ClipboardCheck, LayoutTemplate, Clock, Users, Star, Send, CheckCircle2, Fingerprint, Sparkles, ArrowRight, ShieldCheck, AlertTriangle, XCircle } from 'lucide-react'
 import type { Session } from '@/lib/auth'
 import { DashboardHomeClient } from '@/components/DashboardHomeClient'
 import { DashboardAppointmentsTable, type DashboardAppointmentRow } from '@/components/DashboardAppointmentsTable'
 import { PatientsByMonthChart } from '@/components/PatientsByMonthChart'
 import { ScreeningBreakdownChart } from '@/components/ScreeningBreakdownChart'
 import { PatientAvatar } from '@/components/PatientAvatar'
+import type { ExpiringCredential } from '@/lib/queries/staff-credentials'
 
 export interface DashboardData {
   latestForms: { id: number; status: string; sentDate: Date | null; completedDate: Date | null; templateName: string; patientName: string }[]
@@ -27,6 +28,12 @@ export interface DashboardPageProps {
   patients: { id: string; nameTebra: string | null; nameIntakeq: string }[]
   appointmentsInRange: { id: number; patientId: string; patientName: string; providerName: string; visitReason: string; status: string; startsAt: string }[]
   staffByRole: { role: string; count: number }[]
+  // Optional (not just AdminDashboard-only) because this interface is
+  // shared with CoordinatorDashboard, which destructures its own named
+  // subset of DashboardPageProps and is never passed this field -- page.tsx
+  // fetches listExpiringOrExpiredCredentials() once and hands it only to
+  // AdminDashboard, per this task's brief (Task 4 §Step 2/3).
+  expiringCredentials?: ExpiringCredential[]
 }
 
 const FORM_STATUS_STYLE: Record<string, string> = {
@@ -67,7 +74,20 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
 }
 
-export function AdminDashboard({ session, data, templates, patients, appointmentsInRange, staffByRole }: DashboardPageProps) {
+// "expires in 12 days" / "expired 5 days ago", per this task's brief --
+// daysUntilExpiry is already negative once expired (see
+// listExpiringOrExpiredCredentials), so this is the one place that turns
+// that signed integer into the two human-readable phrasings.
+function formatExpiryPhrase(daysUntilExpiry: number): string {
+  if (daysUntilExpiry < 0) {
+    const daysAgo = Math.abs(daysUntilExpiry)
+    return `expired ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`
+  }
+  if (daysUntilExpiry === 0) return 'expires today'
+  return `expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}`
+}
+
+export function AdminDashboard({ session, data, templates, patients, appointmentsInRange, staffByRole, expiringCredentials = [] }: DashboardPageProps) {
   const screenedCount = data.screeningBreakdown.green + data.screeningBreakdown.yellow + data.screeningBreakdown.red
   const unscreenedCount = Math.max(patients.length - screenedCount, 0)
   const screenedPct = patients.length > 0 ? Math.round((screenedCount / patients.length) * 100) : 0
@@ -231,6 +251,31 @@ export function AdminDashboard({ session, data, templates, patients, appointment
                       <p className="text-xs text-muted-foreground">{e.userName}</p>
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground">{new Date(e.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section className={`${CARD_SURFACE} p-5`}>
+          <SectionHeading>Credential Expiry</SectionHeading>
+          {expiringCredentials.length === 0 ? <EmptyRow text="No credentials expiring soon." /> : (
+            <ul className="divide-y divide-border">
+              {expiringCredentials.map((c) => {
+                const expired = c.status === 'expired'
+                const Icon = expired ? XCircle : AlertTriangle
+                const iconColor = expired ? 'bg-destructive/10 text-destructive' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                return (
+                  <li key={c.id} className="flex items-center gap-3 py-2.5">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconColor}`} aria-hidden="true"><Icon className="h-4 w-4" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{c.staffMemberName}</p>
+                      <p className="truncate text-xs text-muted-foreground">{c.credentialType}</p>
+                    </div>
+                    <span className={`shrink-0 text-xs font-medium ${expired ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'}`}>
+                      {expired ? 'Expired · ' : 'Expiring · '}{formatExpiryPhrase(c.daysUntilExpiry)}
+                    </span>
                   </li>
                 )
               })}

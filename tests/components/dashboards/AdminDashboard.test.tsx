@@ -53,4 +53,24 @@ describe('AdminDashboard', () => {
     expect(screen.getByText(/staff/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /staff/i })).toHaveAttribute('href', '/settings')
   })
+
+  it('renders the Credential Expiry widget with each entry\'s staff name, credential type, and expiry phrase', () => {
+    render(<AdminDashboard {...baseProps} expiringCredentials={[
+      { id: 1, staffMemberId: 10, staffMemberName: 'Dr. Rajiv Kunam', credentialType: 'DEA Registration', expiresOn: '2026-10-28', daysUntilExpiry: 30, status: 'expiring_soon' },
+      { id: 2, staffMemberId: 11, staffMemberName: 'Dr. Elena Bosch', credentialType: 'State Medical License', expiresOn: '2026-09-13', daysUntilExpiry: -15, status: 'expired' },
+    ]} />)
+    expect(screen.getByText(/credential expiry/i)).toBeInTheDocument()
+    expect(screen.getByText('Dr. Rajiv Kunam')).toBeInTheDocument()
+    expect(screen.getByText('DEA Registration')).toBeInTheDocument()
+    expect(screen.getByText(/expires in 30 days/i)).toBeInTheDocument()
+    expect(screen.getByText('Dr. Elena Bosch')).toBeInTheDocument()
+    expect(screen.getByText('State Medical License')).toBeInTheDocument()
+    expect(screen.getByText(/expired 15 days ago/i)).toBeInTheDocument()
+  })
+
+  it('shows the empty-state message when expiringCredentials is empty/omitted', () => {
+    render(<AdminDashboard {...baseProps} />)
+    expect(screen.getByText(/credential expiry/i)).toBeInTheDocument()
+    expect(screen.getByText(/no credentials expiring soon/i)).toBeInTheDocument()
+  })
 })
