@@ -774,6 +774,12 @@ async function clearExistingData() {
   await db.delete(formTemplates)
   await db.delete(appointments)
   await db.delete(patients)
+  // staffCredentials/staffMembers FK into providers/users, so both must be
+  // deleted before providers/users below -- previously missing here, which
+  // left a half-wipe FK-violation trap on the shared dev DB (final
+  // whole-branch review, Important #1).
+  await db.delete(staffCredentials)
+  await db.delete(staffMembers)
   await db.delete(providers)
   await db.delete(users)
   await db.delete(trials)
