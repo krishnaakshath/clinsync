@@ -1,8 +1,27 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { NextResponse } from 'next/server'
+import { eq } from 'drizzle-orm'
+import { getDb } from '@/db/client'
+import { appSettings } from '@/db/schema'
+import { getAppSettings } from '@/lib/queries/settings'
 import { PUT } from '@/app/api/settings/queue-display-pin/route'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'admin' as const, name: 'Test Admin' })) }))
+
+// This is the single shared app_settings row the real Settings page (and the
+// real lobby display) reads -- the "accepts a valid PIN" test below writes a
+// real PIN to it. Snapshot and restore it, same as tests/api/settings.test.ts
+// does for practiceName/EHR credentials, so a test run doesn't silently
+// change the actual staff-configured lobby PIN for whoever opens the app
+// next, and doesn't leave the shared row in a different state than it found
+// it (this is a single shared Neon DB used by every branch/worktree).
+let originalSettings: Awaited<ReturnType<typeof getAppSettings>>
+beforeAll(async () => {
+  originalSettings = await getAppSettings()
+})
+afterAll(async () => {
+  await getDb().update(appSettings).set({ queueDisplayPin: originalSettings.queueDisplayPin }).where(eq(appSettings.id, originalSettings.id))
+})
 
 describe('PUT /api/settings/queue-display-pin', () => {
   it('returns 401 when there is no authenticated session', async () => {
