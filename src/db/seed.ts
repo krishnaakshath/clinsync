@@ -18,6 +18,8 @@ import {
   mockPayments,
   formTemplates,
   formSubmissions,
+  formSubmissionScores,
+  formChartDiscrepancies,
   allergies,
   identityVerifications,
   appSettings,
@@ -693,6 +695,8 @@ async function clearExistingData() {
   await db.delete(medicationEpisodes)
   await db.delete(diagnoses)
   await db.delete(identityMatches)
+  await db.delete(formSubmissionScores)
+  await db.delete(formChartDiscrepancies)
   await db.delete(formSubmissions)
   await db.delete(allergies)
   await db.delete(identityVerifications)
