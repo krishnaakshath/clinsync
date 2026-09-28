@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
 import { invalidateCache, patientListCacheKey } from '@/lib/cache'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
+import { getPayerById } from '@/lib/queries/payers'
 import * as tebra from '@/connectors/tebra.mock'
 
 // A patient's clinical chart is created in Tebra, never as a row typed
@@ -21,6 +22,12 @@ const addClientSchema = z.object({
   city: z.string().optional(),
   zip: z.string().optional(),
   currentProvider: z.string().optional(),
+  primaryPayerId: z.number().int().optional(),
+  primaryMemberId: z.string().optional(),
+  primaryGroupNumber: z.string().optional(),
+  primaryPlanType: z.enum(['ppo', 'hmo', 'epo', 'pos', 'medicare', 'medicaid']).optional(),
+  primarySubscriberName: z.string().optional(),
+  primarySubscriberRelationship: z.enum(['self', 'spouse', 'child', 'other']).optional(),
 }).strict()
 
 export async function GET(request: NextRequest) {
@@ -41,6 +48,11 @@ export async function POST(request: NextRequest) {
 
   const parsed = addClientSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid new-client payload', details: parsed.error.flatten() }, { status: 400 })
+
+  if (parsed.data.primaryPayerId !== undefined) {
+    const payer = await getPayerById(parsed.data.primaryPayerId)
+    if (!payer) return NextResponse.json({ error: 'primaryPayerId does not reference a real payer' }, { status: 400 })
+  }
 
   const [firstName, ...rest] = parsed.data.name.trim().split(/\s+/)
   const lastName = rest.join(' ') || firstName
@@ -77,6 +89,12 @@ export async function POST(request: NextRequest) {
     zipTebra: tebraPatient.zip || null,
     emailTebra: tebraPatient.email || null,
     currentProvider: tebraPatient.generalPractitioner || null,
+    primaryPayerId: parsed.data.primaryPayerId ?? null,
+    primaryMemberId: parsed.data.primaryMemberId ?? null,
+    primaryGroupNumber: parsed.data.primaryGroupNumber ?? null,
+    primaryPlanType: parsed.data.primaryPlanType ?? null,
+    primarySubscriberName: parsed.data.primarySubscriberName ?? null,
+    primarySubscriberRelationship: parsed.data.primarySubscriberRelationship ?? null,
   }).returning()
 
   await invalidateCache(patientListCacheKey(null))
