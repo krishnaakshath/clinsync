@@ -399,10 +399,13 @@ function matchPayerId(allPayers: { id: number; name: string }[], payerName: stri
 // Medication catalog seed -- 15 commonly prescribed psychiatric medications
 // spanning the drug classes this clinic's patients are typically on (SSRI/
 // SNRI/atypical antidepressants, atypical antipsychotics, benzodiazepines,
-// stimulants, a mood stabilizer, and Spravato). `name` is the brand name
-// clinicians commonly refer to it by; `genericName` carries the actual
-// generic/INN name and is left null for the two drugs (Trazodone, Lithium)
-// that don't have a dominant modern brand in this clinic's context.
+// stimulants, a mood stabilizer, and Spravato). `name` is the generic/
+// clinical name -- matching this app's existing convention elsewhere in
+// this file (see medicationEpisodes seeding above, which also uses generic
+// names as the primary identifier) and required by this plan's Task 2,
+// which asserts against these exact generic-name values. `genericName` is
+// left null throughout since `name` already holds the generic name; there's
+// no separate brand name to cross-reference here.
 const MEDICATIONS_SEED: {
   name: string
   genericName: string | null
@@ -410,44 +413,44 @@ const MEDICATIONS_SEED: {
   commonDose: string
   form: 'tablet' | 'capsule' | 'liquid' | 'injection' | 'other'
 }[] = [
-  { name: 'Zoloft', genericName: 'Sertraline', medicationClass: 'SSRI', commonDose: '50mg daily', form: 'tablet' },
-  { name: 'Lexapro', genericName: 'Escitalopram', medicationClass: 'SSRI', commonDose: '10mg daily', form: 'tablet' },
-  { name: 'Effexor XR', genericName: 'Venlafaxine', medicationClass: 'SNRI', commonDose: '75mg daily', form: 'capsule' },
-  { name: 'Wellbutrin XL', genericName: 'Bupropion', medicationClass: 'Atypical antidepressant', commonDose: '150mg daily', form: 'tablet' },
+  { name: 'Sertraline', genericName: null, medicationClass: 'SSRI', commonDose: '50mg daily', form: 'tablet' },
+  { name: 'Escitalopram', genericName: null, medicationClass: 'SSRI', commonDose: '10mg daily', form: 'tablet' },
+  { name: 'Venlafaxine', genericName: null, medicationClass: 'SNRI', commonDose: '75mg daily', form: 'capsule' },
+  { name: 'Bupropion', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '150mg daily', form: 'tablet' },
   { name: 'Trazodone', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '50mg at bedtime', form: 'tablet' },
-  { name: 'Remeron', genericName: 'Mirtazapine', medicationClass: 'Atypical antidepressant', commonDose: '15mg at bedtime', form: 'tablet' },
-  { name: 'Abilify', genericName: 'Aripiprazole', medicationClass: 'Atypical antipsychotic', commonDose: '5mg daily', form: 'tablet' },
-  { name: 'Seroquel', genericName: 'Quetiapine', medicationClass: 'Atypical antipsychotic', commonDose: '100mg at bedtime', form: 'tablet' },
-  { name: 'Risperdal', genericName: 'Risperidone', medicationClass: 'Atypical antipsychotic', commonDose: '2mg daily', form: 'tablet' },
-  { name: 'Ativan', genericName: 'Lorazepam', medicationClass: 'Benzodiazepine', commonDose: '0.5mg twice daily as needed', form: 'tablet' },
-  { name: 'Klonopin', genericName: 'Clonazepam', medicationClass: 'Benzodiazepine', commonDose: '0.5mg twice daily', form: 'tablet' },
-  { name: 'Concerta', genericName: 'Methylphenidate ER', medicationClass: 'Stimulant', commonDose: '36mg daily', form: 'tablet' },
-  { name: 'Adderall XR', genericName: 'Amphetamine/dextroamphetamine', medicationClass: 'Stimulant', commonDose: '20mg daily', form: 'capsule' },
+  { name: 'Mirtazapine', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '15mg at bedtime', form: 'tablet' },
+  { name: 'Aripiprazole', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '5mg daily', form: 'tablet' },
+  { name: 'Quetiapine', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '100mg at bedtime', form: 'tablet' },
+  { name: 'Risperidone', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '2mg daily', form: 'tablet' },
+  { name: 'Lorazepam', genericName: null, medicationClass: 'Benzodiazepine', commonDose: '0.5mg twice daily as needed', form: 'tablet' },
+  { name: 'Clonazepam', genericName: null, medicationClass: 'Benzodiazepine', commonDose: '0.5mg twice daily', form: 'tablet' },
+  { name: 'Methylphenidate ER', genericName: null, medicationClass: 'Stimulant', commonDose: '36mg daily', form: 'tablet' },
+  { name: 'Amphetamine/dextroamphetamine', genericName: null, medicationClass: 'Stimulant', commonDose: '20mg daily', form: 'capsule' },
   { name: 'Lithium', genericName: null, medicationClass: 'Mood stabilizer', commonDose: '300mg twice daily', form: 'capsule' },
-  { name: 'Spravato', genericName: 'Esketamine', medicationClass: 'NMDA antagonist', commonDose: '56mg per session', form: 'injection' },
+  { name: 'Esketamine', genericName: 'Spravato', medicationClass: 'NMDA antagonist', commonDose: '56mg per session', form: 'injection' },
 ]
 
 // Starting stock levels keyed by medication name -- a plausible starting
 // point, not a clinically precise figure. Controlled substances (the
-// benzodiazepines and stimulants) and the in-office-only Spravato get
-// smaller on-hand quantities and tighter reorder thresholds than routine
-// oral antidepressants/antipsychotics.
+// benzodiazepines and stimulants) and the in-office-only Esketamine
+// (Spravato) get smaller on-hand quantities and tighter reorder thresholds
+// than routine oral antidepressants/antipsychotics.
 const MEDICATION_INVENTORY_SEED: Record<string, { quantityOnHand: number; reorderThreshold: number; unit: string }> = {
-  'Zoloft': { quantityOnHand: 150, reorderThreshold: 20, unit: 'tablets' },
-  'Lexapro': { quantityOnHand: 150, reorderThreshold: 20, unit: 'tablets' },
-  'Effexor XR': { quantityOnHand: 120, reorderThreshold: 15, unit: 'capsules' },
-  'Wellbutrin XL': { quantityOnHand: 120, reorderThreshold: 15, unit: 'tablets' },
+  'Sertraline': { quantityOnHand: 150, reorderThreshold: 20, unit: 'tablets' },
+  'Escitalopram': { quantityOnHand: 150, reorderThreshold: 20, unit: 'tablets' },
+  'Venlafaxine': { quantityOnHand: 120, reorderThreshold: 15, unit: 'capsules' },
+  'Bupropion': { quantityOnHand: 120, reorderThreshold: 15, unit: 'tablets' },
   'Trazodone': { quantityOnHand: 200, reorderThreshold: 20, unit: 'tablets' },
-  'Remeron': { quantityOnHand: 100, reorderThreshold: 15, unit: 'tablets' },
-  'Abilify': { quantityOnHand: 90, reorderThreshold: 15, unit: 'tablets' },
-  'Seroquel': { quantityOnHand: 100, reorderThreshold: 15, unit: 'tablets' },
-  'Risperdal': { quantityOnHand: 90, reorderThreshold: 15, unit: 'tablets' },
-  'Ativan': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
-  'Klonopin': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
-  'Concerta': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
-  'Adderall XR': { quantityOnHand: 60, reorderThreshold: 10, unit: 'capsules' },
+  'Mirtazapine': { quantityOnHand: 100, reorderThreshold: 15, unit: 'tablets' },
+  'Aripiprazole': { quantityOnHand: 90, reorderThreshold: 15, unit: 'tablets' },
+  'Quetiapine': { quantityOnHand: 100, reorderThreshold: 15, unit: 'tablets' },
+  'Risperidone': { quantityOnHand: 90, reorderThreshold: 15, unit: 'tablets' },
+  'Lorazepam': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Clonazepam': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Methylphenidate ER': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Amphetamine/dextroamphetamine': { quantityOnHand: 60, reorderThreshold: 10, unit: 'capsules' },
   'Lithium': { quantityOnHand: 100, reorderThreshold: 15, unit: 'capsules' },
-  'Spravato': { quantityOnHand: 20, reorderThreshold: 10, unit: 'doses' },
+  'Esketamine': { quantityOnHand: 20, reorderThreshold: 10, unit: 'doses' },
 }
 
 async function seedMedications() {
