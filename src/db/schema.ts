@@ -4,6 +4,9 @@ export const verdictEnum = pgEnum('verdict', ['green', 'yellow', 'red'])
 export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin', 'frontdesk'])
 export const mfaMethodEnum = pgEnum('mfa_method', ['totp', 'sms', 'email'])
 export const matchStatusEnum = pgEnum('match_status', ['pending', 'confirmed', 'rejected'])
+export const payerTypeEnum = pgEnum('payer_type', ['commercial', 'medicare', 'medicaid', 'tricare', 'other'])
+export const insuranceRelationshipEnum = pgEnum('insurance_relationship', ['self', 'spouse', 'child', 'other'])
+export const insurancePlanTypeEnum = pgEnum('insurance_plan_type', ['ppo', 'hmo', 'epo', 'pos', 'medicare', 'medicaid'])
 
 export const trials = pgTable('trials', {
   id: text('id').primaryKey(),                 // e.g. "nct06911112"
@@ -90,6 +93,20 @@ export const patients = pgTable('patients', {
   chartDataAsOf: timestamp('chart_data_as_of').defaultNow().notNull(),
   mfaSecretEncrypted: text('mfa_secret_encrypted'),
   mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
+  primaryPayerId: integer('primary_payer_id').references(() => payers.id),
+  primaryMemberId: text('primary_member_id'),
+  primaryGroupNumber: text('primary_group_number'),
+  primaryPlanType: insurancePlanTypeEnum('primary_plan_type'),
+  primarySubscriberName: text('primary_subscriber_name'),
+  primarySubscriberRelationship: insuranceRelationshipEnum('primary_subscriber_relationship'),
+  primaryCardFrontUrl: text('primary_card_front_url'),
+  primaryCardBackUrl: text('primary_card_back_url'),
+  secondaryPayerId: integer('secondary_payer_id').references(() => payers.id),
+  secondaryMemberId: text('secondary_member_id'),
+  secondaryGroupNumber: text('secondary_group_number'),
+  secondaryPlanType: insurancePlanTypeEnum('secondary_plan_type'),
+  secondarySubscriberName: text('secondary_subscriber_name'),
+  secondarySubscriberRelationship: insuranceRelationshipEnum('secondary_subscriber_relationship'),
 })
 
 export const diagnoses = pgTable('diagnoses', {
@@ -201,11 +218,19 @@ export const charges = pgTable('charges', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+export const payers = pgTable('payers', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  payerId: text('payer_id').notNull(),
+  payerType: payerTypeEnum('payer_type').default('commercial').notNull(),
+})
+
 export const insuranceClaims = pgTable('insurance_claims', {
   id: serial('id').primaryKey(),
   chargeId: integer('charge_id').notNull().references(() => charges.id),
   patientId: text('patient_id').notNull().references(() => patients.id),
   payerName: text('payer_name').notNull(),
+  payerId: integer('payer_id').references(() => payers.id),
   billedAmountCents: integer('billed_amount_cents').notNull(),
   paidAmountCents: integer('paid_amount_cents'),
   status: insuranceClaimStatusEnum('status').notNull(),
@@ -242,7 +267,7 @@ export const mockPayments = pgTable('mock_payments', {
 })
 
 export const formSubmissionStatusEnum = pgEnum('form_submission_status', ['sent', 'partial', 'completed'])
-export const idTypeEnum = pgEnum('id_type', ['drivers_license', 'state_id', 'passport'])
+export const idTypeEnum = pgEnum('id_type', ['drivers_license', 'state_id', 'passport', 'military_id', 'green_card'])
 export const severityEnum = pgEnum('severity', ['mild', 'moderate', 'severe'])
 
 export const formTemplates = pgTable('form_templates', {
@@ -521,8 +546,12 @@ export const insuranceEligibilityChecks = pgTable('insurance_eligibility_checks'
   id: serial('id').primaryKey(),
   patientId: text('patient_id').notNull().references(() => patients.id),
   payerName: text('payer_name').notNull(),
+  payerId: integer('payer_id').references(() => payers.id),
   status: eligibilityStatusEnum('status').notNull(),
   copayCents: integer('copay_cents'),
+  deductibleRemainingCents: integer('deductible_remaining_cents'),
+  planType: insurancePlanTypeEnum('plan_type'),
+  coverageStartDate: date('coverage_start_date'),
   checkedByName: text('checked_by_name').notNull(),
   checkedAt: timestamp('checked_at').defaultNow().notNull(),
 })
