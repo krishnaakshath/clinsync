@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, afterAll } from 'vitest'
 import { GET, POST } from '@/app/api/form-templates/route'
-import { GET as getOneTemplate } from '@/app/api/form-templates/[id]/route'
+import { GET as getOneTemplate, PUT as putTemplate } from '@/app/api/form-templates/[id]/route'
 import { getDb } from '@/db/client'
 import { formTemplates, auditLog } from '@/db/schema'
 import { eq, desc, or, like } from 'drizzle-orm'
@@ -67,5 +67,63 @@ describe('POST /api/form-templates', () => {
     expect(res.status).toBe(201)
     const body = await res.json()
     createdTemplateId = body.id
+  })
+
+  it('rejects a select question whose optionScores length does not match options (final review I3)', async () => {
+    const req = new Request('http://localhost/api/form-templates', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Mismatched Scores Form', category: 'Screening Questionnaires', diagnosisTag: 'Test',
+        questions: [{ id: 'q1', label: 'Q', type: 'select', options: ['A', 'B', 'C'], optionScores: [0, 5], hipaaSensitive: false, required: true }],
+      }),
+    })
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('Invalid template payload')
+  })
+
+  it('accepts a select question whose optionScores length matches options', async () => {
+    const req = new Request('http://localhost/api/form-templates', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: `Matched Scores Form ${Date.now()}`, category: 'Screening Questionnaires', diagnosisTag: 'Test',
+        questions: [{ id: 'q1', label: 'Q', type: 'select', options: ['A', 'B'], optionScores: [0, 5], hipaaSensitive: false, required: true }],
+      }),
+    })
+    const res = await POST(req as never)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    createdTemplateId = body.id
+  })
+
+  it('accepts a non-scored, non-select question with neither options nor optionScores', async () => {
+    const req = new Request('http://localhost/api/form-templates', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: `Plain Text Form ${Date.now()}`, category: 'Consent Forms', diagnosisTag: 'General',
+        questions: [{ id: 'q1', label: 'Notes', type: 'text', hipaaSensitive: false, required: false }],
+      }),
+    })
+    const res = await POST(req as never)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    createdTemplateId = body.id
+  })
+})
+
+describe('PUT /api/form-templates/[id]', () => {
+  it('rejects a select question whose optionScores length does not match options (final review I3)', async () => {
+    const [existing] = await getDb().select().from(formTemplates).limit(1)
+    const req = new Request(`http://localhost/api/form-templates/${existing.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        questions: [{ id: 'q1', label: 'Q', type: 'select', options: ['A', 'B', 'C'], optionScores: [0, 5], hipaaSensitive: false, required: true }],
+      }),
+    })
+    const res = await putTemplate(req as never, { params: Promise.resolve({ id: String(existing.id) }) })
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('Invalid template payload')
   })
 })

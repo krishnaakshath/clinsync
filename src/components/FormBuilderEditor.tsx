@@ -9,6 +9,7 @@ interface Question {
   label: string
   type: 'text' | 'textarea' | 'date' | 'select' | 'checkbox'
   options?: string[]
+  optionScores?: (number | null)[]
   hipaaSensitive: boolean
   required: boolean
 }
@@ -26,6 +27,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
   const [diagnosisTag, setDiagnosisTag] = useState(initialDiagnosisTag)
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   function addQuestion() {
     setQuestions([...questions, { id: `q${Date.now()}`, label: 'New question', type: 'text', hipaaSensitive: false, required: false }])
@@ -48,11 +50,22 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
   }
 
   function addOption(id: string) {
-    setQuestions(questions.map((q) => (q.id === id ? { ...q, options: [...(q.options ?? []), ''] } : q)))
+    setQuestions(questions.map((q) => (q.id === id ? {
+      ...q,
+      options: [...(q.options ?? []), ''],
+      // A newly added option has no score yet -- push `null` (distinguishable
+      // from a real 0-point option) to keep optionScores in lockstep with
+      // options, only when the question actually has scores to keep in sync.
+      optionScores: q.optionScores ? [...q.optionScores, null] : q.optionScores,
+    } : q)))
   }
 
   function removeOption(id: string, index: number) {
-    setQuestions(questions.map((q) => (q.id === id ? { ...q, options: (q.options ?? []).filter((_, i) => i !== index) } : q)))
+    setQuestions(questions.map((q) => (q.id === id ? {
+      ...q,
+      options: (q.options ?? []).filter((_, i) => i !== index),
+      optionScores: q.optionScores ? q.optionScores.filter((_, i) => i !== index) : q.optionScores,
+    } : q)))
   }
 
   function updateOption(id: string, index: number, value: string) {
@@ -66,22 +79,42 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
       const target = index + direction
       if (target < 0 || target >= opts.length) return q
       ;[opts[index], opts[target]] = [opts[target], opts[index]]
-      return { ...q, options: opts }
+      const scores = q.optionScores ? [...q.optionScores] : undefined
+      if (scores) [scores[index], scores[target]] = [scores[target], scores[index]]
+      return { ...q, options: opts, optionScores: scores ?? q.optionScores }
     }))
   }
 
   async function save() {
     setSaving(true)
+    setSaveError(null)
     // Drop blank option rows (e.g. an "+ Add option" click the user never
-    // filled in) so choice questions don't ship empty entries to patients.
-    const cleaned = questions.map((q) => (q.type === 'select' ? { ...q, options: (q.options ?? []).map((o) => o.trim()).filter(Boolean) } : q))
+    // filled in) so choice questions don't ship empty entries to patients --
+    // and drop the same indices from optionScores so the two arrays stay in
+    // lockstep (a blank option surviving in optionScores but not options
+    // would desync scoring just like an unfiltered reorder/removal would).
+    const cleaned = questions.map((q) => {
+      if (q.type !== 'select') return q
+      const options = q.options ?? []
+      const keepIndices = options.map((o, i) => (o.trim() ? i : -1)).filter((i) => i !== -1)
+      return {
+        ...q,
+        options: keepIndices.map((i) => options[i].trim()),
+        optionScores: q.optionScores ? keepIndices.map((i) => q.optionScores![i]) : q.optionScores,
+      }
+    })
     const res = await fetch(`/api/form-templates/${templateId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, category, diagnosisTag, questions: cleaned }),
     })
     setSaving(false)
-    if (res.ok) router.refresh()
+    if (res.ok) {
+      router.refresh()
+    } else {
+      const body = await res.json().catch(() => null)
+      setSaveError(body?.error ?? 'Could not save this form. Please try again.')
+    }
   }
 
   return (
@@ -163,6 +196,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
         ))}
       </div>
 
+      {saveError && <p className="mt-3 text-sm text-destructive">{saveError}</p>}
       <div className="mt-4 flex justify-between">
         <button onClick={addQuestion} className="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
           <Plus className="h-4 w-4" aria-hidden="true" />

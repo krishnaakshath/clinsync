@@ -57,4 +57,55 @@ describe('FormBuilderEditor', () => {
     const body = JSON.parse(init!.body as string)
     expect(body.questions[0].options).toEqual(['Mild'])
   })
+
+  // Final review I3: optionScores must stay in lockstep with options through
+  // add/remove/move, or point values silently attach to the wrong answer
+  // choice on a scored template (e.g. PHQ-9/GAD-7).
+  describe('keeps optionScores in lockstep with options (final review I3)', () => {
+    it('pads a new option with null in optionScores, not a real 0', async () => {
+      const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={[{ id: 'q1', label: 'Severity', type: 'select', options: ['Mild', 'Moderate'], optionScores: [0, 5], hipaaSensitive: false, required: true }]} />)
+      fireEvent.click(screen.getByText('+ Add option'))
+      fireEvent.change(screen.getByLabelText('Option 3 for Severity'), { target: { value: 'Severe' } })
+      fireEvent.click(screen.getByText('Save Form'))
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      const [, init] = fetchMock.mock.calls[0]
+      const body = JSON.parse(init!.body as string)
+      expect(body.questions[0].options).toEqual(['Mild', 'Moderate', 'Severe'])
+      expect(body.questions[0].optionScores).toEqual([0, 5, null])
+    })
+
+    it('splices the matching index out of optionScores when an option is removed', async () => {
+      const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={[{ id: 'q1', label: 'Severity', type: 'select', options: ['Mild', 'Moderate', 'Severe'], optionScores: [0, 5, 10], hipaaSensitive: false, required: true }]} />)
+      fireEvent.click(screen.getAllByLabelText('Remove option')[0]) // removes 'Mild'
+      fireEvent.click(screen.getByText('Save Form'))
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      const [, init] = fetchMock.mock.calls[0]
+      const body = JSON.parse(init!.body as string)
+      expect(body.questions[0].options).toEqual(['Moderate', 'Severe'])
+      expect(body.questions[0].optionScores).toEqual([5, 10])
+    })
+
+    it('swaps the matching index in optionScores when an option is moved', async () => {
+      const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={[{ id: 'q1', label: 'Severity', type: 'select', options: ['Mild', 'Moderate'], optionScores: [0, 5], hipaaSensitive: false, required: true }]} />)
+      fireEvent.click(screen.getAllByLabelText('Move option down')[0]) // swaps Mild/Moderate
+      fireEvent.click(screen.getByText('Save Form'))
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      const [, init] = fetchMock.mock.calls[0]
+      const body = JSON.parse(init!.body as string)
+      expect(body.questions[0].options).toEqual(['Moderate', 'Mild'])
+      expect(body.questions[0].optionScores).toEqual([5, 0])
+    })
+  })
 })

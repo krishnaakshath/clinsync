@@ -280,6 +280,7 @@ export const formTemplates = pgTable('form_templates', {
     label: string
     type: 'text' | 'textarea' | 'date' | 'select' | 'checkbox'
     options?: string[]
+    optionScores?: (number | null)[] // NEW -- same length/order as options when present; a select question with no optionScores is simply unscored
     hipaaSensitive: boolean
     required: boolean
     autofillField?: 'name' | 'dob' | 'email' | 'phone' | null
@@ -290,6 +291,10 @@ export const formTemplates = pgTable('form_templates', {
     // against and simply omit this.
     compareToChart?: { type: 'medication_active'; medicationClass: string } | null
   }[]>().notNull(),
+  scoringRule: jsonb('scoring_rule').$type<{
+    questionIds: string[]
+    bands: { min: number; max: number; label: string }[]
+  } | null>(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
@@ -324,6 +329,18 @@ export const formChartDiscrepancies = pgTable('form_chart_discrepancies', {
   resolved: boolean('resolved').default(false).notNull(),
   resolvedBy: text('resolved_by'),
   resolvedAt: timestamp('resolved_at'),
+})
+
+// One row per completed, scoreable submission. A side table, not columns on
+// formSubmissions -- a score is computed once at completion and never
+// edited, a different write pattern from `answers`, which is written
+// incrementally as the patient progresses. See lib/queries/form-submission-scoring.ts.
+export const formSubmissionScores = pgTable('form_submission_scores', {
+  id: serial('id').primaryKey(),
+  formSubmissionId: integer('form_submission_id').notNull().references(() => formSubmissions.id).unique(),
+  totalScore: integer('total_score').notNull(),
+  bandLabel: text('band_label').notNull(),
+  computedAt: timestamp('computed_at').defaultNow().notNull(),
 })
 
 export const broadcastChannelEnum = pgEnum('broadcast_channel', ['sms', 'email', 'both'])

@@ -13,8 +13,16 @@ const updateTemplateSchema = z.object({
   diagnosisTag: z.string().min(1).optional(),
   questions: z.array(z.object({
     id: z.string(), label: z.string(), type: z.enum(['text', 'textarea', 'date', 'select', 'checkbox']),
-    options: z.array(z.string()).optional(), hipaaSensitive: z.boolean(), required: z.boolean(),
+    options: z.array(z.string()).optional(), optionScores: z.array(z.number().nullable()).optional(),
+    hipaaSensitive: z.boolean(), required: z.boolean(),
+  }).refine((q) => !q.optionScores || q.optionScores.length === (q.options ?? []).length, {
+    message: 'optionScores must have the same length as options',
+    path: ['optionScores'],
   })).optional(),
+  scoringRule: z.object({
+    questionIds: z.array(z.string()),
+    bands: z.array(z.object({ min: z.number(), max: z.number(), label: z.string() })),
+  }).nullable().optional(),
   isActive: z.boolean().optional(),
 }).strict()
 
