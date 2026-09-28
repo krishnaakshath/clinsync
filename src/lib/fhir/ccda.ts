@@ -45,7 +45,7 @@ function medicationEntry(m: FhirMedicationRequest): string {
 }
 
 function observationEntry(o: FhirObservation): string {
-  const value = o.valueQuantity ? `${o.valueQuantity.value} ${o.valueQuantity.unit}`.trim() : (o.valueString ?? '')
+  const value = o.valueQuantity ? `${o.valueQuantity.value}${o.valueQuantity.unit ? ` ${o.valueQuantity.unit}` : ''}` : (o.valueString ?? '')
   return `      <entry>
         <testName>${escapeXml(o.code.text ?? '')}</testName>
         <value>${escapeXml(value)}</value>
@@ -53,9 +53,9 @@ function observationEntry(o: FhirObservation): string {
       </entry>`
 }
 
-function section(title: string, templateId: string, entriesXml: string[]): string {
+function section(title: string, templateIdComment: string, entriesXml: string[]): string {
   return `    <section>
-      <templateId root="${templateId}"/>
+      <!-- Loosely modeled on CDA template ${templateIdComment}, but not a conformant instance of it; see the document-level comment. -->
       <title>${escapeXml(title)}</title>
 ${entriesXml.length > 0 ? entriesXml.join('\n') : '      <entry/>'}
     </section>`
@@ -69,6 +69,17 @@ ${entriesXml.length > 0 ? entriesXml.join('\n') : '      <entry/>'}
 // re-derived from the raw DB rows a second time -- that's what makes this
 // document provably consistent with the FHIR Bundle for the same patient:
 // there is exactly one place each fact is computed.
+//
+// IMPORTANT -- conformance disclaimer: this document deliberately omits the
+// real HL7 C-CDA `typeId`/`templateId` OIDs (document-level and per-section)
+// that a genuine C-CDA R2.1 CCD instance would carry. This element/section
+// structure (<allergen>, <problemName>, no <entry> clinical statements, etc.)
+// is NOT the real CDA content model, so asserting those template OIDs would
+// be a false machine-readable conformance claim -- a receiving EHR that
+// routes on templateId would wrongly treat this as a conformant CCD and
+// could silently misimport it. This is a CCD-*shaped* human/summary document
+// only (same Allergies/Medications/Problems/Results sections a real CCD
+// has), not a validated, conformant C-CDA R2.1 document. See spec §4.
 export function toCcdaXml(data: PatientFhirData): string {
   const patient = patientToFhir(data.patient)
   const allergies = allergiesToFhir(data.allergyRows)
@@ -81,15 +92,20 @@ export function toCcdaXml(data: PatientFhirData): string {
 
   const sections = [
     section('Allergies', '2.16.840.1.113883.10.20.22.2.6.1', allergies.map(allergyEntry)),
-    section('Medications', '2.16.840.1.113883.10.20.22.2.1.1', medicationRequests.map(medicationEntry)),
+    section('Active Medications', '2.16.840.1.113883.10.20.22.2.1.1', medicationRequests.map(medicationEntry)),
     section('Problems', '2.16.840.1.113883.10.20.22.2.5.1', conditions.map(conditionEntry)),
     section('Results', '2.16.840.1.113883.10.20.22.2.3.1', observations.map(observationEntry)),
   ]
 
   return `<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  This is a CCD-shaped patient summary document, NOT a conformant HL7 C-CDA
+  R2.1 document. It does not carry the real CDA typeId/templateId
+  conformance identifiers, and its element structure (below) is this app's
+  own simplified content model, not the real CDA clinical-statement entry
+  model. Do not route or validate this document as a real C-CDA instance.
+-->
 <ClinicalDocument xmlns="urn:hl7-org:v3">
-  <typeId root="2.16.840.1.113883.1.3" extension="POCD_HD000040"/>
-  <templateId root="2.16.840.1.113883.10.20.22.1.1"/>
   <title>Continuity of Care Document</title>
   <effectiveTime value="${escapeXml(now)}"/>
   <recordTarget>
