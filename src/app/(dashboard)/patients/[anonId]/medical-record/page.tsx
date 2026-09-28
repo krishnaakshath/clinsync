@@ -3,9 +3,11 @@ import { CalendarClock, CalendarCheck2, Stethoscope, Pill } from 'lucide-react'
 import { BackLink } from '@/components/BackLink'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { AllergyBadge } from '@/components/AllergyBadge'
+import { NoteForm, NoteCard } from '@/components/NoteForm'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
+import { listNotesForPatient } from '@/lib/queries/encounter-notes'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -55,6 +57,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const { anonId } = await params
   const patient = await getPatientDetail(anonId)
   if (!patient) notFound()
+  const notes = await listNotesForPatient(anonId)
   await logAudit(session, 'viewed patient medical record', anonId)
 
   const name = patient.nameTebra ?? patient.nameIntakeq
@@ -147,6 +150,39 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
         ) : (
           <div className="space-y-2">
             {patient.allergies.map((a) => <AllergyBadge key={a.id} allergen={a.allergen} reaction={a.reaction} severity={a.severity} />)}
+          </div>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className={SECTION_HEADING}>Notes</h2>
+          <NoteForm patientId={anonId} canWrite={['pi', 'admin'].includes(session.role)} />
+        </div>
+        {notes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No notes recorded.</p>
+        ) : (
+          <div className="space-y-2.5">
+            {notes.map((n) => (
+              <NoteCard
+                key={n.id}
+                patientId={anonId}
+                canSign={n.status === 'draft' && (n.authorName === session.name || session.role === 'admin')}
+                note={{
+                  id: n.id,
+                  noteType: n.noteType,
+                  authorName: n.authorName,
+                  authorRole: n.authorRole,
+                  subjective: n.subjective,
+                  objective: n.objective,
+                  assessment: n.assessment,
+                  plan: n.plan,
+                  status: n.status,
+                  createdAt: n.createdAt.toString(),
+                  signedAt: n.signedAt?.toString() ?? null,
+                }}
+              />
+            ))}
           </div>
         )}
       </section>

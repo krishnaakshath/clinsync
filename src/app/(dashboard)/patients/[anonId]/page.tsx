@@ -151,6 +151,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       availableRooms={availableRooms}
       canTransfer={['frontdesk', 'admin', 'crc', 'pi'].includes(session.role)}
       canDischarge={['pi', 'admin'].includes(session.role)}
+      canManageMedications={['pi', 'admin'].includes(session.role)}
     />
   )
 

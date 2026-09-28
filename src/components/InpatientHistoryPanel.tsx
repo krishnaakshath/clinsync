@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { TransferAdmissionModal } from '@/components/TransferAdmissionModal'
 import { DischargeAdmissionModal } from '@/components/DischargeAdmissionModal'
+import { MedicationAdministrationPanel } from '@/components/MedicationAdministrationPanel'
 import { Button } from '@/components/ui/button'
 
 interface TransferRecord { id: number; fromRoomId: number | null; toRoomId: number; reason: string; transferredByName: string; transferredAt: string }
@@ -20,9 +21,10 @@ interface AdmissionRecord {
 }
 interface RoomOption { id: number; ward: string; roomNumber: string; bedNumber: string }
 
-export function InpatientHistoryPanel({ admissions, availableRooms, canTransfer, canDischarge }: { admissions: AdmissionRecord[]; availableRooms: RoomOption[]; canTransfer: boolean; canDischarge: boolean }) {
+export function InpatientHistoryPanel({ admissions, availableRooms, canTransfer, canDischarge, canManageMedications }: { admissions: AdmissionRecord[]; availableRooms: RoomOption[]; canTransfer: boolean; canDischarge: boolean; canManageMedications: boolean }) {
   const [transferFor, setTransferFor] = useState<number | null>(null)
   const [dischargeFor, setDischargeFor] = useState<number | null>(null)
+  const [medicationsFor, setMedicationsFor] = useState<number | null>(null)
 
   return (
     <div className="space-y-4">
@@ -36,9 +38,10 @@ export function InpatientHistoryPanel({ admissions, availableRooms, canTransfer,
             <span className="rounded-full bg-secondary px-2 py-0.5 text-xs capitalize text-muted-foreground">{a.admissionType.replace('_', ' ')}</span>
           </div>
 
-          {a.status === 'admitted' && (canTransfer || canDischarge) && (
+          {a.status === 'admitted' && (canTransfer || canDischarge || canManageMedications) && (
             <div className="mb-3 flex gap-2">
               {canTransfer && <Button size="sm" variant="outline" onClick={() => setTransferFor(a.id)}>Transfer</Button>}
+              {canManageMedications && <Button size="sm" variant="outline" onClick={() => setMedicationsFor(a.id)}>Medications</Button>}
               {canDischarge && <Button size="sm" onClick={() => setDischargeFor(a.id)}>Discharge</Button>}
             </div>
           )}
@@ -66,6 +69,7 @@ export function InpatientHistoryPanel({ admissions, availableRooms, canTransfer,
 
           {transferFor === a.id && <TransferAdmissionModal admissionId={a.id} availableRooms={availableRooms} onClose={() => setTransferFor(null)} />}
           {dischargeFor === a.id && <DischargeAdmissionModal admissionId={a.id} onClose={() => setDischargeFor(null)} />}
+          {medicationsFor === a.id && <MedicationAdministrationPanel admissionId={a.id} onClose={() => setMedicationsFor(null)} />}
         </section>
       ))}
     </div>
