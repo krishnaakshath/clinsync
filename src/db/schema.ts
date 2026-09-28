@@ -525,6 +525,45 @@ export const encounterNotes = pgTable('encounter_notes', {
   signedAt: timestamp('signed_at'),
 })
 
+export const medicationFormEnum = pgEnum('medication_form', ['tablet', 'capsule', 'liquid', 'injection', 'other'])
+
+export const medications = pgTable('medications', {
+  id: serial('id').primaryKey(),
+  // UNIQUE (live-DB migration: medications_name_unique) -- added post-launch
+  // by the final whole-branch review after a rename-without-cleanup bug
+  // (seed matched by name before inserting, so renaming brand names to
+  // generic names left the old brand-named rows in place instead of
+  // updating them) produced 13 duplicate catalog rows with independently
+  // split inventory. This constraint makes that failure mode impossible
+  // going forward: a future rename-without-cleanup throws instead of
+  // silently duplicating.
+  name: text('name').notNull().unique(),
+  genericName: text('generic_name'),
+  medicationClass: text('medication_class').notNull(),
+  commonDose: text('common_dose'),
+  form: medicationFormEnum('form').default('tablet').notNull(),
+})
+
+export const medicationInventory = pgTable('medication_inventory', {
+  id: serial('id').primaryKey(),
+  medicationId: integer('medication_id').notNull().references(() => medications.id).unique(),
+  quantityOnHand: integer('quantity_on_hand').default(0).notNull(),
+  reorderThreshold: integer('reorder_threshold').default(10).notNull(),
+  unit: text('unit').default('units').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const medicationDispenses = pgTable('medication_dispenses', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  medicationId: integer('medication_id').notNull().references(() => medications.id),
+  medicationEpisodeId: integer('medication_episode_id').references(() => medicationEpisodes.id),
+  quantity: integer('quantity').notNull(),
+  dispensedByName: text('dispensed_by_name').notNull(),
+  dispensedAt: timestamp('dispensed_at').defaultNow().notNull(),
+  notes: text('notes'),
+})
+
 export const marStatusEnum = pgEnum('mar_status', ['scheduled', 'given', 'held', 'refused'])
 
 export const medicationAdministrations = pgTable('medication_administrations', {

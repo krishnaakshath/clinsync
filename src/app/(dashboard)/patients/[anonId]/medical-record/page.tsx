@@ -10,11 +10,13 @@ import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
 import { listNotesForPatient } from '@/lib/queries/encounter-notes'
 import { getPayerName } from '@/lib/queries/payers'
+import { listDispensesForPatient } from '@/lib/queries/medication-dispenses'
+import { listMedicationsWithInventory } from '@/lib/queries/medications'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
-function formatDate(value: string | null): string {
+function formatDate(value: string | Date | null): string {
   if (!value) return '—'
   return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
@@ -79,6 +81,9 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const notes = await listNotesForPatient(anonId)
   const primaryPayerName = await getPayerName(patient.primaryPayerId)
   const secondaryPayerName = await getPayerName(patient.secondaryPayerId)
+  const dispenses = await listDispensesForPatient(anonId)
+  const medicationCatalog = await listMedicationsWithInventory()
+  const medicationById = new Map(medicationCatalog.map((m) => [m.id, m]))
   await logAudit(session, 'viewed patient medical record', anonId)
 
   const name = patient.nameTebra ?? patient.nameIntakeq
@@ -162,6 +167,30 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
               )
             })}
           </div>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_HEADING}>Medications Dispensed</h2>
+        {dispenses.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No medications dispensed.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {dispenses.map((d) => {
+              const med = medicationById.get(d.medicationId)
+              return (
+                <li key={`dispense-${d.id}`} className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm">
+                  <Pill className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">{med?.name ?? `Medication #${d.medicationId}`}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {d.quantity} {med?.unit ?? 'units'} · dispensed by {d.dispensedByName} · {formatDate(d.dispensedAt)}
+                    </p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         )}
       </section>
 

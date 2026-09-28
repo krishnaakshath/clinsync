@@ -29,6 +29,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Review a patient\'s actual submitted answers in Client Forms',
       'Message patients directly',
       'View the live bed/ward status board for their admitted patients',
+      'Dispense medications from the Pharmacy dashboard',
     ],
   },
   admin: {
@@ -41,6 +42,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Rename entries in the Provider Profiles roster',
       'Issue and revoke Patient Portal access credentials',
       'View and manage the live bed/ward status board, including blocking and unblocking rooms',
+      'Dispense medications from the Pharmacy dashboard',
     ],
   },
   frontdesk: {

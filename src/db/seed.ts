@@ -28,6 +28,8 @@ import {
   faxes,
   broadcasts,
   reviews,
+  medications,
+  medicationInventory,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -394,6 +396,93 @@ function matchPayerId(allPayers: { id: number; name: string }[], payerName: stri
   return allPayers.find((p) => payerName.toLowerCase().includes(p.name.toLowerCase()))?.id ?? null
 }
 
+// Medication catalog seed -- 15 commonly prescribed psychiatric medications
+// spanning the drug classes this clinic's patients are typically on (SSRI/
+// SNRI/atypical antidepressants, atypical antipsychotics, benzodiazepines,
+// stimulants, a mood stabilizer, and Spravato). `name` is the generic/
+// clinical name -- matching this app's existing convention elsewhere in
+// this file (see medicationEpisodes seeding above, which also uses generic
+// names as the primary identifier) and required by this plan's Task 2,
+// which asserts against these exact generic-name values. `genericName` is
+// left null throughout since `name` already holds the generic name; there's
+// no separate brand name to cross-reference here.
+const MEDICATIONS_SEED: {
+  name: string
+  genericName: string | null
+  medicationClass: string
+  commonDose: string
+  form: 'tablet' | 'capsule' | 'liquid' | 'injection' | 'other'
+}[] = [
+  { name: 'Sertraline', genericName: null, medicationClass: 'SSRI', commonDose: '50mg daily', form: 'tablet' },
+  { name: 'Escitalopram', genericName: null, medicationClass: 'SSRI', commonDose: '10mg daily', form: 'tablet' },
+  { name: 'Venlafaxine', genericName: null, medicationClass: 'SNRI', commonDose: '75mg daily', form: 'capsule' },
+  { name: 'Bupropion', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '150mg daily', form: 'tablet' },
+  { name: 'Trazodone', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '50mg at bedtime', form: 'tablet' },
+  { name: 'Mirtazapine', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '15mg at bedtime', form: 'tablet' },
+  { name: 'Aripiprazole', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '5mg daily', form: 'tablet' },
+  { name: 'Quetiapine', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '100mg at bedtime', form: 'tablet' },
+  { name: 'Risperidone', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '2mg daily', form: 'tablet' },
+  { name: 'Lorazepam', genericName: null, medicationClass: 'Benzodiazepine', commonDose: '0.5mg twice daily as needed', form: 'tablet' },
+  { name: 'Clonazepam', genericName: null, medicationClass: 'Benzodiazepine', commonDose: '0.5mg twice daily', form: 'tablet' },
+  { name: 'Methylphenidate ER', genericName: null, medicationClass: 'Stimulant', commonDose: '36mg daily', form: 'tablet' },
+  { name: 'Amphetamine/dextroamphetamine', genericName: null, medicationClass: 'Stimulant', commonDose: '20mg daily', form: 'capsule' },
+  { name: 'Lithium', genericName: null, medicationClass: 'Mood stabilizer', commonDose: '300mg twice daily', form: 'capsule' },
+  { name: 'Esketamine', genericName: 'Spravato', medicationClass: 'NMDA antagonist', commonDose: '56mg per session', form: 'injection' },
+]
+
+// Starting stock levels keyed by medication name -- a plausible starting
+// point, not a clinically precise figure. Controlled substances (the
+// benzodiazepines and stimulants) and the in-office-only Esketamine
+// (Spravato) get smaller on-hand quantities and tighter reorder thresholds
+// than routine oral antidepressants/antipsychotics.
+const MEDICATION_INVENTORY_SEED: Record<string, { quantityOnHand: number; reorderThreshold: number; unit: string }> = {
+  'Sertraline': { quantityOnHand: 150, reorderThreshold: 20, unit: 'tablets' },
+  'Escitalopram': { quantityOnHand: 150, reorderThreshold: 20, unit: 'tablets' },
+  'Venlafaxine': { quantityOnHand: 120, reorderThreshold: 15, unit: 'capsules' },
+  'Bupropion': { quantityOnHand: 120, reorderThreshold: 15, unit: 'tablets' },
+  'Trazodone': { quantityOnHand: 200, reorderThreshold: 20, unit: 'tablets' },
+  'Mirtazapine': { quantityOnHand: 100, reorderThreshold: 15, unit: 'tablets' },
+  'Aripiprazole': { quantityOnHand: 90, reorderThreshold: 15, unit: 'tablets' },
+  'Quetiapine': { quantityOnHand: 100, reorderThreshold: 15, unit: 'tablets' },
+  'Risperidone': { quantityOnHand: 90, reorderThreshold: 15, unit: 'tablets' },
+  'Lorazepam': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Clonazepam': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Methylphenidate ER': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Amphetamine/dextroamphetamine': { quantityOnHand: 60, reorderThreshold: 10, unit: 'capsules' },
+  'Lithium': { quantityOnHand: 100, reorderThreshold: 15, unit: 'capsules' },
+  'Esketamine': { quantityOnHand: 20, reorderThreshold: 10, unit: 'doses' },
+}
+
+async function seedMedications() {
+  const db = getDb()
+  // Idempotent per-row, same convention as seedPayers() above: only insert
+  // medications/inventory rows that aren't already present, so this is safe
+  // to call unconditionally on every seed() run (including a top-up call
+  // against an already-seeded DB) without duplicating catalog rows or
+  // violating medicationInventory's one-row-per-medication unique constraint.
+  const existingMeds = await db.select({ id: medications.id, name: medications.name }).from(medications)
+  const existingNames = new Set(existingMeds.map((m) => m.name))
+  const toInsert = MEDICATIONS_SEED.filter((m) => !existingNames.has(m.name))
+  if (toInsert.length > 0) await db.insert(medications).values(toInsert)
+
+  // Scoped to the intended 15-drug catalog (MEDICATIONS_SEED), not every row
+  // currently in `medications` -- iterating the full table would also grant
+  // inventory (and therefore dashboard visibility/dispensability) to any
+  // stray row, including leaked test rows from a buggy test helper (see
+  // tests/lib/queries/medication-dispenses.test.ts's makeMedWithStock, fixed
+  // separately) or a future rename-without-cleanup duplicate.
+  const seededNames = new Set(MEDICATIONS_SEED.map((m) => m.name))
+  const allMeds = await db.select({ id: medications.id, name: medications.name }).from(medications)
+  const intendedMeds = allMeds.filter((m) => seededNames.has(m.name))
+  const existingInventory = await db.select({ medicationId: medicationInventory.medicationId }).from(medicationInventory)
+  const medsWithInventory = new Set(existingInventory.map((i) => i.medicationId))
+  for (const med of intendedMeds) {
+    if (medsWithInventory.has(med.id)) continue
+    const stock = MEDICATION_INVENTORY_SEED[med.name] ?? { quantityOnHand: 50, reorderThreshold: 10, unit: 'units' }
+    await db.insert(medicationInventory).values({ medicationId: med.id, ...stock })
+  }
+}
+
 async function seedBilling() {
   const db = getDb()
   const allPayers = await db.select({ id: payers.id, name: payers.name }).from(payers)
@@ -629,6 +718,14 @@ export async function seed() {
     await seedPayers()
     console.log('Seeded payer directory (14 payers).')
   }
+
+  // Medication catalog + inventory is likewise standalone reference data,
+  // independent of whether the rest of the DB has been seeded. Unlike
+  // seedPayers() above, this is called truly unconditionally (no outer
+  // count guard) because seedMedications() itself is fully idempotent
+  // per-row for both medications and medicationInventory, so re-running it
+  // on every seed() invocation is cheap and never duplicates rows.
+  await seedMedications()
 
   // Guard against re-seeding a shared dev database that already has data.
   // Several parallel feature branches now have their own tables with FK
