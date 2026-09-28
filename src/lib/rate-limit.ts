@@ -272,3 +272,46 @@ export async function checkOtpVerifyRateLimit(ip: string, identity: string): Pro
   ])
   return { allowed: perIp.success && global.success }
 }
+
+// The public booking-request route has no session and no credential to
+// guess -- an anonymous submitter has no persistent identity before they
+// submit, so unlike every other dual-bucket limiter in this file, there's
+// nothing to key a global bucket on except a single fixed string. That makes
+// this global bucket a genuinely flat, shared cap on total booking
+// submissions across the whole app regardless of source IP, defending
+// against a botnet rotating (or spoofing) addresses to dodge the per-IP
+// bucket. Tighter than login's 5-per-60s: this gates a lower-frequency
+// legitimate action (nobody submits multiple real booking requests per
+// minute), so the per-IP window is 3-per-300s and the global backstop is
+// 20-per-600s.
+let _bookingRequestLimiter: Ratelimit | null = null
+function getBookingRequestLimiter() {
+  if (!_bookingRequestLimiter) {
+    _bookingRequestLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(3, '300 s'),
+      prefix: 'ratelimit:booking-request',
+    })
+  }
+  return _bookingRequestLimiter
+}
+
+let _bookingRequestGlobalLimiter: Ratelimit | null = null
+function getBookingRequestGlobalLimiter() {
+  if (!_bookingRequestGlobalLimiter) {
+    _bookingRequestGlobalLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(20, '600 s'),
+      prefix: 'ratelimit:booking-request-global',
+    })
+  }
+  return _bookingRequestGlobalLimiter
+}
+
+export async function checkBookingRequestRateLimit(ip: string): Promise<{ allowed: boolean }> {
+  const [perIp, global] = await Promise.all([
+    getBookingRequestLimiter().limit(ip),
+    getBookingRequestGlobalLimiter().limit('global'),
+  ])
+  return { allowed: perIp.success && global.success }
+}
