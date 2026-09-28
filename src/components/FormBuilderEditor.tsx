@@ -27,6 +27,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
   const [diagnosisTag, setDiagnosisTag] = useState(initialDiagnosisTag)
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   function addQuestion() {
     setQuestions([...questions, { id: `q${Date.now()}`, label: 'New question', type: 'text', hipaaSensitive: false, required: false }])
@@ -86,16 +87,34 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
 
   async function save() {
     setSaving(true)
+    setSaveError(null)
     // Drop blank option rows (e.g. an "+ Add option" click the user never
-    // filled in) so choice questions don't ship empty entries to patients.
-    const cleaned = questions.map((q) => (q.type === 'select' ? { ...q, options: (q.options ?? []).map((o) => o.trim()).filter(Boolean) } : q))
+    // filled in) so choice questions don't ship empty entries to patients --
+    // and drop the same indices from optionScores so the two arrays stay in
+    // lockstep (a blank option surviving in optionScores but not options
+    // would desync scoring just like an unfiltered reorder/removal would).
+    const cleaned = questions.map((q) => {
+      if (q.type !== 'select') return q
+      const options = q.options ?? []
+      const keepIndices = options.map((o, i) => (o.trim() ? i : -1)).filter((i) => i !== -1)
+      return {
+        ...q,
+        options: keepIndices.map((i) => options[i].trim()),
+        optionScores: q.optionScores ? keepIndices.map((i) => q.optionScores![i]) : q.optionScores,
+      }
+    })
     const res = await fetch(`/api/form-templates/${templateId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, category, diagnosisTag, questions: cleaned }),
     })
     setSaving(false)
-    if (res.ok) router.refresh()
+    if (res.ok) {
+      router.refresh()
+    } else {
+      const body = await res.json().catch(() => null)
+      setSaveError(body?.error ?? 'Could not save this form. Please try again.')
+    }
   }
 
   return (
@@ -177,6 +196,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
         ))}
       </div>
 
+      {saveError && <p className="mt-3 text-sm text-destructive">{saveError}</p>}
       <div className="mt-4 flex justify-between">
         <button onClick={addQuestion} className="inline-flex items-center gap-1.5 rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
           <Plus className="h-4 w-4" aria-hidden="true" />
