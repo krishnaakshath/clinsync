@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ShieldCheck, Users, FlaskConical } from 'lucide-react'
-import { IpmgIcon } from '@/components/IpmgLogo'
+import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 import { MfaCodeStep } from '@/components/mfa/MfaCodeStep'
 import { MfaEnrollStep } from '@/components/mfa/MfaEnrollStep'
 
@@ -71,7 +71,7 @@ export default function LoginPage() {
         />
         <div className="relative flex items-center gap-3">
           <div className="rounded-lg bg-white/95 px-3 py-2">
-            <IpmgIcon className="h-6 w-auto" />
+            <ClinsyncLogo className="h-6 w-auto" />
           </div>
           <span className="text-lg font-semibold tracking-tight">Clinsync</span>
         </div>
@@ -95,7 +95,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col gap-1 lg:hidden">
             <div className="mb-3 flex items-center gap-2.5 text-foreground">
-              <IpmgIcon className="h-6 w-auto" />
+              <ClinsyncLogo className="h-6 w-auto" />
               <span className="text-lg font-semibold tracking-tight">Clinsync</span>
             </div>
           </div>
