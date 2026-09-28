@@ -14,15 +14,24 @@ function getClientIp(request: NextRequest): string {
   return request.headers.get('x-real-ip') ?? 'unknown'
 }
 
+// `.max()` on every string field -- this route accepts unauthenticated
+// internet traffic with no session and no CAPTCHA (see spec §1), so without
+// an upper bound a submitter can write arbitrarily large values into these
+// otherwise-unbounded TEXT columns, which then render straight into the
+// staff Booking Requests queue table. Limits are generous for real human
+// input, not tight validation of exact format: 200 for a name, 320 for the
+// longest technically-valid email address, 50 for a phone number (covers
+// extensions/formatting), 2000 for free-text reason, 10 for a YYYY-MM-DD
+// date string.
 const bookingRequestSchema = z.object({
-  requesterName: z.string().min(1),
-  requesterDob: z.string().min(1),
-  requesterEmail: z.string().email().optional(),
-  requesterPhone: z.string().min(1).optional(),
+  requesterName: z.string().min(1).max(200),
+  requesterDob: z.string().min(1).max(10),
+  requesterEmail: z.string().email().max(320).optional(),
+  requesterPhone: z.string().min(1).max(50).optional(),
   preferredProviderId: z.number().int().positive().optional(),
-  preferredDateRangeStart: z.string().min(1),
-  preferredDateRangeEnd: z.string().min(1),
-  reason: z.string().min(1),
+  preferredDateRangeStart: z.string().min(1).max(10),
+  preferredDateRangeEnd: z.string().min(1).max(10),
+  reason: z.string().min(1).max(2000),
 }).strict()
 
 // This is the one genuinely unauthenticated route in the app -- no
@@ -49,21 +58,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'preferredDateRangeEnd must be on or after preferredDateRangeStart' }, { status: 400 })
   }
 
+  // Same date-format check as the range fields above -- requesterDob was
+  // previously only `z.string().min(1)`, so a malformed value (e.g.
+  // "not-a-date") sailed past validation and reached createBookingRequest,
+  // where Postgres rejected it writing into the `date` column and the
+  // uncaught error 500'd instead of cleanly 400ing on this, the one
+  // endpoint anonymous internet traffic actually hits.
+  const dob = new Date(parsed.data.requesterDob)
+  if (isNaN(dob.getTime())) {
+    return NextResponse.json({ error: 'requesterDob must be a valid date' }, { status: 400 })
+  }
+
   if (parsed.data.preferredProviderId !== undefined) {
     const [providerRow] = await getDb().select().from(providers).where(eq(providers.id, parsed.data.preferredProviderId))
     if (!providerRow) return NextResponse.json({ error: 'preferredProviderId does not reference a real provider' }, { status: 400 })
   }
 
-  const created = await createBookingRequest({
-    requesterName: parsed.data.requesterName,
-    requesterDob: parsed.data.requesterDob,
-    requesterEmail: parsed.data.requesterEmail ?? null,
-    requesterPhone: parsed.data.requesterPhone ?? null,
-    preferredProviderId: parsed.data.preferredProviderId ?? null,
-    preferredDateRangeStart: parsed.data.preferredDateRangeStart,
-    preferredDateRangeEnd: parsed.data.preferredDateRangeEnd,
-    reason: parsed.data.reason,
-  })
+  let created
+  try {
+    created = await createBookingRequest({
+      requesterName: parsed.data.requesterName,
+      requesterDob: parsed.data.requesterDob,
+      requesterEmail: parsed.data.requesterEmail ?? null,
+      requesterPhone: parsed.data.requesterPhone ?? null,
+      preferredProviderId: parsed.data.preferredProviderId ?? null,
+      preferredDateRangeStart: parsed.data.preferredDateRangeStart,
+      preferredDateRangeEnd: parsed.data.preferredDateRangeEnd,
+      reason: parsed.data.reason,
+    })
+  } catch {
+    // Deliberate, clean response instead of letting an uncaught DB error
+    // (e.g. some other malformed-but-past-validation value) pick the status
+    // code for this unauthenticated route.
+    return NextResponse.json({ error: 'Could not submit your request. Please try again.' }, { status: 500 })
+  }
 
   return NextResponse.json({ id: created.id }, { status: 201 })
 }
