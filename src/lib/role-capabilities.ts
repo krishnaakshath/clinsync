@@ -17,6 +17,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Manage Calendar, Billing, Broadcasts, Experience Surveys, and the Pipeline Dashboard',
       'View Reports and Documents',
       'View and manage the live bed/ward status board, including marking rooms clean',
+      'View the Lab worklist across all patients',
     ],
   },
   pi: {
@@ -30,6 +31,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Message patients directly',
       'View the live bed/ward status board for their admitted patients',
       'Dispense medications from the Pharmacy dashboard',
+      'Order lab tests and manage the Lab worklist: mark samples collected, enter results, and cancel orders',
     ],
   },
   admin: {
@@ -43,6 +45,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Issue and revoke Patient Portal access credentials',
       'View and manage the live bed/ward status board, including blocking and unblocking rooms',
       'Dispense medications from the Pharmacy dashboard',
+      'Order lab tests and manage the Lab worklist: mark samples collected, enter results, and cancel orders',
     ],
   },
   frontdesk: {
@@ -54,6 +57,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Record insurance eligibility checks',
       'View and manage billing, insurance, and payment status',
       'View and manage the live bed/ward status board',
+      'View the Lab worklist and mark samples collected',
     ],
   },
 }
