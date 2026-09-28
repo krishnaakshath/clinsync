@@ -24,10 +24,13 @@ export async function proxy(request: NextRequest) {
 // referenced directly by <img> tags on unauthenticated pages (both login
 // screens, the intake portal) -- without this exclusion those requests hit
 // this same staff-session gate and redirect to /login, breaking the image.
-// display is excluded because /display/queue is the lobby queue screen
-// (spec §3): a TV with no staff logged in, gated instead by its own PIN
-// check against appSettings.queueDisplayPin (see
-// src/app/api/queue-display/route.ts) -- without this exclusion every
-// request from that unattended screen would get redirected to /login
-// before ever reaching the PIN gate.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|display).*)'] }
+// display/queue is excluded because it's the lobby queue screen (spec §3):
+// a TV with no staff logged in, gated instead by its own PIN check against
+// appSettings.queueDisplayPin (see src/app/api/queue-display/route.ts) --
+// without this exclusion every request from that unattended screen would
+// get redirected to /login before ever reaching the PIN gate. Scoped to
+// the exact `display/queue` path segment (not a bare `display` prefix) so
+// this exclusion can never over-match a future unrelated `/display-*`
+// route -- there is exactly one route under /display today and none other
+// planned, so this costs nothing to tighten now.
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|display/queue).*)'] }
