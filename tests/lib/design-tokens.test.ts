@@ -11,18 +11,27 @@ function rootBlock(selector: string): string {
 }
 
 describe('design tokens', () => {
-  it('no longer uses the old blue primary hue (250) in :root', () => {
-    const root = rootBlock('\n:root')
-    expect(root).not.toMatch(/--primary:\s*oklch\([^)]*\s250\)/)
-  })
-
-  it('uses a near-black, low-chroma primary in :root (the new "ink" primary)', () => {
+  // Superseded by client feedback (2026-09-28): no black anywhere in the
+  // brand, including the primary color and the favicon -- see commit
+  // f27057d. The near-black "ink" primary these two tests used to require
+  // is exactly what got reverted; replaced with the professional blue
+  // master's own separate redesign had already validated.
+  it('does not use a near-black primary in :root', () => {
     const root = rootBlock('\n:root')
     const match = root.match(/--primary:\s*oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/)
     expect(match).not.toBeNull()
     const [, lightness, chroma] = match!.map(Number) as unknown as [number, number, number, number]
-    expect(lightness).toBeLessThan(0.3) // near-black, not mid-tone blue
-    expect(chroma).toBeLessThan(0.03) // low-chroma neutral, not a saturated hue
+    // Not both low-lightness AND low-chroma at once -- that combination is
+    // what "near-black" means; a mid-lightness saturated blue like this
+    // token's actual value (L=0.42, C=0.1) fails this near-black test on
+    // both axes, on purpose.
+    expect(lightness < 0.3 && chroma < 0.03).toBe(false)
+  })
+
+  it('uses a professional blue primary in :root (oklch(0.42 0.1 250), same value production\'s own redesign validated)', () => {
+    const root = rootBlock('\n:root')
+    expect(root).toMatch(/--primary:\s*oklch\(0\.42\s+0\.1\s+250\)/)
+    expect(root).toMatch(/--ring:\s*oklch\(0\.42\s+0\.1\s+250\)/)
   })
 
   it('keeps success/warning/destructive tokens unchanged from the current values', () => {
