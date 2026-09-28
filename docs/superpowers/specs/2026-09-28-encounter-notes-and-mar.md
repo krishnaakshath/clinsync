@@ -75,7 +75,7 @@ Medication orders are created as part of an **inpatient admission's** care, not 
 
 `POST /api/inpatient/admissions/[id]/medications/[medId]/administer` — body `{ status: 'given'|'held'|'refused', notes?: string }` — the actual MAR action: sets `administeredAt: now()`, `administeredByName: session.name`, the given status, optional notes (required when status is `held`/`refused` — a held or refused dose without a reason is exactly the incomplete documentation this spec exists to prevent, same principle as discharge's required 5 D's). A row can only transition from `scheduled` once — re-administering an already-`given` row 409s (real MAR safety property: you cannot silently double-chart a dose).
 
-**UI:** a "Medications" action alongside the existing Transfer/Discharge buttons on `BedBoard.tsx`'s occupied-room detail view, opening a `MedicationAdministrationPanel` modal: a table of that admission's MAR rows (medication, dose, scheduled time, status pill), "Add medication" (opens the order form), and each `scheduled` row gets Give/Hold/Refuse actions inline.
+**UI:** a "Medications" action alongside the existing Transfer/Discharge buttons on `InpatientHistoryPanel.tsx`'s admitted-admission card (not `BedBoard.tsx` — Transfer/Discharge already live here, on the Patient Detail page's Inpatient History tab, per the existing `transferFor`/`dischargeFor` state pattern), opening a `MedicationAdministrationPanel` modal: a table of that admission's MAR rows (medication, dose, scheduled time, status pill), "Add medication" (opens the order form), and each `scheduled` row gets Give/Hold/Refuse actions inline.
 
 `logAudit(session, 'ordered medication' | 'recorded medication administration', patientId)`.
 
