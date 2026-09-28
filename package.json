@@ -19,6 +19,7 @@
     "@types/pg": "^8.23.1",
     "@upstash/ratelimit": "^2.1.0",
     "@upstash/redis": "^1.38.4",
+    "@vercel/blob": "^2.8.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "drizzle-orm": "^0.45.2",
