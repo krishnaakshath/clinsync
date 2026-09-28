@@ -272,3 +272,28 @@ export async function checkOtpVerifyRateLimit(ip: string, identity: string): Pro
   ])
   return { allowed: perIp.success && global.success }
 }
+
+// GET /api/queue-display is unauthenticated (PIN-gated, not session-gated --
+// spec §3) but is still a secret-checking endpoint like every limiter above,
+// so it gets the same defense. Unlike those, there's no per-account identity
+// to key a second bucket on -- a lobby TV has no email/patientId, just an
+// IP -- so this is a single per-IP bucket. Sized well above the display
+// page's own 8s polling cadence (~8 requests/min for one device, plus room
+// for a page reload or a second device behind the same router/NAT), while
+// still cutting off a brute-force PIN-guessing script hard.
+let _queueDisplayPinLimiter: Ratelimit | null = null
+function getQueueDisplayPinLimiter() {
+  if (!_queueDisplayPinLimiter) {
+    _queueDisplayPinLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(20, '60 s'),
+      prefix: 'ratelimit:queue-display-pin',
+    })
+  }
+  return _queueDisplayPinLimiter
+}
+
+export async function checkQueueDisplayPinRateLimit(ip: string): Promise<{ allowed: boolean }> {
+  const { success } = await getQueueDisplayPinLimiter().limit(ip)
+  return { allowed: success }
+}
