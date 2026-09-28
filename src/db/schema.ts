@@ -652,7 +652,7 @@ export const labResultFlagEnum = pgEnum('lab_result_flag', ['normal', 'abnormal'
 export const labTests = pgTable('lab_tests', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
-  code: text('code').notNull(),
+  code: text('code').notNull(), // a real, recognizable test code (LOINC-style), reference data only -- not verified against the real LOINC database
   defaultUnit: text('default_unit'),
   referenceRange: text('reference_range'),
 })
