@@ -8,6 +8,7 @@ import { logAudit } from '@/lib/audit'
 import { getFormSubmission } from '@/lib/queries/form-submissions'
 import { maybeAutoClassify } from '@/lib/auto-classify'
 import { recordFormChartDiscrepancies } from '@/lib/queries/discrepancies'
+import { recordFormSubmissionScore } from '@/lib/queries/form-submission-scoring'
 
 const updateSubmissionSchema = z.object({
   status: z.enum(['sent', 'partial', 'completed']),
@@ -41,6 +42,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (parsed.data.status === 'completed') {
     await logAudit(session, 'completed intake form', existing.patientId)
     await maybeAutoClassify(existing.patientId, session)
+    await recordFormSubmissionScore(Number(id))
     const discrepancyCount = await recordFormChartDiscrepancies(Number(id))
     if (discrepancyCount > 0) await logAudit(session, `form answers flagged ${discrepancyCount} discrepancy(ies) against chart data`, existing.patientId)
   } else {
