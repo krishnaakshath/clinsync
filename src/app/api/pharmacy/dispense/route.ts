@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     notes: parsed.data.notes ?? null,
   })
   if (!result.ok) {
-    const status = result.error?.includes('does not belong') ? 400 : 409
-    return NextResponse.json({ error: result.error }, { status })
+    const isNotEnoughStock = result.error === 'Not enough stock on hand for this quantity'
+    return NextResponse.json({ error: result.error }, { status: isNotEnoughStock ? 409 : 400 })
   }
 
   await logAudit(session, 'dispensed medication', parsed.data.patientId)

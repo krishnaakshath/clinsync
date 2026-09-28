@@ -6,14 +6,21 @@ import { dispenseMedication, listDispensesForPatient } from '@/lib/queries/medic
 
 const createdDispenseIds: number[] = []
 const createdEpisodeIds: number[] = []
+const createdMedIds: number[] = []
 afterEach(async () => {
   while (createdDispenseIds.length > 0) await getDb().delete(medicationDispenses).where(eq(medicationDispenses.id, createdDispenseIds.pop()!))
   while (createdEpisodeIds.length > 0) await getDb().delete(medicationEpisodes).where(eq(medicationEpisodes.id, createdEpisodeIds.pop()!))
+  while (createdMedIds.length > 0) {
+    const id = createdMedIds.pop()!
+    await getDb().delete(medicationInventory).where(eq(medicationInventory.medicationId, id))
+    await getDb().delete(medications).where(eq(medications.id, id))
+  }
 })
 
 async function makeMedWithStock(qty: number) {
   const db = getDb()
   const [med] = await db.insert(medications).values({ name: `Test Dispense Med ${Date.now()}`, medicationClass: 'Test', form: 'tablet' }).returning()
+  createdMedIds.push(med.id)
   await db.insert(medicationInventory).values({ medicationId: med.id, quantityOnHand: qty, reorderThreshold: 5, unit: 'tablets' })
   return med
 }
@@ -74,6 +81,27 @@ describe('medication dispenses', () => {
     expect(inv.quantityOnHand).toBe(50) // stock untouched -- rejected before the decrement
 
     if (result.dispenseId) createdDispenseIds.push(result.dispenseId)
+  })
+
+  it('rejects an unknown patientId and leaves stock untouched (no orphaned dispense row)', async () => {
+    const med = await makeMedWithStock(50)
+    const result = await dispenseMedication({ patientId: 'rd-does-not-exist', medicationId: med.id, medicationEpisodeId: null, quantity: 10, dispensedByName: 'Test Staff', notes: null })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('Unknown patient')
+    expect(result.dispenseId).toBeUndefined()
+
+    const [inv] = await getDb().select().from(medicationInventory).where(eq(medicationInventory.medicationId, med.id))
+    expect(inv.quantityOnHand).toBe(50)
+
+    const dispensesForMed = await getDb().select().from(medicationDispenses).where(eq(medicationDispenses.medicationId, med.id))
+    expect(dispensesForMed.length).toBe(0)
+  })
+
+  it('rejects an unknown medicationId (not a misleading "not enough stock" result)', async () => {
+    const [patientRow] = await getDb().select().from(patients).limit(1)
+    const result = await dispenseMedication({ patientId: patientRow.id, medicationId: 999999999, medicationEpisodeId: null, quantity: 10, dispensedByName: 'Test Staff', notes: null })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('Unknown medication')
   })
 
   it('is race-safe: two concurrent dispenses cannot both succeed past actual stock', async () => {
