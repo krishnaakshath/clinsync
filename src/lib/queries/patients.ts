@@ -2,7 +2,7 @@ import { getDb } from '@/db/client'
 import {
   patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications,
   formSubmissions, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
-  rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes,
+  rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes, medicationAdministrations,
 } from '@/db/schema'
 import { eq, inArray, or } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
@@ -171,6 +171,7 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(encounterNotes).where(eq(encounterNotes.patientId, anonId))
   const patientAdmissionIds = (await db.select({ id: admissions.id }).from(admissions).where(eq(admissions.patientId, anonId))).map((a) => a.id)
   if (patientAdmissionIds.length > 0) {
+    await db.delete(medicationAdministrations).where(inArray(medicationAdministrations.admissionId, patientAdmissionIds))
     await db.delete(admissionTransfers).where(inArray(admissionTransfers.admissionId, patientAdmissionIds))
   }
   await db.delete(admissions).where(eq(admissions.patientId, anonId))

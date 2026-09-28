@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
-import { rooms, providers, patients, admissions, admissionTransfers, encounterNotes } from '@/db/schema'
+import { rooms, providers, patients, admissions, admissionTransfers, encounterNotes, medicationAdministrations } from '@/db/schema'
 import { deletePatient } from '@/lib/queries/patients'
 
 describe('deletePatient — admissions cleanup', () => {
@@ -24,6 +24,7 @@ describe('deletePatient — admissions cleanup', () => {
     const [admission] = await db.insert(admissions).values({ patientId: testPatientId, currentRoomId: room1.id, attendingProviderId: providerRow.id }).returning()
     await db.insert(admissionTransfers).values({ admissionId: admission.id, fromRoomId: room1.id, toRoomId: room2.id, reason: 'Test', transferredByName: 'Test Nurse' })
     await db.insert(encounterNotes).values({ patientId: testPatientId, admissionId: admission.id, noteType: 'nursing', authorName: 'Test Nurse', authorRole: 'admin', objective: 'Test note' })
+    await db.insert(medicationAdministrations).values({ admissionId: admission.id, medicationName: 'Test Med', dose: '10mg', scheduledFor: new Date() })
 
     const deleted = await deletePatient(testPatientId)
     expect(deleted).toBe(true)
