@@ -58,8 +58,22 @@ const PENDING_STATUS_LABEL: Record<'ordered' | 'collected', string> = {
 export function LabResultsSection({ patientId, orders, labTests, canOrder }: { patientId: string; orders: PatientLabOrder[]; labTests: LabTestOption[]; canOrder: boolean }) {
   const [ordering, setOrdering] = useState(false)
 
-  const resulted = orders.filter((o) => o.status === 'resulted')
-  const pending = orders.filter((o) => o.status === 'ordered' || o.status === 'collected')
+  // Only treat an order as "resulted" once its labResults row is actually
+  // present -- enterResult()'s status-UPDATE and result-INSERT are two
+  // separate statements (this codebase uses no db.transaction() anywhere),
+  // so a resulted-status order can in principle be missing its result row
+  // after an infra failure between the two. Degrade that case to "Pending"
+  // instead of crashing the whole Medical Record page on a non-null result.
+  const resulted = orders
+    .filter(
+      (o): o is PatientLabOrder & { result: NonNullable<PatientLabOrder['result']> } =>
+        o.status === 'resulted' && o.result !== null
+    )
+    // Newest-first by when the order was resulted (spec §6), not by orderedAt.
+    .sort((a, b) => b.result.resultedAt.getTime() - a.result.resultedAt.getTime())
+  const pending = orders.filter(
+    (o) => o.status === 'ordered' || o.status === 'collected' || (o.status === 'resulted' && o.result === null)
+  )
 
   return (
     <div>
@@ -72,26 +86,29 @@ export function LabResultsSection({ patientId, orders, labTests, canOrder }: { p
         <p className="text-sm text-muted-foreground">No lab results recorded.</p>
       ) : (
         <ul className="space-y-2">
-          {resulted.map((o) => (
-            <li key={`lab-${o.id}`} className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-medium text-foreground">
-                    {o.testName} <span className="font-normal text-muted-foreground">({o.testCode})</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {o.result!.value}{o.result!.unit ? ` ${o.result!.unit}` : ''}
-                    {o.result!.referenceRange && ` · Reference: ${o.result!.referenceRange}`}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Resulted {o.result!.resultedAt.toLocaleString()} by {o.result!.resultedByName}
-                  </p>
-                  {o.result!.notes && <p className="mt-1 text-xs text-muted-foreground">{o.result!.notes}</p>}
+          {resulted.map((o) => {
+            const r = o.result
+            return (
+              <li key={`lab-${o.id}`} className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">
+                      {o.testName} <span className="font-normal text-muted-foreground">({o.testCode})</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.value}{r.unit ? ` ${r.unit}` : ''}
+                      {r.referenceRange && ` · Reference: ${r.referenceRange}`}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Resulted {r.resultedAt.toLocaleString()} by {r.resultedByName}
+                    </p>
+                    {r.notes && <p className="mt-1 text-xs text-muted-foreground">{r.notes}</p>}
+                  </div>
+                  <FlagPill flag={r.flag} />
                 </div>
-                <FlagPill flag={o.result!.flag} />
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
       )}
 

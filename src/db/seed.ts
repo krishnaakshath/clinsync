@@ -659,11 +659,13 @@ export async function seed() {
 
   // Lab test catalog is likewise standalone reference data -- top it up
   // unconditionally for the same reason as the payer directory above.
-  const [{ labTestCount }] = await db.select({ labTestCount: sql<number>`count(*)::int` }).from(labTests)
-  if (labTestCount === 0) {
-    await seedLabTests()
-    console.log('Seeded lab test catalog (10 tests).')
-  }
+  // Unlike the payerCount check above, this is NOT gated on a top-level
+  // count: seedLabTests() is idempotent per-code (see its own comment), so
+  // gating it on labTestCount === 0 would mean a single stray lab_tests row
+  // (e.g. left over from an interrupted test run) permanently skips seeding
+  // the other 9 catalog tests, leaving the "Order labs" dropdown nearly empty.
+  await seedLabTests()
+  console.log('Seeded lab test catalog (10 tests).')
 
   // Guard against re-seeding a shared dev database that already has data.
   // Several parallel feature branches now have their own tables with FK
