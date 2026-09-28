@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { GET as listRoute, POST as createRoute } from '@/app/api/staff/route'
-import { GET as detailRoute } from '@/app/api/staff/[id]/route'
+import { GET as detailRoute, PATCH as patchRoute } from '@/app/api/staff/[id]/route'
 import { POST as addCredentialRoute } from '@/app/api/staff/[id]/credentials/route'
 import { getDb } from '@/db/client'
 import { staffMembers, staffCredentials } from '@/db/schema'
@@ -21,6 +21,10 @@ afterEach(async () => {
 
 function req(body: unknown) {
   return new Request('http://localhost', { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } })
+}
+
+function patchReq(body: unknown) {
+  return new Request('http://localhost', { method: 'PATCH', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } })
 }
 
 function params(id: number | string) {
@@ -76,6 +80,52 @@ describe('GET /api/staff/[id]', () => {
   it('returns 404 for a nonexistent id', async () => {
     sessionRole = 'admin'
     const res = await detailRoute(new Request('http://localhost') as never, params(999999))
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('PATCH /api/staff/[id]', () => {
+  it('lets admin update employment status to terminated, and it persists', async () => {
+    sessionRole = 'admin'
+    const createRes = await createRoute(req({ name: 'Route Test Staff Patch A', department: 'Clinical', title: 'Nurse', hireDate: '2024-01-01' }) as never)
+    const created = await createRes.json()
+    createdStaffIds.push(created.id)
+
+    const res = await patchRoute(patchReq({ employmentStatus: 'terminated', terminationDate: '2026-09-28' }) as never, params(created.id))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.employmentStatus).toBe('terminated')
+    expect(body.terminationDate).toBe('2026-09-28')
+
+    const detailRes = await detailRoute(new Request('http://localhost') as never, params(created.id))
+    const detail = await detailRes.json()
+    expect(detail.employmentStatus).toBe('terminated')
+  })
+
+  it.each(['pi', 'crc', 'frontdesk'] as const)('returns 403 for role %s', async (role) => {
+    sessionRole = 'admin'
+    const createRes = await createRoute(req({ name: 'Route Test Staff Patch B', department: 'Clinical', title: 'Nurse', hireDate: '2024-01-01' }) as never)
+    const created = await createRes.json()
+    createdStaffIds.push(created.id)
+
+    sessionRole = role
+    const res = await patchRoute(patchReq({ employmentStatus: 'terminated' }) as never, params(created.id))
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects an unexpected field via .strict()', async () => {
+    sessionRole = 'admin'
+    const createRes = await createRoute(req({ name: 'Route Test Staff Patch C', department: 'Clinical', title: 'Nurse', hireDate: '2024-01-01' }) as never)
+    const created = await createRes.json()
+    createdStaffIds.push(created.id)
+
+    const res = await patchRoute(patchReq({ name: 'Sneaky Rename' }) as never, params(created.id))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 404 for a nonexistent id', async () => {
+    sessionRole = 'admin'
+    const res = await patchRoute(patchReq({ employmentStatus: 'terminated' }) as never, params(999999))
     expect(res.status).toBe(404)
   })
 })

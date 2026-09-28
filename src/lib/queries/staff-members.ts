@@ -56,3 +56,38 @@ export async function createStaffMember(input: CreateStaffMemberInput): Promise<
 
   return { ok: true, staffMember }
 }
+
+export interface UpdateStaffMemberInput {
+  employmentStatus?: 'active' | 'on_leave' | 'terminated'
+  terminationDate?: string | null
+  department?: string
+  title?: string
+}
+
+export type UpdateStaffMemberResult =
+  | { ok: true; staffMember: typeof staffMembers.$inferSelect }
+  | { ok: false; error: string }
+
+// Fix B (final whole-branch review): the directory was write-once -- no
+// route could ever change a staff member after creation, which meant (1)
+// role-capabilities.ts's admin bullet "Add and edit staff members..." was
+// false, and (2) the `terminated` employment-status soft-delete path was
+// unreachable. Scoped to the fields a real HR change would touch --
+// employmentStatus/terminationDate/department/title -- not a full
+// replace-everything PUT; userId/providerId/name/hireDate stay immutable
+// through this path, matching how the rest of this module treats identity
+// fields set at creation.
+export async function updateStaffMember(id: number, input: UpdateStaffMemberInput): Promise<UpdateStaffMemberResult> {
+  const db = getDb()
+  const [existing] = await db.select({ id: staffMembers.id }).from(staffMembers).where(eq(staffMembers.id, id))
+  if (!existing) return { ok: false, error: 'Staff member not found' }
+
+  const updates: Partial<typeof staffMembers.$inferInsert> = {}
+  if (input.employmentStatus !== undefined) updates.employmentStatus = input.employmentStatus
+  if (input.terminationDate !== undefined) updates.terminationDate = input.terminationDate
+  if (input.department !== undefined) updates.department = input.department
+  if (input.title !== undefined) updates.title = input.title
+
+  const [staffMember] = await db.update(staffMembers).set(updates).where(eq(staffMembers.id, id)).returning()
+  return { ok: true, staffMember }
+}

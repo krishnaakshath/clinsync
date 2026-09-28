@@ -4,6 +4,7 @@ import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmploymentStatusPill } from '@/components/StaffDirectoryList'
 import { AddCredentialModal } from '@/components/AddCredentialModal'
+import { EditStaffMemberModal } from '@/components/EditStaffMemberModal'
 import type { staffMembers, staffCredentials } from '@/db/schema'
 
 type StaffMember = typeof staffMembers.$inferSelect
@@ -68,6 +69,7 @@ export function StaffMemberDetail({
   canWrite: boolean
 }) {
   const [addingCredential, setAddingCredential] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   return (
     <div className="space-y-4">
@@ -76,6 +78,7 @@ export function StaffMemberDetail({
           <h1 className="text-2xl font-bold text-foreground">{staffMember.name}</h1>
           <p className="text-sm text-muted-foreground">{staffMember.title} · {staffMember.department}</p>
         </div>
+        {canWrite && <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button>}
       </div>
 
       <section className={SECTION}>
@@ -131,6 +134,18 @@ export function StaffMemberDetail({
       </section>
 
       {addingCredential && <AddCredentialModal staffMemberId={staffMember.id} onClose={() => setAddingCredential(false)} />}
+      {editing && (
+        <EditStaffMemberModal
+          staffMember={{
+            id: staffMember.id,
+            department: staffMember.department,
+            title: staffMember.title,
+            employmentStatus: staffMember.employmentStatus,
+            terminationDate: staffMember.terminationDate,
+          }}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </div>
   )
 }
