@@ -113,6 +113,10 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
           <VisitStat icon={CalendarCheck2} label="Next Appointment" value={formatDate(patient.nextApptDate)} />
           <VisitStat icon={Stethoscope} label="Current Provider" value={patient.currentProvider ?? '—'} />
         </div>
+        <div className="mt-4 flex items-center gap-3">
+          <a href={`/api/patients/${anonId}/fhir/Bundle`} className="rounded-md border border-primary/20 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/5">Download as FHIR (JSON)</a>
+          <a href={`/api/patients/${anonId}/ccda`} className="rounded-md border border-primary/20 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/5">Download as C-CDA (XML)</a>
+        </div>
       </div>
 
       <section className={SECTION}>
