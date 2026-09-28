@@ -18,6 +18,7 @@ interface AdmissionRecord {
   dischargeDiet: string | null
   dischargeSummaryNotes: string | null
   transfers: TransferRecord[]
+  dischargeSignature: { signerTypedName: string; signedAt: string } | null
 }
 interface RoomOption { id: number; ward: string; roomNumber: string; bedNumber: string }
 
@@ -44,6 +45,14 @@ export function InpatientHistoryPanel({ admissions, availableRooms, canTransfer,
               {canManageMedications && <Button size="sm" variant="outline" onClick={() => setMedicationsFor(a.id)}>Medications</Button>}
               {canDischarge && <Button size="sm" onClick={() => setDischargeFor(a.id)}>Discharge</Button>}
             </div>
+          )}
+
+          {a.status === 'discharged' && (
+            <p className="mb-2 text-xs">
+              {a.dischargeSignature
+                ? <span className="text-success">Signed by {a.dischargeSignature.signerTypedName} on {new Date(a.dischargeSignature.signedAt).toLocaleDateString()}</span>
+                : <span className="font-medium text-destructive">Not yet signed</span>}
+            </p>
           )}
 
           {a.status === 'discharged' && (

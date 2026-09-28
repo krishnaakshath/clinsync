@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
+import { SignConsentFormAction } from '@/components/SignConsentFormAction'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -37,20 +38,25 @@ export default async function PatientPortalFormsPage() {
         ) : (
           <ul className="space-y-2 text-sm text-foreground">
             {data.forms.map((f) => (
-              <li key={f.id} className="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{f.templateName}</p>
-                  <p className="text-xs text-muted-foreground">Sent {new Date(f.sentDate).toLocaleDateString()}</p>
+              <li key={f.id} className="space-y-3 border-b border-border pb-3 last:border-0 last:pb-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{f.templateName}</p>
+                    <p className="text-xs text-muted-foreground">Sent {new Date(f.sentDate).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${FORM_STATUS_STYLE[f.status]}`}>{FORM_STATUS_LABEL[f.status]}</span>
+                    {f.status !== 'completed' && f.accessToken && (
+                      <Link href={`/intake/${f.accessToken}`} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                        {f.status === 'sent' ? 'Start' : 'Continue'}
+                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                      </Link>
+                    )}
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${FORM_STATUS_STYLE[f.status]}`}>{FORM_STATUS_LABEL[f.status]}</span>
-                  {f.status !== 'completed' && f.accessToken && (
-                    <Link href={`/intake/${f.accessToken}`} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                      {f.status === 'sent' ? 'Start' : 'Continue'}
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Link>
-                  )}
-                </div>
+                {f.category === 'Consent Forms' && f.status !== 'completed' && (
+                  <SignConsentFormAction patientId={session.patientId} formSubmissionId={f.id} />
+                )}
               </li>
             ))}
           </ul>

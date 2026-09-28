@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { admissions, admissionTransfers, rooms, appointments } from '@/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
+import { getLatestSignatureForSignable } from '@/lib/queries/signatures'
 
 export type Admission = typeof admissions.$inferSelect
 
@@ -48,6 +49,7 @@ export interface AdmissionTransferRecord {
 
 export interface AdmissionWithTransfers extends Admission {
   transfers: AdmissionTransferRecord[]
+  dischargeSignature: { signerTypedName: string; signedAt: Date } | null
 }
 
 // Newest admission first, each with its own transfer history (also newest
@@ -59,7 +61,15 @@ export async function listAdmissionsForPatient(patientId: string): Promise<Admis
   const result: AdmissionWithTransfers[] = []
   for (const admission of admissionRows) {
     const transfers = await db.select().from(admissionTransfers).where(eq(admissionTransfers.admissionId, admission.id)).orderBy(desc(admissionTransfers.transferredAt))
-    result.push({ ...admission, transfers })
+    // Admitted admissions have no discharge yet -- skip the query entirely
+    // rather than asking getLatestSignatureForSignable for a signature that
+    // can't exist.
+    const signature = admission.status === 'discharged' ? await getLatestSignatureForSignable('admission_discharge', admission.id) : null
+    result.push({
+      ...admission,
+      transfers,
+      dischargeSignature: signature ? { signerTypedName: signature.signerTypedName, signedAt: signature.signedAt } : null,
+    })
   }
   return result
 }

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { SignatureCapture } from '@/components/SignatureCapture'
 
 type Step = 'summary' | 'followup' | 'confirmation'
 
@@ -28,7 +29,7 @@ export function DischargeAdmissionModal({ admissionId, onClose }: { admissionId:
 
   const summaryComplete = Boolean(dischargeDiagnosis && dischargeDrugs && dischargeDevices && dischargeDiet && dischargeSummaryNotes)
 
-  async function submit() {
+  async function submit(typedName: string) {
     setSubmitting(true)
     setError(null)
     let followUpStartsAt: string | undefined
@@ -41,7 +42,7 @@ export function DischargeAdmissionModal({ admissionId, onClose }: { admissionId:
     const res = await fetch(`/api/inpatient/admissions/${admissionId}/discharge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dischargeDiagnosis, dischargeDrugs, dischargeDevices, dischargeDiet, dischargeSummaryNotes, ...(followUpStartsAt ? { followUpStartsAt, followUpEndsAt } : {}) }),
+      body: JSON.stringify({ dischargeDiagnosis, dischargeDrugs, dischargeDevices, dischargeDiet, dischargeSummaryNotes, typedName, ...(followUpStartsAt ? { followUpStartsAt, followUpEndsAt } : {}) }),
     })
     setSubmitting(false)
     if (!res.ok) {
@@ -81,10 +82,19 @@ export function DischargeAdmissionModal({ admissionId, onClose }: { admissionId:
         )}
 
         {step === 'followup' && (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Optional — schedule a follow-up with the attending provider.</p>
-            <input type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} aria-label="Follow-up date" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
-            <input type="time" value={followUpTime} onChange={(e) => setFollowUpTime(e.target.value)} aria-label="Follow-up time" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Optional — schedule a follow-up with the attending provider.</p>
+              <input type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} aria-label="Follow-up date" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+              <input type="time" value={followUpTime} onChange={(e) => setFollowUpTime(e.target.value)} aria-label="Follow-up time" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+            </div>
+            <SignatureCapture
+              attestationLabel="I attest that this discharge summary is accurate and complete."
+              submitLabel="Discharge"
+              submitting={submitting}
+              error={error}
+              onSign={submit}
+            />
           </div>
         )}
 
@@ -96,17 +106,14 @@ export function DischargeAdmissionModal({ admissionId, onClose }: { admissionId:
           </div>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-
         <DialogFooter>
           {step === 'summary' && (<>
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={() => setStep('followup')} disabled={!summaryComplete}>Next</Button>
           </>)}
-          {step === 'followup' && (<>
+          {step === 'followup' && (
             <Button variant="outline" onClick={() => setStep('summary')}>Back</Button>
-            <Button onClick={submit} disabled={submitting}>Discharge</Button>
-          </>)}
+          )}
           {step === 'confirmation' && <Button onClick={onClose}>Done</Button>}
         </DialogFooter>
       </DialogContent>
