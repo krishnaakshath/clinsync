@@ -525,6 +525,37 @@ export const encounterNotes = pgTable('encounter_notes', {
   signedAt: timestamp('signed_at'),
 })
 
+export const medicationFormEnum = pgEnum('medication_form', ['tablet', 'capsule', 'liquid', 'injection', 'other'])
+
+export const medications = pgTable('medications', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  genericName: text('generic_name'),
+  medicationClass: text('medication_class').notNull(),
+  commonDose: text('common_dose'),
+  form: medicationFormEnum('form').default('tablet').notNull(),
+})
+
+export const medicationInventory = pgTable('medication_inventory', {
+  id: serial('id').primaryKey(),
+  medicationId: integer('medication_id').notNull().references(() => medications.id).unique(),
+  quantityOnHand: integer('quantity_on_hand').default(0).notNull(),
+  reorderThreshold: integer('reorder_threshold').default(10).notNull(),
+  unit: text('unit').default('units').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const medicationDispenses = pgTable('medication_dispenses', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  medicationId: integer('medication_id').notNull().references(() => medications.id),
+  medicationEpisodeId: integer('medication_episode_id').references(() => medicationEpisodes.id),
+  quantity: integer('quantity').notNull(),
+  dispensedByName: text('dispensed_by_name').notNull(),
+  dispensedAt: timestamp('dispensed_at').defaultNow().notNull(),
+  notes: text('notes'),
+})
+
 export const marStatusEnum = pgEnum('mar_status', ['scheduled', 'given', 'held', 'refused'])
 
 export const medicationAdministrations = pgTable('medication_administrations', {
