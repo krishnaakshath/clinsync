@@ -36,16 +36,21 @@ describe('GET /api/form-templates', () => {
 describe('GET /api/form-templates audit logging', () => {
   it('logs an audit entry when the template list is viewed', async () => {
     await GET()
-    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
-    expect(latest.action).toBe('viewed form templates list')
+    // Scoped to this test's own action string, not "the globally latest row"
+    // -- the shared dev DB has concurrent writers (other branches/worktrees),
+    // so an unscoped "latest row" read is racy and can pick up someone else's
+    // audit entry written between this call and the read.
+    const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, 'viewed form templates list')).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest?.action).toBe('viewed form templates list')
   })
 
   it('logs an audit entry when a single template is viewed', async () => {
     const [existing] = await getDb().select().from(formTemplates).limit(1)
     const req = new Request(`http://localhost/api/form-templates/${existing.id}`)
     await getOneTemplate(req as never, { params: Promise.resolve({ id: String(existing.id) }) })
-    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
-    expect(latest.action).toBe(`viewed form template ${existing.id}`)
+    const action = `viewed form template ${existing.id}`
+    const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, action)).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest?.action).toBe(action)
   })
 })
 
