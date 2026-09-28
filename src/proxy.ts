@@ -24,4 +24,10 @@ export async function proxy(request: NextRequest) {
 // referenced directly by <img> tags on unauthenticated pages (both login
 // screens, the intake portal) -- without this exclusion those requests hit
 // this same staff-session gate and redirect to /login, breaking the image.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal).*)'] }
+// display is excluded because /display/queue is the lobby queue screen
+// (spec §3): a TV with no staff logged in, gated instead by its own PIN
+// check against appSettings.queueDisplayPin (see
+// src/app/api/queue-display/route.ts) -- without this exclusion every
+// request from that unattended screen would get redirected to /login
+// before ever reaching the PIN gate.
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|display).*)'] }

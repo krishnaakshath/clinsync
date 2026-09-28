@@ -17,6 +17,7 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
   const [roomId, setRoomId] = useState<number | ''>('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [ticketNumber, setTicketNumber] = useState<number | null>(null)
 
   async function submit() {
     setSubmitting(true)
@@ -34,12 +35,36 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
       }),
     })
     setSubmitting(false)
-    if (res.ok) { router.refresh(); onClose(); return }
+    if (res.ok) {
+      const body = await res.json()
+      setTicketNumber(body.queueTicketNumber)
+      router.refresh()
+      return
+    }
     const body = await res.json().catch(() => null)
     setError(body?.error ?? 'Could not check in this patient.')
   }
 
   const canSubmit = Boolean(patientId) && providerId !== '' && Boolean(reason) && (visitType === 'outpatient' || roomId !== '' || rooms.length === 0) && !submitting
+
+  if (ticketNumber !== null) {
+    return (
+      <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Checked In</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2 text-center">
+            <p className="text-sm text-muted-foreground">Give this number to the patient</p>
+            <p className="text-5xl font-bold text-foreground">Ticket #{ticketNumber}</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={onClose}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
