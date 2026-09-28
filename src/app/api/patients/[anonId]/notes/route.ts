@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { createNote } from '@/lib/queries/encounter-notes'
 import { getAdmissionById } from '@/lib/queries/admissions'
+import { getAppointment } from '@/lib/queries/appointments'
 
 const noteSchema = z.object({
   noteType: z.enum(['progress', 'nursing', 'intake']),
@@ -32,6 +33,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const admission = await getAdmissionById(parsed.data.admissionId)
     if (!admission || admission.patientId !== anonId) {
       return NextResponse.json({ error: 'admissionId does not belong to this patient' }, { status: 400 })
+    }
+  }
+
+  if (parsed.data.appointmentId !== undefined) {
+    const appointment = await getAppointment(parsed.data.appointmentId)
+    if (!appointment || appointment.patientId !== anonId) {
+      return NextResponse.json({ error: 'appointmentId does not belong to this patient' }, { status: 400 })
     }
   }
 
