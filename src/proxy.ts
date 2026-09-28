@@ -31,4 +31,4 @@ export async function proxy(request: NextRequest) {
 // own getSession() check; without this exclusion too, this proxy's
 // codebase-wide session gate would still redirect every /book request to
 // /login before the page ever rendered.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|book).*)'] }
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|book(?:/|$)).*)'] }
