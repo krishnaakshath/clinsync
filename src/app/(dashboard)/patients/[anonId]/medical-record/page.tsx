@@ -5,11 +5,14 @@ import { PatientAvatar } from '@/components/PatientAvatar'
 import { AllergyBadge } from '@/components/AllergyBadge'
 import { NoteForm, NoteCard } from '@/components/NoteForm'
 import { InsuranceCardUpload } from '@/components/InsuranceCardUpload'
+import { LabResultsSection } from '@/components/LabResultsSection'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
 import { listNotesForPatient } from '@/lib/queries/encounter-notes'
 import { getPayerName } from '@/lib/queries/payers'
+import { listOrdersForPatient } from '@/lib/queries/lab-orders'
+import { listLabTests } from '@/lib/queries/lab-tests'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -79,10 +82,13 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const notes = await listNotesForPatient(anonId)
   const primaryPayerName = await getPayerName(patient.primaryPayerId)
   const secondaryPayerName = await getPayerName(patient.secondaryPayerId)
+  const [labOrders, labTests] = await Promise.all([listOrdersForPatient(anonId), listLabTests()])
   await logAudit(session, 'viewed patient medical record', anonId)
 
   const name = patient.nameTebra ?? patient.nameIntakeq
   const canWriteInsurance = ['admin', 'crc', 'frontdesk'].includes(session.role)
+  // Matches POST /api/patients/[anonId]/lab-orders's own role gate (spec §8: ordering is a clinical action).
+  const canOrderLabs = ['admin', 'pi'].includes(session.role)
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -262,6 +268,10 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
             ))}
           </div>
         )}
+      </section>
+
+      <section className={SECTION}>
+        <LabResultsSection patientId={anonId} orders={labOrders} labTests={labTests} canOrder={canOrderLabs} />
       </section>
     </div>
   )
