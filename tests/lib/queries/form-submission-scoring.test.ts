@@ -28,6 +28,21 @@ describe('computeScore', () => {
   it('returns null for a null scoringRule (unscored template, Review Focus #4)', () => {
     expect(computeScore(phq9Questions, null, { q1: 'Not at all' })).toBeNull()
   })
+
+  it('returns null when none of the scored questions were actually answered (final review I4)', () => {
+    // No answers at all.
+    expect(computeScore(phq9Questions, rule, {})).toBeNull()
+    // Answers present but none match a real option or a scored question --
+    // same "nothing actually scored" case as no answers at all.
+    expect(computeScore(phq9Questions, rule, { q1: 'some free-text typo', other: 'irrelevant' })).toBeNull()
+  })
+
+  it('still scores normally when only some scored questions were answered (final review I4, partial != zero)', () => {
+    // Only q2 answered; q1 missing entirely. This must NOT become null --
+    // only the fully-unanswered case does.
+    const result = computeScore(phq9Questions, rule, { q2: 'Nearly every day' })
+    expect(result).toEqual({ totalScore: 3, bandLabel: 'Mild' })
+  })
 })
 
 import { eq } from 'drizzle-orm'

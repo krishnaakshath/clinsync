@@ -25,7 +25,10 @@ export interface SubmissionScore {
  * the question, finds the patient's answer's index in its `options`, and
  * reads the parallel `optionScores[index]`. A missing question, missing
  * optionScores, or a non-matching/missing answer contributes 0 rather than
- * throwing -- patient-entered free text should never crash scoring.
+ * throwing -- patient-entered free text should never crash scoring. If
+ * none of the scored questions were actually answered, returns `null`
+ * (no score) rather than a false "0" band -- a partially-answered
+ * submission (at least one scored answer) still scores normally.
  */
 export function computeScore(
   questions: ScorableQuestion[],
@@ -36,6 +39,7 @@ export function computeScore(
 
   const questionsById = new Map(questions.map((q) => [q.id, q]))
 
+  let answeredCount = 0
   const totalScore = scoringRule.questionIds.reduce((sum, questionId) => {
     const question = questionsById.get(questionId)
     if (!question || !question.options || !question.optionScores) return sum
@@ -45,8 +49,15 @@ export function computeScore(
     if (optionIndex === -1) return sum
     const optionScore = question.optionScores[optionIndex]
     if (optionScore === null || optionScore === undefined) return sum
+    answeredCount += 1
     return sum + optionScore
   }, 0)
+
+  // Zero of the scored questions were actually answered -- a completed
+  // submission with nothing to score has no score to report, not a
+  // confident "0" band (e.g. PHQ-9's 0-4 "Minimal"). A *partially*-answered
+  // submission (>=1 scored answer) still scores normally.
+  if (answeredCount === 0) return null
 
   const band = scoringRule.bands.find((b) => totalScore >= b.min && totalScore <= b.max)
   // A total that falls outside every declared band (a scoring-rule
