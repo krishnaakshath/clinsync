@@ -84,13 +84,16 @@ describe('patient MFA state', () => {
 
 describe('admin MFA state (appSettings singleton)', () => {
   it('starts unenrolled, then provisions, enables, and resets', async () => {
+    // getAdminMfaState() also returns mfaMethod/phone since the
+    // authentication-hardening plan widened appSettings for SMS/email OTP --
+    // this test predates that and needs both fields in its expected shape.
     await resetAdminMfa()
-    expect(await getAdminMfaState()).toEqual({ mfaSecretEncrypted: null, mfaEnabled: false })
+    expect(await getAdminMfaState()).toEqual({ mfaSecretEncrypted: null, mfaEnabled: false, mfaMethod: 'totp', phone: null })
     await setAdminMfaSecret('encrypted-admin-secret')
     expect((await getAdminMfaState()).mfaEnabled).toBe(false)
     await enableAdminMfa()
     expect((await getAdminMfaState()).mfaEnabled).toBe(true)
     await resetAdminMfa()
-    expect(await getAdminMfaState()).toEqual({ mfaSecretEncrypted: null, mfaEnabled: false })
+    expect(await getAdminMfaState()).toEqual({ mfaSecretEncrypted: null, mfaEnabled: false, mfaMethod: 'totp', phone: null })
   })
 })

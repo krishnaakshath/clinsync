@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { eq, ne } from 'drizzle-orm'
 import { POST } from '@/app/api/inpatient/admissions/[id]/discharge/route'
 import { getDb } from '@/db/client'
-import { admissions, patients, appointments } from '@/db/schema'
+import { admissions, patients, appointments, providers } from '@/db/schema'
 import { createAdmission } from '@/lib/queries/admissions'
 
 let sessionRole: 'admin' | 'pi' | 'frontdesk' = 'pi'
@@ -42,7 +42,11 @@ describe('POST /api/inpatient/admissions/[id]/discharge', () => {
 
   it('rejects a PI discharging an admission they are not the attending provider for', async () => {
     const [patientRow] = await getDb().select().from(patients).limit(1)
-    const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: 999, admissionType: 'elective', createdFromAssignmentId: null })
+    // Must be a real providers.id (FK-enforced) that isn't 1 -- `listActiveProviders`
+    // is mocked above to return only {id: 1, name: 'Dr. Chen'}, so any other real
+    // provider id represents "someone else," which is all this test needs.
+    const [otherProviderRow] = await getDb().select().from(providers).where(ne(providers.id, 1)).limit(1)
+    const admission = await createAdmission({ patientId: patientRow.id, roomId: null, attendingProviderId: otherProviderRow.id, admissionType: 'elective', createdFromAssignmentId: null })
     createdAdmissionIds.push(admission.id)
 
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ dischargeDiagnosis: 'A', dischargeDrugs: 'B', dischargeDevices: 'C', dischargeDiet: 'D', dischargeSummaryNotes: 'E' }) })

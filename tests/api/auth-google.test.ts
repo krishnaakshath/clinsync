@@ -15,6 +15,7 @@ describe('GET /api/auth/google/callback', () => {
   it('rejects when the state does not match the stored cookie', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id'
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
     const { GET } = await import('@/app/api/auth/google/callback/route')
     const req = new Request('http://localhost/api/auth/google/callback?code=abc&state=wrong-state', {
       headers: { cookie: 'clinsync_pending_google_oauth=' },
@@ -26,6 +27,7 @@ describe('GET /api/auth/google/callback', () => {
   it('rejects when no pending OAuth cookie is present at all', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id'
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'
     const { GET } = await import('@/app/api/auth/google/callback/route')
     const req = new Request('http://localhost/api/auth/google/callback?code=abc&state=some-state')
     const res = await GET(req as never)

@@ -19,6 +19,14 @@ export default defineConfig({
     // file reading real rows concurrently (e.g. tests/api/patients.test.ts).
     // Run files sequentially to keep the shared-state suite deterministic.
     fileParallelism: false,
+    // The DB client now uses a real TCP connection pool (drizzle-orm/
+    // node-postgres) instead of Neon's HTTP driver, so a test that makes
+    // several sequential real round trips (insert, insert, update, insert,
+    // select, select, several cleanup deletes) genuinely takes real network
+    // time -- especially the very first test in a run, which also pays the
+    // pool's cold TCP+TLS connect cost. Vitest's 5000ms default was tuned
+    // for the old driver's behavior and clips real multi-query tests now.
+    testTimeout: 15000,
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },

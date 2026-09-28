@@ -116,6 +116,13 @@ beforeAll(async () => {
   vi.stubEnv('ADMIN_EMAIL', 'admin@example.com')
   vi.stubEnv('ADMIN_PASSWORD_HASH', TEST_HASH)
   vi.stubEnv('ADMIN_NAME', 'Test Admin')
+  // `users.email` has no unique constraint, and this email is a fixed literal
+  // (not per-run-unique) -- a run that crashes before afterAll's cleanup
+  // leaves a stale row behind that a later run's plain WHERE-email lookup can
+  // match instead of the fresh row inserted below, silently reusing whatever
+  // MFA-enrollment state that stale row happened to be in. Delete-then-insert
+  // makes this self-healing instead of a one-time manual cleanup.
+  await getDb().delete(users).where(eq(users.email, TEST_DB_USER_EMAIL))
   const [row] = await getDb().insert(users).values({ name: 'Test PI', email: TEST_DB_USER_EMAIL, role: 'pi', passwordHash: hashPassword(TEST_DB_USER_PASSWORD) }).returning()
   testUserId = row.id
 })
@@ -245,7 +252,13 @@ describe('two-step staff login (sms/email verify branch)', () => {
       expect(capturedCode).toMatch(/^\d{6}$/)
 
       const pendingCookie = loginRes.cookies.get('clinsync_pending_staff_mfa')?.value
-      const verifyRes = await withCookieBridge(freshLoginMfaRoute, mfaReq({ code: capturedCode }, `clinsync_pending_staff_mfa=${pendingCookie}`))
+      // Saved into its own variable before the second login below overwrites
+      // the shared `capturedCode` closure with a brand-new code -- without
+      // this, the "replay" attempt would accidentally submit the SECOND
+      // login's fresh (still-valid) code instead of replaying the first
+      // (already-used) one, making the test pass for the wrong reason.
+      const firstCode = capturedCode
+      const verifyRes = await withCookieBridge(freshLoginMfaRoute, mfaReq({ code: firstCode }, `clinsync_pending_staff_mfa=${pendingCookie}`))
       expect(verifyRes.status).toBe(200)
       expect(await verifyRes.json()).toEqual({ ok: true })
       expect(verifyRes.cookies.get('clinsync_demo_session')).toBeTruthy()
@@ -256,7 +269,7 @@ describe('two-step staff login (sms/email verify branch)', () => {
       const loginRes2 = await withCookieBridge(freshLoginRoute, req({ email: 'sms-verify-test-user@example.com', password: 'SmsVerifyPass123!' }))
       expect(loginRes2.status).toBe(200)
       const pendingCookie2 = loginRes2.cookies.get('clinsync_pending_staff_mfa')?.value
-      const replayRes = await withCookieBridge(freshLoginMfaRoute, mfaReq({ code: capturedCode }, `clinsync_pending_staff_mfa=${pendingCookie2}`))
+      const replayRes = await withCookieBridge(freshLoginMfaRoute, mfaReq({ code: firstCode }, `clinsync_pending_staff_mfa=${pendingCookie2}`))
       expect(replayRes.status).toBe(401)
       expect(replayRes.cookies.get('clinsync_demo_session')).toBeFalsy()
     } finally {

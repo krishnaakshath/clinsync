@@ -5,7 +5,14 @@ import { rooms, providers, patients, admissions, admissionTransfers } from '@/db
 import { deletePatient } from '@/lib/queries/patients'
 
 describe('deletePatient — admissions cleanup', () => {
-  it('deletes admissionTransfers and admissions for the patient, and does not leave an FK violation', async () => {
+  // deletePatient() cascades across ~20 tables with real sequential round
+  // trips; combined with this test's own setup/teardown queries that's
+  // ~30 real round trips -- confirmed by isolated timing to take ~16s on
+  // this connection, just over the suite's global 15s testTimeout. Every
+  // other test file comfortably fits the global budget; this one genuinely
+  // needs more, not a hang -- a per-test override rather than raising the
+  // global timeout for every other, much cheaper test.
+  it('deletes admissionTransfers and admissions for the patient, and does not leave an FK violation', { timeout: 30000 }, async () => {
     const db = getDb()
     const [room1] = await db.insert(rooms).values({ ward: 'Test Ward', roomNumber: 'D1', bedNumber: 'A' }).returning()
     const [room2] = await db.insert(rooms).values({ ward: 'Test Ward', roomNumber: 'D2', bedNumber: 'A' }).returning()

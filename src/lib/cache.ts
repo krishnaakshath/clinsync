@@ -7,6 +7,14 @@ function createRedis() {
   return new Redis({
     url: process.env.KV_REST_API_URL!,
     token: process.env.KV_REST_API_TOKEN!,
+    // Without this, an Upstash-side outage or DNS hang leaves every cache
+    // call (and the whole request awaiting it) stuck forever with no
+    // rejection ever surfacing -- confirmed directly: one hung `del()` call
+    // inside a route handler blocked an entire test run for over 90
+    // minutes. A factory (not a single shared AbortSignal) so each request
+    // gets its own fresh 5s budget, not one signal that's already expired
+    // after the first call.
+    signal: () => AbortSignal.timeout(5000),
   })
 }
 
