@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { doctorAssignments } from '@/db/schema'
 import { and, desc, eq, gte } from 'drizzle-orm'
+import { getNextQueueTicketNumberForToday } from './queue-tickets'
 
 export interface CreateDoctorAssignmentInput {
   patientId: string
@@ -15,7 +16,8 @@ export interface CreateDoctorAssignmentInput {
 export type DoctorAssignmentRow = typeof doctorAssignments.$inferSelect
 
 export async function createDoctorAssignment(input: CreateDoctorAssignmentInput): Promise<DoctorAssignmentRow> {
-  const [created] = await getDb().insert(doctorAssignments).values(input).returning()
+  const queueTicketNumber = await getNextQueueTicketNumberForToday()
+  const [created] = await getDb().insert(doctorAssignments).values({ ...input, queueTicketNumber }).returning()
   return created
 }
 
