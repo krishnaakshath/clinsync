@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const noteId = Number(id)
   if (!Number.isInteger(noteId)) return NextResponse.json({ error: 'Invalid note id' }, { status: 400 })
 
-  const result = await signNote(noteId, session.name, session.role === 'admin')
+  const result = await signNote(noteId, anonId, session.name, session.role === 'admin')
   if (!result.ok) {
     const status = result.error === 'Note not found' ? 404 : result.error === 'Note is already signed' ? 409 : 403
     return NextResponse.json({ error: result.error }, { status })

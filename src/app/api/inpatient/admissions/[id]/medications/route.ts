@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getAdmissionById } from '@/lib/queries/admissions'
-import { orderMedication, listMedicationsForAdmission } from '@/lib/queries/medication-administrations'
+import { orderMedication, listMedicationsForAdmission, getMedicationEpisodeById } from '@/lib/queries/medication-administrations'
 
 const orderSchema = z.object({
   medicationEpisodeId: z.number().int().optional(),
@@ -45,6 +45,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const parsed = orderSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid medication order', details: parsed.error.flatten() }, { status: 400 })
+
+  if (parsed.data.medicationEpisodeId !== undefined) {
+    const episode = await getMedicationEpisodeById(parsed.data.medicationEpisodeId)
+    if (!episode || episode.patientId !== admission.patientId) {
+      return NextResponse.json({ error: 'medicationEpisodeId does not belong to this admission\'s patient' }, { status: 400 })
+    }
+  }
 
   const scheduledFor = new Date(parsed.data.scheduledFor)
   if (isNaN(scheduledFor.getTime())) return NextResponse.json({ error: 'Invalid scheduledFor' }, { status: 400 })

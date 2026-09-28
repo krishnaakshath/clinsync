@@ -149,6 +149,18 @@ export async function deletePatient(anonId: string): Promise<boolean> {
     await db.delete(screeningCriteriaResults).where(inArray(screeningCriteriaResults.screeningId, screeningIds))
   }
 
+  // Looked up here, ahead of the admissions delete further down, because
+  // medicationAdministrations must be cleared before medicationEpisodes --
+  // medicationAdministrations.medicationEpisodeId is a nullable FK to
+  // medicationEpisodes(id) with no ON DELETE action, so Postgres would
+  // reject the medicationEpisodes delete below once an administration
+  // references an episode (same FK-ordering discipline as the
+  // doctorAssignments/appointments note further down).
+  const patientAdmissionIds = (await db.select({ id: admissions.id }).from(admissions).where(eq(admissions.patientId, anonId))).map((a) => a.id)
+  if (patientAdmissionIds.length > 0) {
+    await db.delete(medicationAdministrations).where(inArray(medicationAdministrations.admissionId, patientAdmissionIds))
+  }
+
   await db.delete(formChartDiscrepancies).where(eq(formChartDiscrepancies.patientId, anonId))
   await db.delete(reviews).where(eq(reviews.patientId, anonId))
   await db.delete(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
@@ -169,9 +181,7 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   // (followUpAppointmentId) -- the same FK-ordering discipline applied one level deeper.
   await db.delete(insuranceEligibilityChecks).where(eq(insuranceEligibilityChecks.patientId, anonId))
   await db.delete(encounterNotes).where(eq(encounterNotes.patientId, anonId))
-  const patientAdmissionIds = (await db.select({ id: admissions.id }).from(admissions).where(eq(admissions.patientId, anonId))).map((a) => a.id)
   if (patientAdmissionIds.length > 0) {
-    await db.delete(medicationAdministrations).where(inArray(medicationAdministrations.admissionId, patientAdmissionIds))
     await db.delete(admissionTransfers).where(inArray(admissionTransfers.admissionId, patientAdmissionIds))
   }
   await db.delete(admissions).where(eq(admissions.patientId, anonId))

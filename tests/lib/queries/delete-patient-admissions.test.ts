@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
-import { rooms, providers, patients, admissions, admissionTransfers, encounterNotes, medicationAdministrations } from '@/db/schema'
+import { rooms, providers, patients, admissions, admissionTransfers, encounterNotes, medicationAdministrations, medicationEpisodes } from '@/db/schema'
 import { deletePatient } from '@/lib/queries/patients'
 
 describe('deletePatient — admissions cleanup', () => {
@@ -34,5 +34,34 @@ describe('deletePatient — admissions cleanup', () => {
 
     await db.delete(rooms).where(eq(rooms.id, room1.id))
     await db.delete(rooms).where(eq(rooms.id, room2.id))
+  })
+
+  // Regression test for a live FK-ordering bug: medicationAdministrations.medicationEpisodeId
+  // is a nullable FK to medicationEpisodes(id) with no ON DELETE action. deletePatient() used
+  // to delete medicationEpisodes before medicationAdministrations, so any MAR row with a set
+  // medicationEpisodeId made the medicationEpisodes delete fail with a foreign-key violation --
+  // and because deletePatient() isn't wrapped in a transaction, everything deleted before that
+  // point stayed deleted, leaving the patient half-deleted.
+  it('deletes medicationAdministrations before medicationEpisodes when a MAR row references an episode', { timeout: 30000 }, async () => {
+    const db = getDb()
+    const [room] = await db.insert(rooms).values({ ward: 'Test Ward', roomNumber: 'D3', bedNumber: 'A' }).returning()
+    const [providerRow] = await db.select().from(providers).limit(1)
+
+    const testPatientId = `TEST-DEL-MED-${Date.now()}`
+    await db.insert(patients).values({ id: testPatientId, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Delete Med Test Patient', dobIntakeq: '2000-01-01' })
+
+    const [admission] = await db.insert(admissions).values({ patientId: testPatientId, currentRoomId: room.id, attendingProviderId: providerRow.id }).returning()
+    const [episode] = await db.insert(medicationEpisodes).values({ patientId: testPatientId, name: 'Sertraline', medicationClass: 'SSRI', startDate: '2024-01-01', status: 'active' }).returning()
+    await db.insert(medicationAdministrations).values({ admissionId: admission.id, medicationEpisodeId: episode.id, medicationName: 'Sertraline', dose: '100mg', scheduledFor: new Date() })
+
+    const deleted = await deletePatient(testPatientId)
+    expect(deleted).toBe(true)
+
+    const remainingEpisodes = await db.select().from(medicationEpisodes).where(eq(medicationEpisodes.patientId, testPatientId))
+    expect(remainingEpisodes.length).toBe(0)
+    const remainingAdministrations = await db.select().from(medicationAdministrations).where(eq(medicationAdministrations.admissionId, admission.id))
+    expect(remainingAdministrations.length).toBe(0)
+
+    await db.delete(rooms).where(eq(rooms.id, room.id))
   })
 })

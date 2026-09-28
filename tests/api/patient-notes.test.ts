@@ -124,4 +124,22 @@ describe('PUT /api/patients/[anonId]/notes/[id]/sign', () => {
     const secondSign = await signRoute(new Request('http://localhost', { method: 'PUT' }) as never, { params: Promise.resolve({ anonId: patientRow.id, id: String(created.id) }) })
     expect(secondSign.status).toBe(409)
   })
+
+  it('rejects signing a note through a different patient\'s URL than the one it belongs to', async () => {
+    const patientRows = await getDb().select().from(patients).limit(2)
+    if (patientRows.length < 2) throw new Error('This test needs at least 2 seeded patients -- run npm run db:seed')
+    const [patientA, patientB] = patientRows
+
+    // A real note that genuinely belongs to patientA, not patientB.
+    const createRes = await createRoute(req({ noteType: 'progress' }) as never, { params: Promise.resolve({ anonId: patientA.id }) })
+    const created = await createRes.json()
+    createdNoteIds.push(created.id)
+
+    // Attempt to sign patientA's note via patientB's URL.
+    const signRes = await signRoute(new Request('http://localhost', { method: 'PUT' }) as never, { params: Promise.resolve({ anonId: patientB.id, id: String(created.id) }) })
+    expect(signRes.status).toBe(404)
+
+    const [noteRow] = await getDb().select().from(encounterNotes).where(eq(encounterNotes.id, created.id))
+    expect(noteRow.status).toBe('draft')
+  })
 })

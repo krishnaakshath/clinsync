@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { POST as orderRoute } from '@/app/api/inpatient/admissions/[id]/medications/route'
 import { POST as administerRoute } from '@/app/api/inpatient/admissions/[id]/medications/[medId]/administer/route'
 import { getDb } from '@/db/client'
-import { patients, providers, rooms, admissions, medicationAdministrations } from '@/db/schema'
+import { patients, providers, rooms, admissions, medicationAdministrations, medicationEpisodes } from '@/db/schema'
 
 let sessionRole: 'admin' | 'pi' | 'crc' | 'frontdesk' = 'admin'
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: sessionRole, name: 'Test Admin' })) }))
@@ -11,20 +11,22 @@ vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: sessio
 const createdMarIds: number[] = []
 const createdAdmissionIds: number[] = []
 const createdRoomIds: number[] = []
+const createdMedicationEpisodeIds: number[] = []
 afterEach(async () => {
   sessionRole = 'admin'
   while (createdMarIds.length > 0) await getDb().delete(medicationAdministrations).where(eq(medicationAdministrations.id, createdMarIds.pop()!))
   while (createdAdmissionIds.length > 0) await getDb().delete(admissions).where(eq(admissions.id, createdAdmissionIds.pop()!))
   while (createdRoomIds.length > 0) await getDb().delete(rooms).where(eq(rooms.id, createdRoomIds.pop()!))
+  while (createdMedicationEpisodeIds.length > 0) await getDb().delete(medicationEpisodes).where(eq(medicationEpisodes.id, createdMedicationEpisodeIds.pop()!))
 })
 
-async function makeAdmission() {
+async function makeAdmission(patientId?: string) {
   const db = getDb()
-  const [patientRow] = await db.select().from(patients).limit(1)
+  const ownerPatientId = patientId ?? (await db.select().from(patients).limit(1))[0].id
   const [room] = await db.insert(rooms).values({ ward: 'Test Ward', roomNumber: 'AM1', bedNumber: 'A' }).returning()
   createdRoomIds.push(room.id)
   const [providerRow] = await db.select().from(providers).limit(1)
-  const [admission] = await db.insert(admissions).values({ patientId: patientRow.id, currentRoomId: room.id, attendingProviderId: providerRow.id }).returning()
+  const [admission] = await db.insert(admissions).values({ patientId: ownerPatientId, currentRoomId: room.id, attendingProviderId: providerRow.id }).returning()
   createdAdmissionIds.push(admission.id)
   return admission
 }
@@ -46,6 +48,21 @@ describe('POST /api/inpatient/admissions/[id]/medications', () => {
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ medicationName: 'Sertraline', dose: '100mg', scheduledFor: new Date().toISOString() }) })
     const res = await orderRoute(req as never, { params: Promise.resolve({ id: String(admission.id) }) })
     expect(res.status).toBe(403)
+  })
+
+  it('rejects a medicationEpisodeId belonging to a different patient than the admission', async () => {
+    const db = getDb()
+    const patientRows = await db.select().from(patients).limit(2)
+    if (patientRows.length < 2) throw new Error('This test needs at least 2 seeded patients -- run npm run db:seed')
+    const [patientA, patientB] = patientRows
+
+    const admissionForA = await makeAdmission(patientA.id)
+    const [episodeForB] = await db.insert(medicationEpisodes).values({ patientId: patientB.id, name: 'Sertraline', medicationClass: 'SSRI', startDate: '2024-01-01', status: 'active' }).returning()
+    createdMedicationEpisodeIds.push(episodeForB.id)
+
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ medicationEpisodeId: episodeForB.id, medicationName: 'Sertraline', dose: '100mg', scheduledFor: new Date().toISOString() }) })
+    const res = await orderRoute(req as never, { params: Promise.resolve({ id: String(admissionForA.id) }) })
+    expect(res.status).toBe(400)
   })
 })
 

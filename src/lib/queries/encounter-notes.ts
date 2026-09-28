@@ -40,9 +40,17 @@ export interface SignNoteResult {
 // it's still a draft. A row's status only ever moves draft -> signed, once;
 // there is deliberately no route anywhere that can move it back or edit a
 // signed row's content (append-only, same principle as the audit log).
-export async function signNote(id: number, signerName: string, signerIsAdmin: boolean): Promise<SignNoteResult> {
+//
+// `patientId` is the URL's patient (the caller-supplied `anonId`) -- it must
+// match the note's own `patientId` or the caller is signing a note through
+// the wrong patient's URL. That's treated the same as "note not found"
+// rather than a distinct error: it never confirms to the caller that a note
+// with this id exists under a different patient, and it keeps the audit log
+// (which the route logs against the URL's patient) from ever attributing a
+// sign action to the wrong patient.
+export async function signNote(id: number, patientId: string, signerName: string, signerIsAdmin: boolean): Promise<SignNoteResult> {
   const note = await getNoteById(id)
-  if (!note) return { ok: false, error: 'Note not found' }
+  if (!note || note.patientId !== patientId) return { ok: false, error: 'Note not found' }
   if (note.status !== 'draft') return { ok: false, error: 'Note is already signed' }
   if (note.authorName !== signerName && !signerIsAdmin) return { ok: false, error: 'Only the note\'s author or an admin may sign it' }
 

@@ -1,8 +1,14 @@
 import { getDb } from '@/db/client'
-import { medicationAdministrations } from '@/db/schema'
+import { medicationAdministrations, medicationEpisodes } from '@/db/schema'
 import { and, asc, eq } from 'drizzle-orm'
 
 export type MedicationAdministration = typeof medicationAdministrations.$inferSelect
+export type MedicationEpisode = typeof medicationEpisodes.$inferSelect
+
+export async function getMedicationEpisodeById(id: number): Promise<MedicationEpisode | null> {
+  const [row] = await getDb().select().from(medicationEpisodes).where(eq(medicationEpisodes.id, id))
+  return row ?? null
+}
 
 export interface OrderMedicationInput {
   admissionId: number
