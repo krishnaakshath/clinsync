@@ -17,7 +17,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const requestId = Number(id)
   if (!Number.isInteger(requestId)) return NextResponse.json({ error: 'Invalid booking request id' }, { status: 400 })
 
-  const parsed = declineBookingRequestSchema.safeParse(await request.json())
+  let body: unknown
+  try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }) }
+
+  const parsed = declineBookingRequestSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid decline payload', details: parsed.error.flatten() }, { status: 400 })
 
   const existing = await getBookingRequestById(requestId)

@@ -107,6 +107,20 @@ describe('PATCH /api/booking-requests/[id]/confirm', () => {
     const res = await confirmRoute(req({ ...payload, endsAt: payload.startsAt }) as never, params(request.id))
     expect(res.status).toBe(400)
   })
+
+  it('returns 400 for a patientId that does not reference a real patient, and never leaves the request stuck confirmed with no appointment', async () => {
+    const request = await makePendingRequest()
+    const payload = await confirmPayload()
+    const res = await confirmRoute(req({ ...payload, patientId: 'RD-9999999-does-not-exist' }) as never, params(request.id))
+    expect(res.status).toBe(400)
+
+    const [row] = await getDb().select().from(bookingRequests).where(eq(bookingRequests.id, request.id))
+    expect(row.status).toBe('pending')
+    expect(row.resultingAppointmentId).toBeNull()
+
+    const apptRows = await getDb().select().from(appointments).where(eq(appointments.patientId, 'RD-9999999-does-not-exist'))
+    expect(apptRows.length).toBe(0)
+  })
 })
 
 describe('PATCH /api/booking-requests/[id]/decline', () => {
