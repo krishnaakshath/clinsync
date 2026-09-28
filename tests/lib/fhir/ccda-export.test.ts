@@ -11,6 +11,8 @@ import type { FhirObservation } from '@/lib/fhir/observation'
 
 let data: PatientFhirData
 let patientId: string
+let emptyPatientData: PatientFhirData
+let emptyPatientId: string
 let allergyId: number
 let diagnosisId: number
 let episodeId: number
@@ -19,6 +21,12 @@ let orderId: number
 
 beforeAll(async () => {
   const db = getDb()
+
+  const [emptyPatient] = await db.insert(patients).values({
+    id: 'RD-FHIR-CCDA-EMPTY', intakeqClientIdRef: 'test-ref-ccda-empty', nameIntakeq: 'CCDA Empty Patient', dobIntakeq: '1990-01-01',
+  }).returning()
+  emptyPatientId = emptyPatient.id
+  emptyPatientData = (await gatherPatientFhirData(emptyPatientId))!
 
   const [patient] = await db.insert(patients).values({
     id: 'RD-FHIR-CCDA-1', intakeqClientIdRef: 'test-ref-ccda-1', nameIntakeq: 'CCDA Patient', dobIntakeq: '1980-01-01',
@@ -68,6 +76,7 @@ afterAll(async () => {
   await db.delete(diagnoses).where(eq(diagnoses.id, diagnosisId))
   await db.delete(allergies).where(eq(allergies.id, allergyId))
   await db.delete(patients).where(eq(patients.id, patientId))
+  await db.delete(patients).where(eq(patients.id, emptyPatientId))
 })
 
 describe('toCcdaXml', () => {
@@ -75,6 +84,17 @@ describe('toCcdaXml', () => {
     const xml = toCcdaXml(data)
     const parsed = new DOMParser().parseFromString(xml, 'application/xml')
     expect(parsed.getElementsByTagName('parsererror').length).toBe(0)
+  })
+
+  it('produces a well-formed, empty-but-valid document for a patient with no allergies/conditions/medications/labs', () => {
+    const xml = toCcdaXml(emptyPatientData)
+    const parsed = new DOMParser().parseFromString(xml, 'application/xml')
+    expect(parsed.getElementsByTagName('parsererror').length).toBe(0)
+    // Every section still renders (empty, not omitted or erroring).
+    expect(xml).toContain('<title>Allergies</title>')
+    expect(xml).toContain('<title>Active Medications</title>')
+    expect(xml).toContain('<title>Problems</title>')
+    expect(xml).toContain('<title>Results</title>')
   })
 
   it('escapes XML special characters in patient data', () => {

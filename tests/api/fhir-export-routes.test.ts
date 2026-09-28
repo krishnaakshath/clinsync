@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { getDb } from '@/db/client'
-import { patients, allergies, diagnoses } from '@/db/schema'
+import { patients, allergies, diagnoses, auditLog } from '@/db/schema'
 
 let sessionRole: 'admin' | 'pi' | 'crc' | 'frontdesk' | null = 'crc'
 vi.mock('@/lib/auth', () => ({
@@ -23,14 +23,14 @@ import { GET as getBundle } from '@/app/api/patients/[anonId]/fhir/Bundle/route'
 import { GET as getCcda } from '@/app/api/patients/[anonId]/ccda/route'
 
 const ROUTES = [
-  { name: 'Patient', handler: getPatient },
-  { name: 'AllergyIntolerance', handler: getAllergyIntolerance },
-  { name: 'Condition', handler: getCondition },
-  { name: 'MedicationRequest', handler: getMedicationRequest },
-  { name: 'MedicationDispense', handler: getMedicationDispense },
-  { name: 'Observation', handler: getObservation },
-  { name: 'Bundle', handler: getBundle },
-  { name: 'CCDA', handler: getCcda },
+  { name: 'Patient', handler: getPatient, auditAction: 'exported FHIR Patient resource' },
+  { name: 'AllergyIntolerance', handler: getAllergyIntolerance, auditAction: 'exported FHIR AllergyIntolerance bundle' },
+  { name: 'Condition', handler: getCondition, auditAction: 'exported FHIR Condition bundle' },
+  { name: 'MedicationRequest', handler: getMedicationRequest, auditAction: 'exported FHIR MedicationRequest bundle' },
+  { name: 'MedicationDispense', handler: getMedicationDispense, auditAction: 'exported FHIR MedicationDispense bundle' },
+  { name: 'Observation', handler: getObservation, auditAction: 'exported FHIR Observation bundle' },
+  { name: 'Bundle', handler: getBundle, auditAction: 'exported full FHIR Bundle' },
+  { name: 'CCDA', handler: getCcda, auditAction: 'exported C-CDA document' },
 ] as const
 
 const EMPTY_BUNDLE_ROUTES = [
@@ -104,6 +104,18 @@ afterAll(async () => {
   while (createdAllergyIds.length > 0) await db.delete(allergies).where(eq(allergies.id, createdAllergyIds.pop()!))
   while (createdDiagnosisIds.length > 0) await db.delete(diagnoses).where(eq(diagnoses.id, createdDiagnosisIds.pop()!))
   while (createdPatientIds.length > 0) await db.delete(patients).where(eq(patients.id, createdPatientIds.pop()!))
+})
+
+// The "spec §5 audit-logging" describe block below inserts real auditLog
+// rows via the real route handlers against the shared dev DB -- clean up
+// every one of the 8 routes' action strings, or they accumulate in the
+// compliance log forever (matching tests/api/trials.test.ts's and
+// tests/api/users.test.ts's own convention for this).
+afterAll(async () => {
+  const db = getDb()
+  for (const { auditAction } of ROUTES) {
+    await db.delete(auditLog).where(eq(auditLog.action, auditAction))
+  }
 })
 
 afterEach(() => {
@@ -249,5 +261,33 @@ describe('C-CDA export route -- /ccda', () => {
     expect(xmlB).toContain('Diabetes-RouteB')
     expect(xmlB).not.toContain('Penicillin-RouteA')
     expect(xmlB).not.toContain('Asthma-RouteA')
+  })
+})
+
+describe('FHIR export routes -- downloads, not inline JSON', () => {
+  it('every /fhir/* route sets Content-Disposition: attachment with a resource-specific filename', async () => {
+    for (const { name, handler } of ROUTES) {
+      if (name === 'CCDA') continue // covered by its own "attachment headers" test above
+      const res = await callRoute(handler, patientAId)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toMatch(/^application\/fhir\+json/)
+      expect(res.headers.get('Content-Disposition')).toMatch(/^attachment; filename="RD-FHIR-ROUTES-A-fhir-.+\.json"$/)
+    }
+  })
+})
+
+describe('spec §5 -- every export route audit-logs its own action string', () => {
+  it('logs the expected auditLog action string for every one of the 8 export routes', async () => {
+    for (const { handler, auditAction } of ROUTES) {
+      await callRoute(handler, patientAId)
+      // Scoped to this route's own action string, not "the globally latest
+      // row" -- the shared dev DB has concurrent writers (other
+      // branches/worktrees), so an unscoped "latest row" read is racy
+      // (matching tests/api/trials.test.ts's and tests/api/users.test.ts's
+      // own convention for this).
+      const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, auditAction)).orderBy(desc(auditLog.id)).limit(1)
+      expect(latest?.action).toBe(auditAction)
+      expect(latest?.patientId).toBe(patientAId)
+    }
   })
 })
