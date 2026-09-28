@@ -4,7 +4,12 @@ import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { setQueueDisplayPin } from '@/lib/queries/settings'
 
-const pinSchema = z.object({ pin: z.string().min(4).max(32) }).strict()
+// .trim() so a leading/trailing space typo'd on entry doesn't get stored as
+// part of the real PIN (and silently mismatch every future comparison).
+// min(6), not the original min(4) -- a 4-digit PIN space is small enough to
+// be sped through quickly by a guessing script even with GET
+// /api/queue-display's own rate limiting (see src/lib/rate-limit.ts).
+const pinSchema = z.object({ pin: z.string().trim().min(6).max(32) }).strict()
 
 export async function PUT(request: NextRequest) {
   const session = await requireSession()

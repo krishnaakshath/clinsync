@@ -44,7 +44,11 @@ function QueueSection({ title, tickets }: { title: string; tickets: QueueDisplay
         <p className="text-xl text-muted-foreground">No tickets</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {tickets.map((t) => <TicketCard key={t.ticketNumber} ticket={t} />)}
+          {/* Keyed on stage+ticketNumber+index, not ticketNumber alone --
+              a duplicate ticket number (the DEFAULT-0 sentinel, or a
+              genuine same-day race per the plan's Scope decision #5) would
+              otherwise collide as a React key. */}
+          {tickets.map((t, i) => <TicketCard key={`${t.stage}-${t.ticketNumber}-${i}`} ticket={t} />)}
         </div>
       )}
     </div>
@@ -93,24 +97,31 @@ export default function QueueDisplayPage() {
   const pinRef = useRef<string | null>(null)
 
   async function fetchTickets(candidatePin: string) {
-    const res = await fetch('/api/queue-display', { headers: { 'x-queue-display-pin': candidatePin } })
-    if (res.status === 401) {
-      // Never silently retry a bad/changed PIN in a loop -- clear it and
-      // fall back to the entry form with an explanation.
-      sessionStorage.removeItem(PIN_STORAGE_KEY)
-      pinRef.current = null
-      setPin(null)
-      setTickets(null)
-      setError('Incorrect PIN. Please try again.')
-      return
-    }
-    if (!res.ok) {
+    // A network blip (offline TV, DNS hiccup, etc.) must not surface as an
+    // unhandled promise rejection -- fall back to the same "Retrying…"
+    // state the !res.ok branch below already uses; the next poll heals it.
+    try {
+      const res = await fetch('/api/queue-display', { headers: { 'x-queue-display-pin': candidatePin } })
+      if (res.status === 401) {
+        // Never silently retry a bad/changed PIN in a loop -- clear it and
+        // fall back to the entry form with an explanation.
+        sessionStorage.removeItem(PIN_STORAGE_KEY)
+        pinRef.current = null
+        setPin(null)
+        setTickets(null)
+        setError('Incorrect PIN. Please try again.')
+        return
+      }
+      if (!res.ok) {
+        setError('Could not load the queue. Retrying…')
+        return
+      }
+      const body = await res.json()
+      setTickets(body.tickets)
+      setError(null)
+    } catch {
       setError('Could not load the queue. Retrying…')
-      return
     }
-    const body = await res.json()
-    setTickets(body.tickets)
-    setError(null)
   }
 
   // On mount: read any stored PIN and attempt an immediate fetch.

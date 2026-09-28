@@ -46,14 +46,28 @@ describe('PUT /api/settings/queue-display-pin', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects a PIN shorter than 4 characters', async () => {
-    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ pin: '12' }) })
+  it('rejects a PIN shorter than 6 characters', async () => {
+    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ pin: '12345' }) })
     const res = await PUT(req as never)
     expect(res.status).toBe(400)
   })
 
+  it('rejects a PIN that is only whitespace once trimmed (bundled Minor #3)', async () => {
+    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ pin: '   ' }) })
+    const res = await PUT(req as never)
+    expect(res.status).toBe(400)
+  })
+
+  it('trims a PIN with leading/trailing whitespace before storing it (bundled Minor #3)', async () => {
+    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ pin: '  482100  ' }) })
+    const res = await PUT(req as never)
+    expect(res.status).toBe(200)
+    const stored = await getAppSettings()
+    expect(stored.queueDisplayPin).toBe('482100')
+  })
+
   it('accepts a valid PIN from an admin session', async () => {
-    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ pin: '4821' }) })
+    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ pin: '482100' }) })
     const res = await PUT(req as never)
     expect(res.status).toBe(200)
   })
