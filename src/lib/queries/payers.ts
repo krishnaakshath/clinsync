@@ -12,3 +12,9 @@ export async function getPayerById(id: number): Promise<Payer | null> {
   const [row] = await getDb().select().from(payers).where(eq(payers.id, id))
   return row ?? null
 }
+
+export async function getPayerName(payerId: number | null): Promise<string | null> {
+  if (payerId === null) return null
+  const payer = await getPayerById(payerId)
+  return payer?.name ?? null
+}

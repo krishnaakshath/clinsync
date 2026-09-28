@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit'
 import { getDb } from '@/db/client'
 import { patients } from '@/db/schema'
 import { eq } from 'drizzle-orm'
+import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_BYTES = 8 * 1024 * 1024
@@ -27,6 +28,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const column = side === 'front' ? { primaryCardFrontUrl: blob.url } : { primaryCardBackUrl: blob.url }
   await getDb().update(patients).set(column).where(eq(patients.id, anonId))
+
+  // Every other route that mutates a `patients` row invalidates its cached
+  // getPatientDetail() entry (see identity/route.ts, refresh/route.ts) --
+  // this one didn't, so the Medical Record page kept serving a stale
+  // (pre-upload) cached patient row for up to the 30s TTL after a card
+  // upload. Found while verifying Task 5's "second GET shows the uploaded
+  // state" requirement against a real server.
+  await invalidateCache(patientDetailCacheKey(anonId))
 
   await logAudit(session, `uploaded insurance card (${side})`, anonId)
   return NextResponse.json({ url: blob.url })

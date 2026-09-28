@@ -4,10 +4,12 @@ import { BackLink } from '@/components/BackLink'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { AllergyBadge } from '@/components/AllergyBadge'
 import { NoteForm, NoteCard } from '@/components/NoteForm'
+import { InsuranceCardUpload } from '@/components/InsuranceCardUpload'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
 import { listNotesForPatient } from '@/lib/queries/encounter-notes'
+import { getPayerName } from '@/lib/queries/payers'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -27,6 +29,23 @@ function VisitStat({ icon: Icon, label, value }: { icon: React.ComponentType<{ c
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
         <p className="truncate text-sm font-semibold text-foreground">{value}</p>
       </div>
+    </div>
+  )
+}
+
+const PLAN_TYPE_LABEL: Record<string, string> = {
+  ppo: 'PPO', hmo: 'HMO', epo: 'EPO', pos: 'POS', medicare: 'Medicare', medicaid: 'Medicaid',
+}
+
+const RELATIONSHIP_LABEL: Record<string, string> = {
+  self: 'Self', spouse: 'Spouse', child: 'Child', other: 'Other',
+}
+
+function InsuranceField({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm text-foreground">{value ?? '—'}</p>
     </div>
   )
 }
@@ -58,9 +77,12 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const patient = await getPatientDetail(anonId)
   if (!patient) notFound()
   const notes = await listNotesForPatient(anonId)
+  const primaryPayerName = await getPayerName(patient.primaryPayerId)
+  const secondaryPayerName = await getPayerName(patient.secondaryPayerId)
   await logAudit(session, 'viewed patient medical record', anonId)
 
   const name = patient.nameTebra ?? patient.nameIntakeq
+  const canWriteInsurance = ['admin', 'crc', 'frontdesk'].includes(session.role)
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -150,6 +172,61 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
         ) : (
           <div className="space-y-2">
             {patient.allergies.map((a) => <AllergyBadge key={a.id} allergen={a.allergen} reaction={a.reaction} severity={a.severity} />)}
+          </div>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_HEADING}>Insurance</h2>
+        {patient.primaryPayerId === null ? (
+          <p className="text-sm text-muted-foreground">No insurance on file.</p>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Primary</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                <InsuranceField label="Payer" value={primaryPayerName} />
+                <InsuranceField label="Member ID" value={patient.primaryMemberId} />
+                <InsuranceField label="Group Number" value={patient.primaryGroupNumber} />
+                <InsuranceField label="Plan Type" value={patient.primaryPlanType ? PLAN_TYPE_LABEL[patient.primaryPlanType] : null} />
+                <InsuranceField label="Subscriber" value={patient.primarySubscriberName} />
+                <InsuranceField label="Relationship" value={patient.primarySubscriberRelationship ? RELATIONSHIP_LABEL[patient.primarySubscriberRelationship] : null} />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Card — Front</p>
+                  {patient.primaryCardFrontUrl && (
+                    <a href={patient.primaryCardFrontUrl} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
+                      <img src={patient.primaryCardFrontUrl} alt="Primary insurance card, front" className="h-24 w-auto rounded-md border border-border object-cover" />
+                    </a>
+                  )}
+                  <InsuranceCardUpload anonId={anonId} side="front" hasImage={!!patient.primaryCardFrontUrl} canWrite={canWriteInsurance} />
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Card — Back</p>
+                  {patient.primaryCardBackUrl && (
+                    <a href={patient.primaryCardBackUrl} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
+                      <img src={patient.primaryCardBackUrl} alt="Primary insurance card, back" className="h-24 w-auto rounded-md border border-border object-cover" />
+                    </a>
+                  )}
+                  <InsuranceCardUpload anonId={anonId} side="back" hasImage={!!patient.primaryCardBackUrl} canWrite={canWriteInsurance} />
+                </div>
+              </div>
+            </div>
+
+            {patient.secondaryPayerId !== null && (
+              <div className="border-t border-border pt-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Secondary</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                  <InsuranceField label="Payer" value={secondaryPayerName} />
+                  <InsuranceField label="Member ID" value={patient.secondaryMemberId} />
+                  <InsuranceField label="Group Number" value={patient.secondaryGroupNumber} />
+                  <InsuranceField label="Plan Type" value={patient.secondaryPlanType ? PLAN_TYPE_LABEL[patient.secondaryPlanType] : null} />
+                  <InsuranceField label="Subscriber" value={patient.secondarySubscriberName} />
+                  <InsuranceField label="Relationship" value={patient.secondarySubscriberRelationship ? RELATIONSHIP_LABEL[patient.secondarySubscriberRelationship] : null} />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>
