@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { staffCredentials, staffMembers } from '@/db/schema'
-import { and, asc, eq, isNotNull, sql } from 'drizzle-orm'
+import { and, asc, eq, isNotNull, ne, sql } from 'drizzle-orm'
 
 export interface AddCredentialInput {
   staffMemberId: number
@@ -60,7 +60,18 @@ export async function listExpiringOrExpiredCredentials(): Promise<ExpiringCreden
     })
     .from(staffCredentials)
     .innerJoin(staffMembers, eq(staffMembers.id, staffCredentials.staffMemberId))
-    .where(and(isNotNull(staffCredentials.expiresOn), sql`${staffCredentials.expiresOn} <= ${cutoffStr}`))
+    .where(and(
+      isNotNull(staffCredentials.expiresOn),
+      sql`${staffCredentials.expiresOn} <= ${cutoffStr}`,
+      // Fix A (final whole-branch review): a terminated employee's
+      // expired/expiring credential must not linger on this list forever --
+      // once Task 4 wires this into the admin dashboard's standing alert
+      // panel, permanent noise about ex-employees actively degrades the
+      // signal it exists to provide. `on_leave` staff are deliberately kept
+      // on the list: a credential lapsing while someone's on leave still
+      // matters when they return.
+      ne(staffMembers.employmentStatus, 'terminated'),
+    ))
     .orderBy(asc(staffCredentials.expiresOn))
 
   return rows.map((r) => {

@@ -17,8 +17,8 @@ function daysFromNow(days: number): string {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
-async function makeStaff(name: string) {
-  const [s] = await getDb().insert(staffMembers).values({ name, department: 'Clinical', title: 'Test', hireDate: '2024-01-01' }).returning()
+async function makeStaff(name: string, employmentStatus?: 'active' | 'on_leave' | 'terminated') {
+  const [s] = await getDb().insert(staffMembers).values({ name, department: 'Clinical', title: 'Test', hireDate: '2024-01-01', ...(employmentStatus ? { employmentStatus } : {}) }).returning()
   createdStaffIds.push(s.id)
   return s
 }
@@ -52,5 +52,16 @@ describe('staff credentials queries', () => {
     const soonRow = results.find((r) => r.staffMemberId === soonStaff.id)
     expect(expiredRow?.status).toBe('expired')
     expect(soonRow?.status).toBe('expiring_soon')
+  })
+
+  it('excludes a terminated staff member\'s expiring/expired credential, but keeps an on_leave staff member\'s', async () => {
+    const terminatedStaff = await makeStaff('Boundary Test Staff Terminated', 'terminated')
+    const onLeaveStaff = await makeStaff('Boundary Test Staff On Leave', 'on_leave')
+    await addCredential({ staffMemberId: terminatedStaff.id, credentialType: 'DEA Registration', credentialNumber: null, expiresOn: daysFromNow(-5) })
+    await addCredential({ staffMemberId: onLeaveStaff.id, credentialType: 'DEA Registration', credentialNumber: null, expiresOn: daysFromNow(10) })
+
+    const results = await listExpiringOrExpiredCredentials()
+    expect(results.some((r) => r.staffMemberId === terminatedStaff.id)).toBe(false)
+    expect(results.some((r) => r.staffMemberId === onLeaveStaff.id)).toBe(true)
   })
 })
