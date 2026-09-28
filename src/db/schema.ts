@@ -525,6 +525,26 @@ export const encounterNotes = pgTable('encounter_notes', {
   signedAt: timestamp('signed_at'),
 })
 
+export const signableTypeEnum = pgEnum('signable_type', ['form_submission', 'admission_discharge'])
+
+// A generic, append-only signature event, keyed by (signableType, signableId)
+// rather than a formSubmissionId/admissionId pair of nullable FKs -- same
+// one-table-many-parents shape auditLog already uses in this codebase.
+// signableId deliberately has NO FK: it means formSubmissions.id or
+// admissions.id depending on signableType, and a single FK column can't
+// target two different tables. This does NOT touch encounterNotes'
+// existing status/signedAt signing mechanism -- that one stays as-is; see
+// docs/superpowers/specs/2026-09-28-e-signatures.md §2.
+export const signatures = pgTable('signatures', {
+  id: serial('id').primaryKey(),
+  signableType: signableTypeEnum('signable_type').notNull(),
+  signableId: integer('signable_id').notNull(),
+  signerTypedName: text('signer_typed_name').notNull(),
+  signerRole: text('signer_role').notNull(), // free text: staff roles (admin/pi/crc/frontdesk) or 'patient' -- form-submission signatures are patient-portal-initiated, not staff
+  attestationText: text('attestation_text').notNull(), // the exact attestation sentence shown at signing time, stored verbatim
+  signedAt: timestamp('signed_at').defaultNow().notNull(),
+})
+
 export const medicationFormEnum = pgEnum('medication_form', ['tablet', 'capsule', 'liquid', 'injection', 'other'])
 
 export const medications = pgTable('medications', {

@@ -45,7 +45,7 @@ export async function getPatientPortalData(patientId: string) {
   // lost or never received that link had no way to find or fill a form
   // they'd been sent. Surface every submission by access token instead.
   const forms = await getDb()
-    .select({ id: formSubmissions.id, status: formSubmissions.status, sentDate: formSubmissions.sentDate, accessToken: formSubmissions.accessToken, templateName: formTemplates.name })
+    .select({ id: formSubmissions.id, status: formSubmissions.status, sentDate: formSubmissions.sentDate, accessToken: formSubmissions.accessToken, templateName: formTemplates.name, category: formTemplates.category })
     .from(formSubmissions)
     .innerJoin(formTemplates, eq(formSubmissions.templateId, formTemplates.id))
     .where(eq(formSubmissions.patientId, patientId))

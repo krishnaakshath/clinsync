@@ -147,6 +147,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         dischargeDiet: a.dischargeDiet,
         dischargeSummaryNotes: a.dischargeSummaryNotes,
         transfers: a.transfers.map((t) => ({ id: t.id, fromRoomId: t.fromRoomId, toRoomId: t.toRoomId, reason: t.reason, transferredByName: t.transferredByName, transferredAt: t.transferredAt.toString() })),
+        dischargeSignature: a.dischargeSignature ? { signerTypedName: a.dischargeSignature.signerTypedName, signedAt: a.dischargeSignature.signedAt.toString() } : null,
       }))}
       availableRooms={availableRooms}
       canTransfer={['frontdesk', 'admin', 'crc', 'pi'].includes(session.role)}
