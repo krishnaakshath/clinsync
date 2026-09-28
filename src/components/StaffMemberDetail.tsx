@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { EmploymentStatusPill } from '@/components/StaffDirectoryList'
 import { AddCredentialModal } from '@/components/AddCredentialModal'
 import { EditStaffMemberModal } from '@/components/EditStaffMemberModal'
+import { EditCredentialModal } from '@/components/EditCredentialModal'
 import type { staffMembers, staffCredentials } from '@/db/schema'
 
 type StaffMember = typeof staffMembers.$inferSelect
@@ -70,6 +71,7 @@ export function StaffMemberDetail({
 }) {
   const [addingCredential, setAddingCredential] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [editingCredential, setEditingCredential] = useState<Credential | null>(null)
 
   return (
     <div className="space-y-4">
@@ -87,9 +89,15 @@ export function StaffMemberDetail({
           <InfoRow label="Employment Status" value={<EmploymentStatusPill status={staffMember.employmentStatus} />} />
           <InfoRow label="Department" value={staffMember.department} />
           <InfoRow label="Title" value={staffMember.title} />
-          <InfoRow label="Hire Date" value={new Date(staffMember.hireDate).toLocaleDateString()} />
+          {/* hireDate/terminationDate are plain YYYY-MM-DD date()-column
+              strings -- never re-wrap in `new Date(...)` here, which parses
+              at UTC midnight and can display the wrong day in any timezone
+              west of UTC (the same bug class already fixed in
+              AllAppointmentsReportTable.tsx / AllEncountersReportTable.tsx;
+              final whole-branch review, Important #3). */}
+          <InfoRow label="Hire Date" value={staffMember.hireDate} />
           {staffMember.terminationDate && (
-            <InfoRow label="Termination Date" value={new Date(staffMember.terminationDate).toLocaleDateString()} />
+            <InfoRow label="Termination Date" value={staffMember.terminationDate} />
           )}
           {staffMember.userId !== null && <InfoRow label="Linked User" value={linkedUserName ?? `User #${staffMember.userId}`} />}
           {staffMember.providerId !== null && <InfoRow label="Linked Provider" value={linkedProviderName ?? `Provider #${staffMember.providerId}`} />}
@@ -113,6 +121,7 @@ export function StaffMemberDetail({
                   <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Number</th>
                   <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expiry</th>
                   <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                  {canWrite && <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground" />}
                 </tr>
               </thead>
               <tbody>
@@ -122,8 +131,16 @@ export function StaffMemberDetail({
                     <tr key={c.id} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''}`}>
                       <td className="p-3 font-medium text-foreground">{c.credentialType}</td>
                       <td className="p-3 text-foreground">{c.credentialNumber ?? '—'}</td>
-                      <td className="p-3 text-foreground">{c.expiresOn ? new Date(c.expiresOn).toLocaleDateString() : 'No expiry on file'}</td>
+                      {/* expiresOn is a plain YYYY-MM-DD date()-column string
+                          -- rendered directly, never re-wrapped in
+                          `new Date(...)` (see the Hire Date comment above). */}
+                      <td className="p-3 text-foreground">{c.expiresOn ?? 'No expiry on file'}</td>
                       <td className="p-3"><CredentialStatusPill status={status} /></td>
+                      {canWrite && (
+                        <td className="p-3 text-right">
+                          <Button size="sm" variant="outline" onClick={() => setEditingCredential(c)}>Edit</Button>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -134,6 +151,18 @@ export function StaffMemberDetail({
       </section>
 
       {addingCredential && <AddCredentialModal staffMemberId={staffMember.id} onClose={() => setAddingCredential(false)} />}
+      {editingCredential && (
+        <EditCredentialModal
+          credential={{
+            id: editingCredential.id,
+            staffMemberId: editingCredential.staffMemberId,
+            credentialType: editingCredential.credentialType,
+            credentialNumber: editingCredential.credentialNumber,
+            expiresOn: editingCredential.expiresOn,
+          }}
+          onClose={() => setEditingCredential(null)}
+        />
+      )}
       {editing && (
         <EditStaffMemberModal
           staffMember={{

@@ -28,6 +28,37 @@ export async function addCredential(input: AddCredentialInput): Promise<AddCrede
   return { ok: true, credential }
 }
 
+export interface UpdateCredentialInput {
+  credentialType?: string
+  credentialNumber?: string | null
+  expiresOn?: string | null
+}
+
+export type UpdateCredentialResult =
+  | { ok: true; credential: typeof staffCredentials.$inferSelect }
+  | { ok: false; error: string }
+
+// Final whole-branch review, Important #2: there was previously no way to
+// correct or renew a credential after creation (e.g. update expiresOn once
+// a license is renewed), even though role-capabilities.ts and spec §6 both
+// claim admins can "edit staff members and credentials" -- an expired
+// credential would otherwise sit on the admin-dashboard alert forever.
+// Scoped update, same shape as updateStaffMember: only touches fields the
+// caller actually provided; staffMemberId/id stay immutable through this path.
+export async function updateCredential(id: number, input: UpdateCredentialInput): Promise<UpdateCredentialResult> {
+  const db = getDb()
+  const [existing] = await db.select({ id: staffCredentials.id }).from(staffCredentials).where(eq(staffCredentials.id, id))
+  if (!existing) return { ok: false, error: 'Credential not found' }
+
+  const updates: Partial<typeof staffCredentials.$inferInsert> = {}
+  if (input.credentialType !== undefined) updates.credentialType = input.credentialType
+  if (input.credentialNumber !== undefined) updates.credentialNumber = input.credentialNumber
+  if (input.expiresOn !== undefined) updates.expiresOn = input.expiresOn
+
+  const [credential] = await db.update(staffCredentials).set(updates).where(eq(staffCredentials.id, id)).returning()
+  return { ok: true, credential }
+}
+
 export interface ExpiringCredential {
   id: number
   staffMemberId: number

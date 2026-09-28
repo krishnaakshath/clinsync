@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { GET as listRoute, POST as createRoute } from '@/app/api/staff/route'
 import { GET as detailRoute, PATCH as patchRoute } from '@/app/api/staff/[id]/route'
 import { POST as addCredentialRoute } from '@/app/api/staff/[id]/credentials/route'
+import { PATCH as patchCredentialRoute } from '@/app/api/staff/[id]/credentials/[credentialId]/route'
 import { getDb } from '@/db/client'
 import { staffMembers, staffCredentials } from '@/db/schema'
 
@@ -29,6 +30,10 @@ function patchReq(body: unknown) {
 
 function params(id: number | string) {
   return { params: Promise.resolve({ id: String(id) }) }
+}
+
+function credentialParams(id: number | string, credentialId: number | string) {
+  return { params: Promise.resolve({ id: String(id), credentialId: String(credentialId) }) }
 }
 
 describe('GET /api/staff', () => {
@@ -150,5 +155,63 @@ describe('POST /api/staff/[id]/credentials', () => {
     sessionRole = role
     const res = await addCredentialRoute(req({ credentialType: 'DEA Registration' }) as never, params(created.id))
     expect(res.status).toBe(403)
+  })
+})
+
+describe('PATCH /api/staff/[id]/credentials/[credentialId]', () => {
+  it("lets admin update a credential's expiresOn, and it persists", async () => {
+    sessionRole = 'admin'
+    const createRes = await createRoute(req({ name: 'Route Test Staff Patch Cred A', department: 'Clinical', title: 'Nurse', hireDate: '2024-01-01' }) as never)
+    const created = await createRes.json()
+    createdStaffIds.push(created.id)
+
+    const addRes = await addCredentialRoute(req({ credentialType: 'DEA Registration', expiresOn: '2030-01-01' }) as never, params(created.id))
+    const credential = await addRes.json()
+
+    const res = await patchCredentialRoute(patchReq({ expiresOn: '2031-06-15' }) as never, credentialParams(created.id, credential.id))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.expiresOn).toBe('2031-06-15')
+
+    const detailRes = await detailRoute(new Request('http://localhost') as never, params(created.id))
+    const detail = await detailRes.json()
+    expect(detail.credentials.find((c: { id: number }) => c.id === credential.id).expiresOn).toBe('2031-06-15')
+  })
+
+  it.each(['pi', 'crc', 'frontdesk'] as const)('returns 403 for role %s', async (role) => {
+    sessionRole = 'admin'
+    const createRes = await createRoute(req({ name: 'Route Test Staff Patch Cred B', department: 'Clinical', title: 'Nurse', hireDate: '2024-01-01' }) as never)
+    const created = await createRes.json()
+    createdStaffIds.push(created.id)
+
+    const addRes = await addCredentialRoute(req({ credentialType: 'DEA Registration', expiresOn: '2030-01-01' }) as never, params(created.id))
+    const credential = await addRes.json()
+
+    sessionRole = role
+    const res = await patchCredentialRoute(patchReq({ expiresOn: '2031-06-15' }) as never, credentialParams(created.id, credential.id))
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects an unexpected field via .strict()', async () => {
+    sessionRole = 'admin'
+    const createRes = await createRoute(req({ name: 'Route Test Staff Patch Cred C', department: 'Clinical', title: 'Nurse', hireDate: '2024-01-01' }) as never)
+    const created = await createRes.json()
+    createdStaffIds.push(created.id)
+
+    const addRes = await addCredentialRoute(req({ credentialType: 'DEA Registration', expiresOn: '2030-01-01' }) as never, params(created.id))
+    const credential = await addRes.json()
+
+    const res = await patchCredentialRoute(patchReq({ staffMemberId: 999999 }) as never, credentialParams(created.id, credential.id))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 404 for a nonexistent credential id', async () => {
+    sessionRole = 'admin'
+    const createRes = await createRoute(req({ name: 'Route Test Staff Patch Cred D', department: 'Clinical', title: 'Nurse', hireDate: '2024-01-01' }) as never)
+    const created = await createRes.json()
+    createdStaffIds.push(created.id)
+
+    const res = await patchCredentialRoute(patchReq({ expiresOn: '2031-06-15' }) as never, credentialParams(created.id, 999999))
+    expect(res.status).toBe(404)
   })
 })

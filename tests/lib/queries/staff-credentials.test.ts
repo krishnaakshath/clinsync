@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import { staffMembers, staffCredentials } from '@/db/schema'
-import { addCredential, listExpiringOrExpiredCredentials } from '@/lib/queries/staff-credentials'
+import { addCredential, listExpiringOrExpiredCredentials, updateCredential } from '@/lib/queries/staff-credentials'
 
 const createdStaffIds: number[] = []
 afterEach(async () => {
@@ -63,5 +63,29 @@ describe('staff credentials queries', () => {
     const results = await listExpiringOrExpiredCredentials()
     expect(results.some((r) => r.staffMemberId === terminatedStaff.id)).toBe(false)
     expect(results.some((r) => r.staffMemberId === onLeaveStaff.id)).toBe(true)
+  })
+
+  it('updates a credential\'s expiresOn, and the change persists on re-read', async () => {
+    const staff = await makeStaff('Boundary Test Staff Update')
+    const addResult = await addCredential({ staffMemberId: staff.id, credentialType: 'DEA Registration', credentialNumber: 'X999', expiresOn: daysFromNow(30) })
+    expect(addResult.ok).toBe(true)
+    if (!addResult.ok) throw new Error('unreachable')
+
+    const updateResult = await updateCredential(addResult.credential.id, { expiresOn: daysFromNow(400) })
+    expect(updateResult.ok).toBe(true)
+    if (!updateResult.ok) throw new Error('unreachable')
+    expect(updateResult.credential.expiresOn).toBe(daysFromNow(400))
+
+    // Untouched fields are left as-is by a partial update.
+    expect(updateResult.credential.credentialType).toBe('DEA Registration')
+    expect(updateResult.credential.credentialNumber).toBe('X999')
+
+    const [reread] = await getDb().select().from(staffCredentials).where(eq(staffCredentials.id, addResult.credential.id))
+    expect(reread.expiresOn).toBe(daysFromNow(400))
+  })
+
+  it('returns an error result for a nonexistent credential id', async () => {
+    const result = await updateCredential(999999, { expiresOn: daysFromNow(10) })
+    expect(result.ok).toBe(false)
   })
 })
