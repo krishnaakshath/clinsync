@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { POST } from '@/app/api/patients/[anonId]/form-submissions/[id]/sign/route'
 import { getDb } from '@/db/client'
-import { patients, formTemplates, formSubmissions, signatures } from '@/db/schema'
+import { formTemplates, formSubmissions, signatures } from '@/db/schema'
 
 const PATIENT_ID = 'RD-0001' // seeded real patient
 
@@ -30,11 +30,11 @@ afterEach(async () => {
   while (createdTemplateIds.length > 0) await getDb().delete(formTemplates).where(eq(formTemplates.id, createdTemplateIds.pop()!))
 })
 
-async function makeSubmission(category: string, status: 'sent' | 'partial' | 'completed' = 'partial') {
+async function makeSubmission(category: string, status: 'sent' | 'partial' | 'completed' = 'partial', patientId: string = PATIENT_ID) {
   const db = getDb()
   const [template] = await db.insert(formTemplates).values({ name: `Test ${category} ${Date.now()}`, category, diagnosisTag: 'test', questions: [] }).returning()
   createdTemplateIds.push(template.id)
-  const [submission] = await db.insert(formSubmissions).values({ templateId: template.id, patientId: PATIENT_ID, status }).returning()
+  const [submission] = await db.insert(formSubmissions).values({ templateId: template.id, patientId, status }).returning()
   createdSubmissionIds.push(submission.id)
   return submission
 }
@@ -79,5 +79,22 @@ describe('POST /api/patients/[anonId]/form-submissions/[id]/sign', () => {
     const submission = await makeSubmission('Consent Forms')
     const res = await POST(req({ typedName: 'Someone Else' }) as never, { params: Promise.resolve({ anonId: 'RD-0002', id: String(submission.id) }) })
     expect(res.status).toBe(403)
+  })
+
+  it('rejects a valid session enumerating a different patient\'s submission id', async () => {
+    // Patient A (RD-0001) has a genuinely valid session AND a matching
+    // anonId in the URL -- the session/URL check passes -- but the
+    // submission id itself belongs to patient B (RD-0002). This is the
+    // actual named attack scenario (guessing/enumerating another patient's
+    // submission id), distinct from the mismatched-anonId test above, which
+    // only proves the session/URL check and never reaches the row-ownership
+    // check.
+    const submission = await makeSubmission('Consent Forms', 'partial', 'RD-0002')
+    sessionPatientId = PATIENT_ID
+    const res = await POST(req({ typedName: 'Someone Else' }) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })
+    expect(res.status).toBe(404)
+
+    const [unchanged] = await getDb().select().from(formSubmissions).where(eq(formSubmissions.id, submission.id))
+    expect(unchanged.status).toBe('partial')
   })
 })
