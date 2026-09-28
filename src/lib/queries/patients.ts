@@ -3,8 +3,9 @@ import {
   patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications,
   formSubmissions, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
   rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes, medicationAdministrations,
+  medicationDispenses, carePlans, carePlanGoals,
 } from '@/db/schema'
-import { eq, inArray, or } from 'drizzle-orm'
+import { eq, inArray, or, sql } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
 import { listDiscrepanciesForPatient } from '@/lib/queries/discrepancies'
 import type { Verdict } from '@/lib/rule-engine'
@@ -164,6 +165,15 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(formChartDiscrepancies).where(eq(formChartDiscrepancies.patientId, anonId))
   await db.delete(reviews).where(eq(reviews.patientId, anonId))
   await db.delete(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
+  // medicationDispenses.medicationEpisodeId is a nullable FK to
+  // medicationEpisodes(id) with no ON DELETE action -- same ordering hazard
+  // as medicationAdministrations above, so dispenses referencing an episode
+  // must be cleared before medicationEpisodes itself. (Final whole-branch
+  // review of feature/care-plans: medicationDispenses had a direct
+  // patient_id FK to patients with no ON DELETE action and was missing from
+  // this cascade entirely -- confirmed the third instance of this exact bug
+  // class in this function, alongside care_plans below.)
+  await db.delete(medicationDispenses).where(eq(medicationDispenses.patientId, anonId))
   await db.delete(medicationEpisodes).where(eq(medicationEpisodes.patientId, anonId))
   await db.delete(diagnoses).where(eq(diagnoses.patientId, anonId))
   await db.delete(formSubmissions).where(eq(formSubmissions.patientId, anonId))
@@ -195,6 +205,36 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(documents).where(eq(documents.patientId, anonId))
   await db.delete(faxes).where(eq(faxes.patientId, anonId))
   await db.update(rooms).set({ status: 'available', occupiedByPatientId: null }).where(eq(rooms.occupiedByPatientId, anonId))
+
+  // care_plans.patient_id is a NOT NULL FK to patients(id) with no ON DELETE
+  // action (Task 1 of feature/care-plans). This cascade was never updated
+  // for it -- deleting a patient with a care plan deleted their whole chart
+  // and then failed on the final `DELETE FROM patients` below with a
+  // foreign-key violation, leaving a half-deleted patient with orphaned
+  // care_plans/care_plan_goals rows. Children (goals) before parent (plans),
+  // scoped to this patient, same discipline as the rest of this function.
+  const carePlanIds = (await db.select({ id: carePlans.id }).from(carePlans).where(eq(carePlans.patientId, anonId))).map((p) => p.id)
+  if (carePlanIds.length > 0) {
+    await db.delete(carePlanGoals).where(inArray(carePlanGoals.carePlanId, carePlanIds))
+  }
+  await db.delete(carePlans).where(eq(carePlans.patientId, anonId))
+
+  // lab_orders/lab_results: this branch (feature/care-plans) forked before
+  // the already-merged feature/lab-orders-results sibling branch landed, so
+  // these tables exist live in the shared DB (confirmed via
+  // information_schema against DATABASE_URL) -- lab_orders.patient_id is a
+  // NOT NULL FK to patients(id) with no ON DELETE action, same gap as
+  // care_plans/medicationDispenses above -- but aren't yet declared in this
+  // branch's own src/db/schema.ts. Raw SQL against the real, confirmed
+  // table/column names does the same children-before-parents cleanup
+  // (lab_results.lab_order_id -> lab_orders(id), also FK'd with no ON
+  // DELETE) without speculatively re-declaring another branch's not-yet-
+  // merged schema here; a future merge of that branch will naturally replace
+  // this with the ordinary Drizzle form used everywhere else in this
+  // function.
+  await db.execute(sql`DELETE FROM lab_results WHERE lab_order_id IN (SELECT id FROM lab_orders WHERE patient_id = ${anonId})`)
+  await db.execute(sql`DELETE FROM lab_orders WHERE patient_id = ${anonId}`)
+
   await db.delete(patients).where(eq(patients.id, anonId))
 
   await invalidateCache(patientDetailCacheKey(anonId))
