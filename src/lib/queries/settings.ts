@@ -6,7 +6,7 @@ import { encryptSensitive } from '@/lib/crypto'
 // Single-row settings table: always operate on row id 1 (created by the seed).
 export async function getAppSettings() {
   const [row] = await getDb().select().from(appSettings)
-  return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null, adminMfaSecretEncrypted: null, adminMfaEnabled: false, adminMfaMethod: 'totp' as const, adminPhone: null }
+  return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null, adminMfaSecretEncrypted: null, adminMfaEnabled: false, adminMfaMethod: 'totp' as const, adminPhone: null, queueDisplayPin: null }
 }
 
 // What the Settings page actually renders -- booleans for whether each EHR
@@ -23,6 +23,7 @@ export async function getSettingsSummary() {
     practiceTimezone: settings.practiceTimezone,
     intakeqConfigured: !!settings.intakeqApiKeyEncrypted,
     tebraConfigured: !!(settings.tebraCustomerKeyEncrypted && settings.tebraUserEncrypted && settings.tebraPasswordEncrypted),
+    queueDisplayPinConfigured: !!settings.queueDisplayPin,
   }
 }
 
@@ -76,4 +77,14 @@ export async function enableAdminMfa(): Promise<void> {
 export async function resetAdminMfa(): Promise<void> {
   const current = await getAppSettings()
   await getDb().update(appSettings).set({ adminMfaSecretEncrypted: null, adminMfaEnabled: false }).where(eq(appSettings.id, current.id))
+}
+
+export async function getQueueDisplayPin(): Promise<string | null> {
+  const settings = await getAppSettings()
+  return settings.queueDisplayPin
+}
+
+export async function setQueueDisplayPin(pin: string): Promise<void> {
+  const current = await getAppSettings()
+  await getDb().update(appSettings).set({ queueDisplayPin: pin }).where(eq(appSettings.id, current.id))
 }
