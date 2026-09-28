@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { carePlans, carePlanGoals } from '@/db/schema'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 export interface CarePlanGoal {
   id: number
@@ -39,15 +39,36 @@ export interface CreateCarePlanResult {
 // -- same append-only principle as encounter notes: the old plan's row and
 // its goals stay in the table, just flipped to `status: 'superseded'` with a
 // `supersededAt` timestamp, so the full care-plan history remains queryable.
+//
+// Final whole-branch review (Important): SELECT active plan -> UPDATE
+// (supersede) -> INSERT with no row lock is racy under READ COMMITTED --
+// two truly concurrent creates for the same patient (a double-submit) could
+// both read "no active plan" and both insert one, leaving two active plans.
+// A `SELECT ... FOR UPDATE` on the active-plan lookup does NOT fix this: it
+// locks zero rows in exactly the case that needs protecting (no existing
+// active plan to lock). The reviewer-ruled fix is a per-patient row lock --
+// `SELECT ... FOR UPDATE` on the `patients` row itself, as the transaction's
+// very first statement -- which serializes concurrent creates for the same
+// patient without a new migration or partial unique index (this codebase
+// has zero partial indexes). The supersede UPDATE is also made set-based
+// (`WHERE patientId = ? AND status = 'active'`, not `WHERE id = <the one row
+// read earlier>`) so that if two active rows ever do exist (a bug, or data
+// predating this fix), the very next create self-corrects by superseding
+// all of them rather than leaving one stuck active forever.
 export async function createCarePlan(input: CreateCarePlanInput): Promise<CreateCarePlanResult> {
   return getDb().transaction(async (tx) => {
+    await tx.execute(sql`SELECT id FROM patients WHERE id = ${input.patientId} FOR UPDATE`)
+
     const [existingActive] = await tx
       .select()
       .from(carePlans)
       .where(and(eq(carePlans.patientId, input.patientId), eq(carePlans.status, 'active')))
 
     if (existingActive) {
-      await tx.update(carePlans).set({ status: 'superseded', supersededAt: new Date() }).where(eq(carePlans.id, existingActive.id))
+      await tx
+        .update(carePlans)
+        .set({ status: 'superseded', supersededAt: new Date() })
+        .where(and(eq(carePlans.patientId, input.patientId), eq(carePlans.status, 'active')))
     }
 
     const [created] = await tx

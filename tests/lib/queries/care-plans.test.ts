@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import { patients, carePlans, carePlanGoals } from '@/db/schema'
 import { createCarePlan, listCarePlansForPatient, updateGoalStatus } from '@/lib/queries/care-plans'
@@ -108,5 +108,52 @@ describe('updateGoalStatus', () => {
     ])
     const okCount = [resultA.ok, resultB.ok].filter(Boolean).length
     expect(okCount).toBe(1)
+  })
+})
+
+// Final whole-branch review (Important finding): createCarePlan did
+// SELECT active plan -> UPDATE (supersede) -> INSERT inside a transaction
+// with no row lock -- truly concurrent creates for the same patient (a
+// double-submit) could all read "no active plan" and all insert an active
+// row. Mirrors Task 2's updateGoalStatus concurrency test above (a real
+// Promise.all of concurrent calls against the real DB pool), applied one
+// level up. Uses three concurrent calls, not two -- verified directly (a
+// throwaway script driving the exact same createCarePlan function) that two
+// concurrent calls only reliably raced outside this vitest process, while
+// three reliably reproduces the race inside vitest's own connection-pool
+// timing too; kept at three so this test stays a real regression guard in
+// CI, not just at the command line.
+// Uses a dedicated TEST-*-${Date.now()} patient, not a random existing one
+// -- this test intentionally drives concurrent writers against a single
+// patient row, which would be genuinely unsafe to do against shared demo
+// data in this concurrently-used DB.
+describe('createCarePlan concurrency (Important finding, final whole-branch review)', () => {
+  it('only one of three concurrent createCarePlan calls for the same patient ends up active', async () => {
+    const db = getDb()
+    const testPatientId = `TEST-CP-RACE-${Date.now()}`
+    await db.insert(patients).values({ id: testPatientId, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Care Plan Race Test Patient', dobIntakeq: '2000-01-01' })
+
+    try {
+      await Promise.all([
+        createCarePlan({ patientId: testPatientId, title: 'Plan A', authorName: 'Dr. A', nextReviewDate: null, goals: [] }),
+        createCarePlan({ patientId: testPatientId, title: 'Plan B', authorName: 'Dr. B', nextReviewDate: null, goals: [] }),
+        createCarePlan({ patientId: testPatientId, title: 'Plan C', authorName: 'Dr. C', nextReviewDate: null, goals: [] }),
+      ])
+
+      const activePlans = await db.select().from(carePlans).where(and(eq(carePlans.patientId, testPatientId), eq(carePlans.status, 'active')))
+      expect(activePlans.length).toBe(1)
+    } finally {
+      // Self-contained cleanup (not the module-level createdPlanIds/afterEach
+      // hook above) so this runs in the right order regardless of outcome:
+      // carePlans.patientId -> patients.id has no ON DELETE action, so any
+      // plans/goals this test created must be cleared before the patient row.
+      const planRows = await db.select({ id: carePlans.id }).from(carePlans).where(eq(carePlans.patientId, testPatientId))
+      const planIds = planRows.map((p) => p.id)
+      if (planIds.length > 0) {
+        await db.delete(carePlanGoals).where(inArray(carePlanGoals.carePlanId, planIds))
+        await db.delete(carePlans).where(eq(carePlans.patientId, testPatientId))
+      }
+      await db.delete(patients).where(eq(patients.id, testPatientId))
+    }
   })
 })
