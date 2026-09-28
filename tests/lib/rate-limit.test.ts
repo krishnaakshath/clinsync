@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { describe, it, expect } from 'vitest'
-import { checkLoginRateLimit, checkPatientLoginRateLimit, checkStaffMfaRateLimit, checkPatientMfaRateLimit, checkAccountMfaResetRateLimit, checkBookingRequestRateLimit } from '@/lib/rate-limit'
+import { describe, it, expect, afterAll } from 'vitest'
+import { checkLoginRateLimit, checkPatientLoginRateLimit, checkStaffMfaRateLimit, checkPatientMfaRateLimit, checkAccountMfaResetRateLimit, checkBookingRequestRateLimit, __resetBookingRequestGlobalBucketForTests } from '@/lib/rate-limit'
 
 describe('checkLoginRateLimit', () => {
   it('allows the first few attempts for a fresh ip+email key', async () => {
@@ -192,6 +192,20 @@ describe('checkAccountMfaResetRateLimit', () => {
 })
 
 describe('checkBookingRequestRateLimit', () => {
+  // The saturation test below deliberately exhausts the flat, invariant
+  // 'global' bucket key (see checkBookingRequestRateLimit in rate-limit.ts --
+  // unlike every other limiter in this file, there's no per-test-random
+  // identity to peg it to). That key is shared with every other caller,
+  // including tests/api/public-booking-requests.test.ts and real production
+  // traffic, so without resetting it here, running this file directly before
+  // that one (or a CI retry within the ~600s window) would spuriously 429
+  // that file's success-path assertions -- purely because of file execution
+  // order, not a real bug. Reset unconditionally so this file can never leak
+  // that state elsewhere, regardless of run order.
+  afterAll(async () => {
+    await __resetBookingRequestGlobalBucketForTests()
+  })
+
   it('allows the first few attempts for a fresh ip', async () => {
     const ip = `198.51.100.${Date.now() % 250}`
     const first = await checkBookingRequestRateLimit(ip)

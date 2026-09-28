@@ -315,3 +315,17 @@ export async function checkBookingRequestRateLimit(ip: string): Promise<{ allowe
   ])
   return { allowed: perIp.success && global.success }
 }
+
+// Test-only escape hatch. Every other bucket in this file is keyed on a
+// per-test-random identity, so exhausting one only ever affects that one
+// test. This global bucket is the one exception -- its key is the literal
+// string 'global', shared by every caller including production traffic and
+// every test file -- so a test that deliberately saturates it (proving the
+// flat cap works) would otherwise leak a ~600s-long false 429 into any other
+// suite that hits checkBookingRequestRateLimit afterward, with the ordering
+// entirely up to file discovery order rather than anything meaningful. Call
+// this from an afterAll in the test that saturates the bucket so it can
+// never do that regardless of run order.
+export async function __resetBookingRequestGlobalBucketForTests(): Promise<void> {
+  await getBookingRequestGlobalLimiter().resetUsedTokens('global')
+}
