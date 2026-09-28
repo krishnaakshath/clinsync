@@ -36,8 +36,19 @@ export async function getQueueDisplayRows(): Promise<QueueDisplayRow[]> {
 
   const result: QueueDisplayRow[] = []
   for (const row of rows) {
+    // Task 1's DEFAULT 0 on doctorAssignments.queueTicketNumber is a
+    // cross-worktree safety net for other branches' code that doesn't know
+    // about this column -- it is never a real ticket number (see the
+    // DEFAULT 0 comment on doctorAssignments in src/db/schema.ts). Rows
+    // that slipped through with a 0 (or, defensively, any non-positive
+    // value) must never render on the public lobby board as an
+    // indistinguishable "0" ticket.
+    if (row.queueTicketNumber <= 0) continue
     if (row.admissionId !== null) continue // already admitted -- no longer waiting in the lobby
-    if (row.appointmentStatus === 'completed') continue // visit already happened
+    // 'cancelled'/'no_show' visits are as done-with as 'completed' from the
+    // lobby board's point of view -- none of the three should keep a ticket
+    // showing as perpetually "Ready".
+    if (row.appointmentStatus === 'completed' || row.appointmentStatus === 'cancelled' || row.appointmentStatus === 'no_show') continue
     if (row.status === 'pending') {
       result.push({ ticketNumber: row.queueTicketNumber, urgency: row.urgency, stage: 'waiting' })
     } else if (row.status === 'scheduled' && row.roomId !== null) {
