@@ -56,8 +56,11 @@ describe('GET /api/trials', () => {
 
   it('logs an audit entry when the trial list is viewed', async () => {
     await listTrials(new NextRequest('http://localhost/api/trials'))
-    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
-    expect(latest.action).toBe('viewed trials list')
+    // Scoped to this test's own action string, not "the globally latest row"
+    // -- the shared dev DB has concurrent writers (other branches/worktrees),
+    // so an unscoped "latest row" read is racy.
+    const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, 'viewed trials list')).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest?.action).toBe('viewed trials list')
   })
 })
 

@@ -27,17 +27,21 @@ describe('GET /api/reviews audit logging', () => {
   it('logs an audit entry when the survey list is viewed', async () => {
     const req = new Request('http://localhost/api/reviews')
     await listReviews(req as never)
-    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
-    expect(latest.action).toBe('viewed experience surveys list')
+    // Scoped to this test's own action string, not "the globally latest row"
+    // -- the shared dev DB has concurrent writers (other branches/worktrees),
+    // so an unscoped "latest row" read is racy.
+    const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, 'viewed experience surveys list')).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest?.action).toBe('viewed experience surveys list')
   })
 
   it('logs an audit entry when a single survey is viewed', async () => {
     const [existing] = await getDb().select().from(reviews).limit(1)
     const req = new Request(`http://localhost/api/reviews/${existing.id}`)
     await getOneReview(req as never, { params: Promise.resolve({ id: String(existing.id) }) })
-    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
-    expect(latest.action).toBe(`viewed experience survey ${existing.id}`)
-    expect(latest.patientId).toBe(existing.patientId)
+    const action = `viewed experience survey ${existing.id}`
+    const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, action)).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest?.action).toBe(action)
+    expect(latest?.patientId).toBe(existing.patientId)
   })
 })
 

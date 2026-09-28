@@ -48,8 +48,11 @@ describe('GET /api/users', () => {
 
   it('logs an audit entry when the staff roster is viewed', async () => {
     await listUsers()
-    const [latest] = await getDb().select().from(auditLog).orderBy(desc(auditLog.id)).limit(1)
-    expect(latest.action).toBe('viewed staff roster')
+    // Scoped to this test's own action string, not "the globally latest row"
+    // -- the shared dev DB has concurrent writers (other branches/worktrees),
+    // so an unscoped "latest row" read is racy.
+    const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, 'viewed staff roster')).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest?.action).toBe('viewed staff roster')
   })
 
   it('returns the staff roster without any password field', async () => {
