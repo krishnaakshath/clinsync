@@ -20,6 +20,7 @@ import { GET as getMedicationRequest } from '@/app/api/patients/[anonId]/fhir/Me
 import { GET as getMedicationDispense } from '@/app/api/patients/[anonId]/fhir/MedicationDispense/route'
 import { GET as getObservation } from '@/app/api/patients/[anonId]/fhir/Observation/route'
 import { GET as getBundle } from '@/app/api/patients/[anonId]/fhir/Bundle/route'
+import { GET as getCcda } from '@/app/api/patients/[anonId]/ccda/route'
 
 const ROUTES = [
   { name: 'Patient', handler: getPatient },
@@ -29,6 +30,7 @@ const ROUTES = [
   { name: 'MedicationDispense', handler: getMedicationDispense },
   { name: 'Observation', handler: getObservation },
   { name: 'Bundle', handler: getBundle },
+  { name: 'CCDA', handler: getCcda },
 ] as const
 
 const EMPTY_BUNDLE_ROUTES = [
@@ -211,5 +213,41 @@ describe('FHIR export routes -- /fhir/Patient shape', () => {
     const body = await res.json()
     expect(body.resourceType).toBe('Patient')
     expect(body.entry).toBeUndefined()
+  })
+})
+
+describe('C-CDA export route -- /ccda', () => {
+  it('returns 401 when there is no authenticated session', async () => {
+    sessionRole = null
+    const res = await callRoute(getCcda, patientAId)
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 404, not a 500, for an unknown anonId', async () => {
+    const res = await callRoute(getCcda, 'RD-FHIR-ROUTES-DOES-NOT-EXIST')
+    expect(res.status).toBe(404)
+  })
+
+  it('returns XML with attachment headers', async () => {
+    const res = await callRoute(getCcda, patientAId)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toMatch(/^(application|text)\/xml/)
+    expect(res.headers.get('Content-Disposition')).toMatch(/^attachment; filename="/)
+  })
+
+  it('contains only patientA\'s allergen and diagnosis, never patientB\'s', async () => {
+    const resA = await callRoute(getCcda, patientAId)
+    const xmlA = await resA.text()
+    expect(xmlA).toContain('Penicillin-RouteA')
+    expect(xmlA).toContain('Asthma-RouteA')
+    expect(xmlA).not.toContain('Latex-RouteB')
+    expect(xmlA).not.toContain('Diabetes-RouteB')
+
+    const resB = await callRoute(getCcda, patientBId)
+    const xmlB = await resB.text()
+    expect(xmlB).toContain('Latex-RouteB')
+    expect(xmlB).toContain('Diabetes-RouteB')
+    expect(xmlB).not.toContain('Penicillin-RouteA')
+    expect(xmlB).not.toContain('Asthma-RouteA')
   })
 })
