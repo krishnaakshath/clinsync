@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { AppointmentStatusChip } from '@/components/AppointmentStatusChip'
+import { StartTelemedicineButton } from '@/components/StartTelemedicineButton'
 import type { AppointmentStatus } from '@/lib/queries/appointments'
 
 export interface DashboardAppointmentRow {
@@ -47,7 +48,7 @@ const STATUS_OPTIONS: { value: AppointmentStatus | 'all'; label: string }[] = [
 
 const SELECT_CLASS = 'rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground focus:border-primary/40 focus:outline-none'
 
-export function DashboardAppointmentsTable({ appointments }: { appointments: DashboardAppointmentRow[] }) {
+export function DashboardAppointmentsTable({ appointments, canStartTelemedicine = false }: { appointments: DashboardAppointmentRow[]; canStartTelemedicine?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<AppointmentStatus | 'all'>('all')
 
   const filtered = useMemo(() => {
@@ -84,6 +85,7 @@ export function DashboardAppointmentsTable({ appointments }: { appointments: Das
                 <th className="py-2 pr-3 font-semibold">Date</th>
                 <th className="py-2 pr-3 font-semibold">Time</th>
                 <th className="py-2 pr-3 font-semibold">Provider</th>
+                {canStartTelemedicine && <th className="py-2 pr-3 font-semibold">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -102,6 +104,11 @@ export function DashboardAppointmentsTable({ appointments }: { appointments: Das
                     <td className="py-2.5 pr-3 text-muted-foreground">{startsAt.toLocaleDateString([], { dateStyle: 'medium' })}</td>
                     <td className="py-2.5 pr-3 text-muted-foreground">{startsAt.toLocaleTimeString([], { timeStyle: 'short' })}</td>
                     <td className="py-2.5 pr-3 text-muted-foreground">{a.providerName}</td>
+                    {canStartTelemedicine && (
+                      <td className="py-2.5 pr-3">
+                        {a.status === 'scheduled' && <StartTelemedicineButton appointmentId={a.id} />}
+                      </td>
+                    )}
                   </tr>
                 )
               })}

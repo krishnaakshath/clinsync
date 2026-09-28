@@ -28,6 +28,10 @@ const baseProps: DashboardPageProps = {
   patients: [{ id: 'RD-0001', nameTebra: 'Jane Doe', nameIntakeq: 'Jane Doe' }],
   appointmentsInRange: [],
   staffByRole: [{ role: 'admin', count: 1 }, { role: 'pi', count: 2 }, { role: 'crc', count: 3 }],
+  // Spec §6's role table: a crc session never gets the "Start telemedicine
+  // visit" action (only admin/pi do) -- false here matches how a real
+  // CoordinatorDashboard render (crc session) always computes this.
+  canStartTelemedicine: false,
 }
 
 describe('CoordinatorDashboard', () => {

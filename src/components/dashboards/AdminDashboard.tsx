@@ -27,6 +27,7 @@ export interface DashboardPageProps {
   patients: { id: string; nameTebra: string | null; nameIntakeq: string }[]
   appointmentsInRange: { id: number; patientId: string; patientName: string; providerName: string; visitReason: string; status: string; startsAt: string }[]
   staffByRole: { role: string; count: number }[]
+  canStartTelemedicine: boolean
 }
 
 const FORM_STATUS_STYLE: Record<string, string> = {
@@ -67,7 +68,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
 }
 
-export function AdminDashboard({ session, data, templates, patients, appointmentsInRange, staffByRole }: DashboardPageProps) {
+export function AdminDashboard({ session, data, templates, patients, appointmentsInRange, staffByRole, canStartTelemedicine }: DashboardPageProps) {
   const screenedCount = data.screeningBreakdown.green + data.screeningBreakdown.yellow + data.screeningBreakdown.red
   const unscreenedCount = Math.max(patients.length - screenedCount, 0)
   const screenedPct = patients.length > 0 ? Math.round((screenedCount / patients.length) * 100) : 0
@@ -143,7 +144,7 @@ export function AdminDashboard({ session, data, templates, patients, appointment
             narrower type. The page.tsx caller always sources this array from
             listAppointmentsInRange(), whose rows are already real
             AppointmentStatus values, so this narrowing is safe. */}
-        <DashboardAppointmentsTable appointments={appointmentsInRange as DashboardAppointmentRow[]} />
+        <DashboardAppointmentsTable appointments={appointmentsInRange as DashboardAppointmentRow[]} canStartTelemedicine={canStartTelemedicine} />
       </section>
 
       <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
