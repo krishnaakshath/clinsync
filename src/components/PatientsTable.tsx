@@ -15,10 +15,8 @@ export interface CriteriaSummaryLike {
 export interface PatientRow {
   id: string
   overallStatus?: 'green' | 'yellow' | 'red' | null
-  nameTebra: string | null
-  nameIntakeq: string
-  dobTebra: string | null
-  dobIntakeq: string
+  name: string
+  dob: string
   currentProvider: string | null
   referralType: string | null
   lastCommunication: string | null
@@ -72,8 +70,8 @@ function CriteriaReadout({ summary, status }: { summary?: CriteriaSummaryLike; s
 // separate, real sibling Link stacked above it (never nested inside another
 // anchor) that opens a dedicated page for that one action.
 function PatientCard({ patient }: { patient: PatientRow }) {
-  const name = patient.nameTebra ?? patient.nameIntakeq
-  const dob = patient.dobTebra ?? patient.dobIntakeq
+  const name = patient.name
+  const dob = patient.dob
   const status = patient.overallStatus ?? 'yellow'
 
   return (
@@ -118,7 +116,7 @@ export function PatientsTable({ patients }: { patients: PatientRow[] }) {
     const q = search.trim().toLowerCase()
     if (!q) return patients
     return patients.filter((p) => {
-      const name = (p.nameTebra ?? p.nameIntakeq).toLowerCase()
+      const name = p.name.toLowerCase()
       return name.includes(q) || p.id.toLowerCase().includes(q)
     })
   }, [search, patients])

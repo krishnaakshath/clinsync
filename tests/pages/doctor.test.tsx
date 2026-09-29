@@ -5,7 +5,7 @@ vi.mock('@/lib/auth', () => ({ requireSessionOrRedirect: vi.fn(async () => ({ ro
 vi.mock('@/lib/audit', () => ({ logAudit: vi.fn(async () => undefined) }))
 vi.mock('@/lib/queries/patients', () => ({
   listPatientsWithStatus: vi.fn(async () => [
-    { id: 'RD-0001', overallStatus: 'green', nameTebra: 'Jane Doe', nameIntakeq: 'Jane Doe', dobTebra: null, dobIntakeq: '1990-01-01', currentProvider: 'Dr. R. Kunam', referralType: null, lastCommunication: null, criteriaSummary: null },
+    { id: 'RD-0001', overallStatus: 'green', name: 'Jane Doe', dob: '1990-01-01', currentProvider: 'Dr. R. Kunam', referralType: null, lastCommunication: null, criteriaSummary: null },
   ]),
 }))
 // The page also resolves the PI's own provider row and pending assignment
@@ -45,7 +45,7 @@ describe('PI dashboard (/doctor)', () => {
     vi.doMock('@/lib/audit', () => ({ logAudit: vi.fn(async () => undefined) }))
     vi.doMock('@/lib/queries/patients', () => ({
       listPatientsWithStatus: vi.fn(async () => [
-        { id: 'RD-0001', overallStatus: 'green', nameTebra: 'Jane Doe', nameIntakeq: 'Jane Doe', dobTebra: null, dobIntakeq: '1990-01-01', currentProvider: 'Dr. R. Kunam', referralType: null, lastCommunication: null, criteriaSummary: null },
+        { id: 'RD-0001', overallStatus: 'green', name: 'Jane Doe', dob: '1990-01-01', currentProvider: 'Dr. R. Kunam', referralType: null, lastCommunication: null, criteriaSummary: null },
       ]),
     }))
     vi.doMock('@/lib/queries/providers', () => ({ listActiveProviders: vi.fn(async () => [{ id: 1, name: 'Dr. R. Kunam' }]) }))

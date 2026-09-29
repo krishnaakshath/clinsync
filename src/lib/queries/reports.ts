@@ -55,10 +55,16 @@ export async function listAllAppointmentsReport() {
       apptTime: formatTime(r.appointment.startsAt),
       status: r.appointment.status,
       patientId: r.patient.id,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
-      dob: r.patient.dobTebra ?? r.patient.dobIntakeq,
-      homePhone: r.patient.phoneTebra ?? '—',
-      mobilePhone: r.patient.phoneIntakeq ?? '—',
+      patientName: r.patient.name,
+      dob: r.patient.dob,
+      // `patients` now has a single `phone` column (Task 1 collapsed the
+      // old phoneTebra/phoneIntakeq pair) -- there is no longer a distinct
+      // home/mobile source, so both columns show the same value. The
+      // homePhone/mobilePhone output shape is unchanged since
+      // AllAppointmentsReportTable.tsx (out of this task's scope) still
+      // renders them as two columns.
+      homePhone: r.patient.phone ?? '—',
+      mobilePhone: r.patient.phone ?? '—',
       providerName: r.provider?.name ?? r.patient.currentProvider ?? '—',
     }))
   })
@@ -90,7 +96,7 @@ export async function listUnsignedNotesReport() {
     return rows.map((r) => ({
       noteId: r.submission.id,
       patientId: r.patient.id,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.name,
       // completedDate is a `timestamp` column -- a real Date on a cache miss
       // but a plain string after this function's own getOrSetCache Redis
       // round-trip on a cache hit (the same hazard already fixed once for
@@ -137,7 +143,7 @@ export async function listAllEncountersReport() {
         encounterId: `ENC-${r.appointment.id}`,
         dateOfService: apptDate,
         patientId: r.patient.id,
-        patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+        patientName: r.patient.name,
         renderingProvider: r.provider?.name ?? r.patient.currentProvider ?? '—',
         payerScenario: hasClaim ? 'Insurance' : 'Self-Pay',
         encounterStatus: matchingCharge ? 'Billed' : 'Completed — Not Billed',
@@ -159,7 +165,7 @@ export async function listInsuranceCollectionsReport() {
     return rows.map((r) => ({
       id: r.claim.id,
       patientId: r.patient.id,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.name,
       payerName: r.claim.payerName,
       status: r.claim.status,
       billedAmountCents: r.claim.billedAmountCents,

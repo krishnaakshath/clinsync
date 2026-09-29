@@ -15,7 +15,7 @@ vi.mock('@/lib/queries/providers', () => ({
 
 vi.mock('@/lib/queries/patients', () => ({
   listPatientsWithStatus: vi.fn(async () => [
-    { id: 'RD-0001', nameTebra: 'Maria Alvarez', nameIntakeq: 'Maria Alvarez' },
+    { id: 'RD-0001', name: 'Maria Alvarez' },
   ]),
 }))
 

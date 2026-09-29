@@ -96,7 +96,7 @@ export function CoordinatorDashboard({ session, data, templates, patients, appoi
           {data.pendingClassification.length === 0 ? <EmptyRow text="Everything's been classified." /> : (
             <ul className="divide-y divide-border">
               {data.pendingClassification.map((p) => {
-                const name = p.nameTebra ?? p.nameIntakeq
+                const name = p.name
                 return (
                   <li key={p.id}>
                     <Link href={`/patients/${p.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:bg-secondary/40 -mx-2 px-2 rounded-lg">

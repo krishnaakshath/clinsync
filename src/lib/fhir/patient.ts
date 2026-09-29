@@ -16,7 +16,7 @@ export function patientToFhir(patient: typeof patients.$inferSelect): FhirPatien
     resourceType: 'Patient',
     id: patient.id,
     identifier: [{ value: patient.id }],
-    name: [{ text: patient.nameTebra ?? patient.nameIntakeq }],
-    birthDate: patient.dobTebra ?? patient.dobIntakeq,
+    name: [{ text: patient.name }],
+    birthDate: patient.dob,
   }
 }

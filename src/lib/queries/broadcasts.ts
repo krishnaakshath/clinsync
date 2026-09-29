@@ -68,18 +68,17 @@ export async function listBroadcastRecipientCandidates(filters: BroadcastRecipie
 
   return candidates.map((c) => ({
     id: c.patient.id,
-    name: c.patient.nameTebra ?? c.patient.nameIntakeq,
-    phone: c.patient.phoneTebra ?? c.patient.phoneIntakeq ?? null,
-    email: c.patient.emailTebra ?? c.patient.emailIntakeq ?? null,
+    name: c.patient.name,
+    phone: c.patient.phone ?? null,
+    email: c.patient.email ?? null,
   }))
 }
 
 /**
- * Simulated delivery, mirroring the project-wide mock-connector pattern
- * (`src/connectors/*.mock.ts`): no real SMS/email provider is ever called.
- * The rule is deterministic and explainable for a demo: delivery "succeeds"
- * only when the patient actually has the contact method the channel needs
- * on file, rather than a random outcome.
+ * Simulated delivery: no real SMS/email provider is ever called. The rule
+ * is deterministic and explainable for a demo: delivery "succeeds" only
+ * when the patient actually has the contact method the channel needs on
+ * file, rather than a random outcome.
  */
 export function simulateBroadcastDelivery(channel: 'sms' | 'email' | 'both', phone: string | null, email: string | null): 'delivered' | 'failed' {
   if (channel === 'sms') return phone ? 'delivered' : 'failed'
