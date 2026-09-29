@@ -79,7 +79,6 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Check patients in and assign rooms',
       'Route patients to a provider for inpatient or outpatient visits',
       'Record insurance eligibility checks',
-      'View and manage billing, insurance, and payment status',
       'Receive, file, and re-file incoming documents (including insurance cards, EOBs, and authorizations) to a patient',
       'View and manage the live bed/ward status board',
       'View the Lab worklist and mark samples collected',
@@ -99,6 +98,16 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Log a bill for a dispense as a draft charge for the billing team to review',
       'View the medication catalog, stock levels, and what the practice is currently prescribing',
       'Add a medication to the practice catalog',
+    ],
+  },
+  billing: {
+    label: 'Billing / Revenue Cycle',
+    summary: 'Handles claims, collections, and charges. No clinical access.',
+    bullets: [
+      'View AR Dashboard',
+      'Manage Patient Collections',
+      'Manage Insurance Collections',
+      'View Charges and Payments'
     ],
   },
 }
