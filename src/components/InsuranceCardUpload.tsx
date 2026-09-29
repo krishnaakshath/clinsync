@@ -11,6 +11,19 @@ const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp'
  * only ever rendered next to a primary card slot. Follows NoteForm's
  * canWrite-gates-the-whole-affordance pattern: a role that can't write gets
  * nothing rendered, not a disabled control.
+ *
+ * This control is deliberately narrow. Everything else insurance-shaped --
+ * a secondary card, an EOB, an authorization letter, or even a primary card
+ * that arrives by fax instead of through this control -- is received
+ * through the generic Documents flow (`POST /api/documents` with an
+ * `insurance_*` documentType; see docs/superpowers/specs/2026-09-29-document-insurance-assignment.md
+ * §1 and §4). The two paths write independent records of independently
+ * true facts -- `patients.primaryCard{Front,Back}Url` here, a `documents`
+ * row there -- and are not kept in sync in either direction: filing or
+ * un-filing a Documents row never touches these columns, and uploading
+ * here never creates a `documents` row. That's acceptable because both
+ * "which patient" and "what is it" are already fixed by this component's
+ * props/route, so there's nothing generic left for this control to do.
  */
 export function InsuranceCardUpload({ anonId, side, hasImage, canWrite }: { anonId: string; side: 'front' | 'back'; hasImage: boolean; canWrite: boolean }) {
   const router = useRouter()
