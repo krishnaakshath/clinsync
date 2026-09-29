@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ImagingAttachmentStrip, type AttachmentView } from '@/components/ImagingAttachmentStrip'
 
 type Flag = 'normal' | 'abnormal' | 'critical'
 
@@ -11,12 +12,16 @@ export function EnterLabResultModal({
   testName,
   defaultUnit,
   defaultReferenceRange,
+  category,
+  attachments,
   onClose,
 }: {
   orderId: number
   testName: string
   defaultUnit: string | null
   defaultReferenceRange: string | null
+  category: 'lab' | 'imaging'
+  attachments: AttachmentView[]
   onClose: () => void
 }) {
   const router = useRouter()
@@ -57,11 +62,18 @@ export function EnterLabResultModal({
           <DialogTitle>Enter Result — {testName}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Result value" aria-label="Result value" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
-          <div className="grid grid-cols-2 gap-2">
-            <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="Unit" aria-label="Unit" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
-            <input value={referenceRange} onChange={(e) => setReferenceRange(e.target.value)} placeholder="Reference range" aria-label="Reference range" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
-          </div>
+          {category === 'imaging' && <ImagingAttachmentStrip attachments={attachments} />}
+          {category === 'imaging' ? (
+            <textarea value={value} onChange={(e) => setValue(e.target.value)} placeholder="Impression" aria-label="Impression" rows={3} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+          ) : (
+            <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Result value" aria-label="Result value" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+          )}
+          {category === 'lab' && (
+            <div className="grid grid-cols-2 gap-2">
+              <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="Unit" aria-label="Unit" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+              <input value={referenceRange} onChange={(e) => setReferenceRange(e.target.value)} placeholder="Reference range" aria-label="Reference range" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+            </div>
+          )}
           <select value={flag} onChange={(e) => setFlag(e.target.value as Flag)} aria-label="Flag" className="w-full rounded-md border border-border px-3 py-2 text-sm">
             <option value="normal">Normal</option>
             <option value="abnormal">Abnormal</option>

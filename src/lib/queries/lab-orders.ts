@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { labOrders, labResults, labTests, patients, providers } from '@/db/schema'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { listImagingForOrders, type ImagingAttachment } from '@/lib/queries/documents'
 
 export interface CreateLabOrderInput {
   patientId: string
@@ -103,8 +104,10 @@ export interface PatientLabOrderRow {
   testId: number
   testName: string
   testCode: string
+  category: 'lab' | 'imaging'
   defaultUnit: string | null
   referenceRange: string | null
+  attachments: ImagingAttachment[]
   result: {
     value: string
     unit: string | null
@@ -120,7 +123,7 @@ function mapPatientOrderRow(r: {
   order: typeof labOrders.$inferSelect
   test: typeof labTests.$inferSelect
   result: typeof labResults.$inferSelect | null
-}): PatientLabOrderRow {
+}): Omit<PatientLabOrderRow, 'attachments'> {
   return {
     id: r.order.id,
     status: r.order.status,
@@ -129,6 +132,7 @@ function mapPatientOrderRow(r: {
     testId: r.test.id,
     testName: r.test.name,
     testCode: r.test.code,
+    category: r.test.category,
     defaultUnit: r.test.defaultUnit,
     referenceRange: r.test.referenceRange,
     result: r.result ? {
@@ -153,7 +157,9 @@ export async function listOrdersForPatient(patientId: string): Promise<PatientLa
     .where(eq(labOrders.patientId, patientId))
     .orderBy(desc(labOrders.orderedAt))
 
-  return rows.map(mapPatientOrderRow)
+  const mapped = rows.map(mapPatientOrderRow)
+  const byOrder = await listImagingForOrders(mapped.map((r) => r.id))
+  return mapped.map((r) => ({ ...r, attachments: byOrder.get(r.id) ?? [] }))
 }
 
 export interface WorklistRow {
@@ -166,6 +172,8 @@ export interface WorklistRow {
   testId: number
   testName: string
   testCode: string
+  category: 'lab' | 'imaging'
+  attachments: ImagingAttachment[]
   orderedByProviderId: number
   orderedByProviderName: string
 }
@@ -173,19 +181,20 @@ export interface WorklistRow {
 function mapWorklistRow(r: {
   order: typeof labOrders.$inferSelect
   test: typeof labTests.$inferSelect
-  patient: typeof patients.$inferSelect
+  patientName: string
   provider: typeof providers.$inferSelect
-}): WorklistRow {
+}): Omit<WorklistRow, 'attachments'> {
   return {
     id: r.order.id,
     status: r.order.status,
     orderedAt: r.order.orderedAt,
     collectedAt: r.order.collectedAt,
     patientId: r.order.patientId,
-    patientName: r.patient.name,
+    patientName: r.patientName,
     testId: r.test.id,
     testName: r.test.name,
     testCode: r.test.code,
+    category: r.test.category,
     orderedByProviderId: r.order.orderedByProviderId,
     orderedByProviderName: r.provider.name,
   }
@@ -194,12 +203,29 @@ function mapWorklistRow(r: {
 /** All orders across all patients, newest first, joined for display on the worklist screen. */
 export async function listWorklist(): Promise<WorklistRow[]> {
   const rows = await getDb()
-    .select({ order: labOrders, test: labTests, patient: patients, provider: providers })
+    .select({
+      order: labOrders,
+      test: labTests,
+      // Narrow, raw-`sql` patient column, NOT `patient: patients` --
+      // schema.ts here still declares patients' pre-unification
+      // `nameTebra`/`nameIntakeq`/`dobTebra`/`dobIntakeq` columns, but a
+      // separate, concurrently-running worktree's migration
+      // (`feature/unified-patient-record`) has already collapsed the live
+      // shared Neon DB's `patients` table down to single `name`/`dob`
+      // columns (the same standing cross-worktree drift Task 1's report on
+      // this plan diagnosed). A bare `patient: patients` select spreads
+      // every column schema.ts declares and 42703s against the real DB.
+      // See src/lib/queries/documents.ts:26-40 for the same pattern.
+      patientName: sql<string>`patients.name`,
+      provider: providers,
+    })
     .from(labOrders)
     .innerJoin(labTests, eq(labOrders.labTestId, labTests.id))
     .innerJoin(patients, eq(labOrders.patientId, patients.id))
     .innerJoin(providers, eq(labOrders.orderedByProviderId, providers.id))
     .orderBy(desc(labOrders.orderedAt))
 
-  return rows.map(mapWorklistRow)
+  const mapped = rows.map(mapWorklistRow)
+  const byOrder = await listImagingForOrders(mapped.map((r) => r.id))
+  return mapped.map((r) => ({ ...r, attachments: byOrder.get(r.id) ?? [] }))
 }

@@ -182,4 +182,9 @@ describe('PATCH /api/documents/[id]', () => {
     const res = await PATCH(req as never, { params: Promise.resolve({ id: '1' }) })
     expect(res.status).toBe(403)
   })
+
+  it('rejects labOrderId as an unknown field (.strict() mass-assignment guard)', async () => {
+    const res = await PATCH(patchReq(1, { labOrderId: 1 }) as never, { params: Promise.resolve({ id: '1' }) })
+    expect(res.status).toBe(400)
+  })
 })

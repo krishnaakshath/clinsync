@@ -385,17 +385,23 @@ async function seedPayers() {
 
 // Lab test catalog -- standalone reference data (like the payer directory
 // above), independent of whether the rest of the DB has been seeded.
-const LAB_TESTS_SEED: { name: string; code: string; defaultUnit: string | null; referenceRange: string }[] = [
-  { name: 'CBC with differential', code: 'CBC-DIFF', defaultUnit: 'cells/mcL', referenceRange: '4.5-11.0 x10^3/mcL' },
-  { name: 'Comprehensive Metabolic Panel', code: 'CMP', defaultUnit: null, referenceRange: 'See individual analytes' },
-  { name: 'TSH', code: 'TSH', defaultUnit: 'mIU/L', referenceRange: '0.4-4.0' },
-  { name: 'Lipid Panel', code: 'LIPID', defaultUnit: 'mg/dL', referenceRange: 'Total chol <200' },
-  { name: 'HbA1c', code: 'HBA1C', defaultUnit: '%', referenceRange: '4.0-5.6' },
-  { name: 'Lithium level', code: 'LITH', defaultUnit: 'mEq/L', referenceRange: '0.6-1.2' },
-  { name: 'Valproic acid level', code: 'VPA', defaultUnit: 'mcg/mL', referenceRange: '50-100' },
-  { name: 'Urine drug screen', code: 'UDS', defaultUnit: null, referenceRange: 'Negative' },
-  { name: 'Prolactin', code: 'PRL', defaultUnit: 'ng/mL', referenceRange: '4-15.2' },
-  { name: 'Vitamin D, 25-OH', code: 'VITD', defaultUnit: 'ng/mL', referenceRange: '30-100' },
+const LAB_TESTS_SEED: { name: string; code: string; category: 'lab' | 'imaging'; defaultUnit: string | null; referenceRange: string | null }[] = [
+  { name: 'CBC with differential', code: 'CBC-DIFF', category: 'lab', defaultUnit: 'cells/mcL', referenceRange: '4.5-11.0 x10^3/mcL' },
+  { name: 'Comprehensive Metabolic Panel', code: 'CMP', category: 'lab', defaultUnit: null, referenceRange: 'See individual analytes' },
+  { name: 'TSH', code: 'TSH', category: 'lab', defaultUnit: 'mIU/L', referenceRange: '0.4-4.0' },
+  { name: 'Lipid Panel', code: 'LIPID', category: 'lab', defaultUnit: 'mg/dL', referenceRange: 'Total chol <200' },
+  { name: 'HbA1c', code: 'HBA1C', category: 'lab', defaultUnit: '%', referenceRange: '4.0-5.6' },
+  { name: 'Lithium level', code: 'LITH', category: 'lab', defaultUnit: 'mEq/L', referenceRange: '0.6-1.2' },
+  { name: 'Valproic acid level', code: 'VPA', category: 'lab', defaultUnit: 'mcg/mL', referenceRange: '50-100' },
+  { name: 'Urine drug screen', code: 'UDS', category: 'lab', defaultUnit: null, referenceRange: 'Negative' },
+  { name: 'Prolactin', code: 'PRL', category: 'lab', defaultUnit: 'ng/mL', referenceRange: '4-15.2' },
+  { name: 'Vitamin D, 25-OH', code: 'VITD', category: 'lab', defaultUnit: 'ng/mL', referenceRange: '30-100' },
+  { name: 'X-Ray, chest, 2 view', code: 'XR-CHEST-2V', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'X-Ray, chest, 1 view', code: 'XR-CHEST-1V', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'X-Ray, wrist', code: 'XR-WRIST', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'X-Ray, knee', code: 'XR-KNEE', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'CT, head, without contrast', code: 'CT-HEAD-NC', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'Ultrasound, abdominal', code: 'US-ABD', category: 'imaging', defaultUnit: null, referenceRange: null },
 ]
 
 async function seedLabTests() {
@@ -842,7 +848,7 @@ export async function seed() {
   // (e.g. left over from an interrupted test run) permanently skips seeding
   // the other 9 catalog tests, leaving the "Order labs" dropdown nearly empty.
   await seedLabTests()
-  console.log('Seeded lab test catalog (10 tests).')
+  console.log('Seeded lab test catalog (16 tests).')
 
   // Guard against re-seeding a shared dev database that already has data.
   // Several parallel feature branches now have their own tables with FK

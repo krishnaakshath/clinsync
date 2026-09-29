@@ -692,7 +692,7 @@ export const documentTypeEnum = pgEnum('document_type', [
   'other', 'drivers_license', 'legal_document',
   'insurance_card_primary_front', 'insurance_card_primary_back',
   'insurance_card_secondary_front', 'insurance_card_secondary_back',
-  'insurance_eob', 'insurance_authorization',
+  'insurance_eob', 'insurance_authorization', 'imaging_result',
 ])
 export const faxDeliveryStatusEnum = pgEnum('fax_delivery_status', ['delivered', 'failed'])
 
@@ -708,6 +708,11 @@ export const documents = pgTable('documents', {
   // derived from "whatever admission is active now." Cleared whenever
   // patientId changes or is cleared (see deletePatient's FK-ordering fix).
   admissionId: integer('admission_id').references(() => admissions.id),
+  // Set only by the order-scoped upload route (which derives patientId from
+  // the order itself), never by the generic documents routes -- so the two
+  // can never disagree. labOrders is declared further below in this file;
+  // the thunk here makes the forward reference legal.
+  labOrderId: integer('lab_order_id').references(() => labOrders.id),
   // fileType is display metadata derived from the uploaded file's MIME type
   // (e.g. "PDF" / "JPG"). fileUrl is null only for pre-2026-09-29
   // metadata-only rows that predate real file storage.
@@ -755,11 +760,15 @@ export const messages = pgTable('messages', {
 
 export const labOrderStatusEnum = pgEnum('lab_order_status', ['ordered', 'collected', 'resulted', 'cancelled'])
 export const labResultFlagEnum = pgEnum('lab_result_flag', ['normal', 'abnormal', 'critical'])
+export const labTestCategoryEnum = pgEnum('lab_test_category', ['lab', 'imaging'])
 
 export const labTests = pgTable('lab_tests', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
   code: text('code').notNull(), // a real, recognizable test code (LOINC-style), reference data only -- not verified against the real LOINC database
+  // A catalog-level property: whether a study produces an image belongs to
+  // the test itself, not to one patient's order for it.
+  category: labTestCategoryEnum('category').default('lab').notNull(),
   defaultUnit: text('default_unit'),
   referenceRange: text('reference_range'),
 })

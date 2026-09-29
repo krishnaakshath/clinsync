@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { OrderLabTestModal, type LabTestOption } from '@/components/OrderLabTestModal'
+import { ImagingAttachmentStrip, type AttachmentView } from '@/components/ImagingAttachmentStrip'
 
 export interface PatientLabOrder {
   id: number
@@ -14,8 +15,10 @@ export interface PatientLabOrder {
   testId: number
   testName: string
   testCode: string
+  category: 'lab' | 'imaging'
   defaultUnit: string | null
   referenceRange: string | null
+  attachments: AttachmentView[]
   result: {
     value: string
     unit: string | null
@@ -106,6 +109,7 @@ export function LabResultsSection({ patientId, orders, labTests, canOrder }: { p
                   </div>
                   <FlagPill flag={r.flag} />
                 </div>
+                <ImagingAttachmentStrip attachments={o.attachments} />
               </li>
             )
           })}
@@ -117,11 +121,14 @@ export function LabResultsSection({ patientId, orders, labTests, canOrder }: { p
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Pending</p>
           <ul className="space-y-1.5">
             {pending.map((o) => (
-              <li key={`lab-pending-${o.id}`} className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-                <span>
-                  {o.testName} <span className="text-xs">({o.testCode})</span>
-                </span>
-                <span className="text-xs">{PENDING_STATUS_LABEL[o.status as 'ordered' | 'collected']} · {o.orderedAt.toLocaleDateString()}</span>
+              <li key={`lab-pending-${o.id}`} className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between gap-2">
+                  <span>
+                    {o.testName} <span className="text-xs">({o.testCode})</span>
+                  </span>
+                  <span className="text-xs">{PENDING_STATUS_LABEL[o.status as 'ordered' | 'collected']} · {o.orderedAt.toLocaleDateString()}</span>
+                </div>
+                <ImagingAttachmentStrip attachments={o.attachments} />
               </li>
             ))}
           </ul>

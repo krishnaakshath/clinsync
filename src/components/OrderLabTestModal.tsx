@@ -10,6 +10,7 @@ export interface LabTestOption {
   code: string
   defaultUnit: string | null
   referenceRange: string | null
+  category: 'lab' | 'imaging'
 }
 
 // Reusable from any patient-chart context -- the caller (Task 4's Medical
@@ -39,6 +40,8 @@ export function OrderLabTestModal({ patientId, labTests, onClose }: { patientId:
   }
 
   const canSubmit = labTestId !== '' && !submitting
+  const labOptions = labTests.filter((t) => t.category === 'lab')
+  const imagingOptions = labTests.filter((t) => t.category === 'imaging')
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
@@ -49,7 +52,16 @@ export function OrderLabTestModal({ patientId, labTests, onClose }: { patientId:
         <div className="space-y-3">
           <select value={labTestId} onChange={(e) => setLabTestId(e.target.value === '' ? '' : Number(e.target.value))} aria-label="Lab test" className="w-full rounded-md border border-border px-3 py-2 text-sm">
             <option value="">Select a test…</option>
-            {labTests.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+            {labOptions.length > 0 && (
+              <optgroup label="Labs">
+                {labOptions.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+              </optgroup>
+            )}
+            {imagingOptions.length > 0 && (
+              <optgroup label="Imaging">
+                {imagingOptions.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+              </optgroup>
+            )}
           </select>
           {labTests.length === 0 && <p className="text-sm text-warning">No lab tests are available in the catalog.</p>}
           {error && <p className="text-sm text-destructive">{error}</p>}

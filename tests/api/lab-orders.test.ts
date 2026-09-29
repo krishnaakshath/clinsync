@@ -1,11 +1,15 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
-import { patients, providers, labTests, labOrders, labResults } from '@/db/schema'
-import { createLabOrder, markCollected, enterResult, cancelOrder } from '@/lib/queries/lab-orders'
+import { patients, providers, labTests, labOrders, labResults, documents } from '@/db/schema'
+import { createLabOrder, markCollected, enterResult, cancelOrder, listWorklist, listOrdersForPatient } from '@/lib/queries/lab-orders'
 
 const createdOrderIds: number[] = []
+const createdDocumentIds: number[] = []
 afterEach(async () => {
+  while (createdDocumentIds.length > 0) {
+    await getDb().delete(documents).where(eq(documents.id, createdDocumentIds.pop()!))
+  }
   while (createdOrderIds.length > 0) {
     const id = createdOrderIds.pop()!
     await getDb().delete(labResults).where(eq(labResults.labOrderId, id))
@@ -15,12 +19,30 @@ afterEach(async () => {
 
 async function makeOrder() {
   const db = getDb()
-  const [test] = await db.select().from(labTests).limit(1)
-  const [providerRow] = await db.select().from(providers).limit(1)
-  const [patientRow] = await db.select().from(patients).limit(1)
+  const [test] = await db.select({ id: labTests.id }).from(labTests).limit(1)
+  const [providerRow] = await db.select({ id: providers.id }).from(providers).limit(1)
+  const [patientRow] = await db.select({ id: patients.id }).from(patients).limit(1)
   const order = await createLabOrder({ patientId: patientRow.id, labTestId: test.id, orderedByProviderId: providerRow.id })
   createdOrderIds.push(order.id)
   return order
+}
+
+async function attachDocument(orderId: number, patientId: string, name: string) {
+  const [doc] = await getDb().insert(documents).values({
+    name,
+    documentDate: '2026-09-29',
+    receivedFrom: 'Test Imaging Center',
+    documentType: 'imaging_result',
+    patientId,
+    admissionId: null,
+    labOrderId: orderId,
+    fileUrl: `https://blob.test/${name}`,
+    fileType: 'JPG',
+    filedByName: 'Tester',
+    filedAt: new Date(),
+  }).returning()
+  createdDocumentIds.push(doc.id)
+  return doc
 }
 
 describe('lab order lifecycle — query layer', () => {
@@ -113,5 +135,42 @@ describe('lab order lifecycle — query layer', () => {
 
     const secondCancel = await cancelOrder(order.id, 'second cancellation')
     expect(secondCancel.ok).toBe(false)
+  })
+
+  it('exposes the test category on every worklist row', async () => {
+    const order = await makeOrder()
+    const rows = await listWorklist()
+    const row = rows.find((r) => r.id === order.id)!
+    expect(['lab', 'imaging']).toContain(row.category)
+  })
+
+  it('returns attachments as an empty array, never null, for an order with no images', async () => {
+    const order = await makeOrder()
+    expect((await listWorklist()).find((r) => r.id === order.id)!.attachments).toEqual([])
+    expect((await listOrdersForPatient(order.patientId)).find((r) => r.id === order.id)!.attachments).toEqual([])
+  })
+
+  it('returns an imaging order\'s own attachments on both surfaces, and no other order\'s', async () => {
+    const orderA = await makeOrder()
+    const orderB = await makeOrder()
+    const docA1 = await attachDocument(orderA.id, orderA.patientId, 'chest-ap.jpg')
+    const docA2 = await attachDocument(orderA.id, orderA.patientId, 'chest-lateral.jpg')
+    const docB = await attachDocument(orderB.id, orderB.patientId, 'knee-ap.jpg')
+
+    const worklistRows = await listWorklist()
+    const worklistRowA = worklistRows.find((r) => r.id === orderA.id)!
+    const worklistRowB = worklistRows.find((r) => r.id === orderB.id)!
+    expect(worklistRowA.attachments.map((a) => a.id).sort()).toEqual([docA1.id, docA2.id].sort())
+    expect(worklistRowB.attachments.map((a) => a.id)).toEqual([docB.id])
+
+    const patientRowA = (await listOrdersForPatient(orderA.patientId)).find((r) => r.id === orderA.id)!
+    expect(patientRowA.attachments).toHaveLength(2)
+  })
+
+  it('resolves the patient name on the worklist without selecting retired patient columns', async () => {
+    const order = await makeOrder()
+    const row = (await listWorklist()).find((r) => r.id === order.id)!
+    expect(typeof row.patientName).toBe('string')
+    expect(row.patientName.length).toBeGreaterThan(0)
   })
 })
