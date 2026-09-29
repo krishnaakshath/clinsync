@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listBroadcasts } from '@/lib/queries/broadcasts'
@@ -7,6 +8,8 @@ import { BroadcastWizard } from '@/components/BroadcastWizard'
 
 export default async function BroadcastsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }
+  if (!['admin', 'crc'].includes(session.role)) redirect('/')
   const { tab } = await searchParams
   const activeTab = tab === 'history' ? 'history' : 'send'
   await logAudit(session, `viewed broadcasts (${activeTab})`, null)

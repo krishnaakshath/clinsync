@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
@@ -10,6 +11,8 @@ export default async function VirtualCardPaymentPage({
   searchParams: Promise<{ patientId?: string; amountCents?: string }>
 }) {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk only.
+  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) redirect('/')
   const { patientId, amountCents } = await searchParams
   const [patients, charges] = await Promise.all([listPatientsWithStatus(null), listCharges()])
   await logAudit(session, 'viewed virtual card payment form (demo)', patientId ?? null)

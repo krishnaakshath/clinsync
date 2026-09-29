@@ -26,7 +26,12 @@ type Icon = React.ComponentType<{ className?: string }>
 // practice administration. Admin and CRC both keep
 // full operational access -- see src/lib/role-capabilities.ts, which this
 // must stay consistent with.
-const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
+//
+// NAV_ITEMS, NAV_BILLING_ITEMS and NAV_TRAILING_ITEMS are exported as the
+// source of truth that tests/pages/nav-role-enforcement.test.tsx derives
+// its server-side gate assertions from, so a `roles`-restricted entry
+// added here without a matching PAGE_GATES row fails that suite.
+export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/', label: 'Home', icon: LayoutDashboard, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/doctor', label: 'My Patients', icon: Stethoscope, roles: ['pi'] as Role[] },
   { href: '/patients', label: 'Patients', icon: Users, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
@@ -46,7 +51,7 @@ const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/messages', label: 'Messages', icon: MessageSquare, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
 ]
 
-const BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
+export const NAV_BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
   { href: '/billing/charges', label: 'Charges', icon: Receipt },
   { href: '/billing/insurance-collections', label: 'Insurance Collections', icon: ShieldCheck },
   { href: '/billing/patient-collections', label: 'Patient Collections', icon: HandCoins },
@@ -56,7 +61,7 @@ const BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
   { href: '/billing/pay', label: 'Virtual Card Payment (Demo)', icon: CreditCard },
 ]
 
-const TRAILING_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
+export const NAV_TRAILING_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/reports', label: 'Reports', icon: FileBarChart2, roles: ['admin', 'crc'] as Role[] },
   { href: '/documents', label: 'Documents', icon: FolderOpen, roles: ['admin', 'crc'] as Role[] },
   { href: '/broadcasts', label: 'Broadcasts', icon: Megaphone, roles: ['admin', 'crc'] as Role[] },
@@ -91,11 +96,13 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
   )
 }
 
+export const BILLING_ROLES: Role[] = ['admin', 'crc', 'frontdesk']
+
 export function LeftNav({ role }: { role: Role }) {
   const pathname = usePathname()
-  const items = ITEMS.filter((item) => !item.roles || item.roles.includes(role))
-  const trailingItems = TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
-  const showBilling = role === 'admin' || role === 'crc' || role === 'frontdesk'
+  const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
+  const trailingItems = NAV_TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
+  const showBilling = BILLING_ROLES.includes(role)
   const billingActive = pathname?.startsWith('/billing') ?? false
   const [billingOpen, setBillingOpen] = useState(billingActive)
 
@@ -132,7 +139,7 @@ export function LeftNav({ role }: { role: Role }) {
           </button>
           {billingOpen && (
             <ul className="mt-0.5 space-y-0.5 ps-3">
-              {BILLING_ITEMS.map((item) => (
+              {NAV_BILLING_ITEMS.map((item) => (
                 <li key={item.href}>
                   <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
                 </li>

@@ -66,6 +66,12 @@ describe('GET /api/patients/[anonId]', () => {
     const response = await getPatient(new NextRequest('http://localhost/api/patients/RD-9999'), { params: Promise.resolve({ anonId: 'RD-9999' }) })
     expect(response.status).toBe(404)
   })
+
+  it('returns 200 for a pi session -- spec §6.1: this plan\'s sweep left the read path open to the whole chart', async () => {
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    const response = await getPatient(new NextRequest('http://localhost/api/patients/RD-0001'), { params: Promise.resolve({ anonId: 'RD-0001' }) })
+    expect(response.status).toBe(200)
+  })
 })
 
 describe('patient list/detail never expose the encrypted TOTP secret', () => {

@@ -19,6 +19,8 @@ const recordResponseSchema = z
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  // LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }
+  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
   const review = await getReview(Number(id))
   if (!review) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -26,9 +28,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return NextResponse.json(review)
 }
 
+// This is staff recording a survey response on behalf of a patient, not a
+// patient-facing endpoint (spec §7.2) — LeftNav.tsx:63 —
+// { href: '/experience-surveys', roles: ['admin', 'crc'] }
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
   const parsed = recordResponseSchema.safeParse(await request.json())
