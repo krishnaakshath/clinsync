@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
-  LayoutDashboard, Stethoscope, Users, ClipboardList, Fingerprint, FlaskConical,
+  LayoutDashboard, Stethoscope, Users, ClipboardList, FlaskConical,
   Calendar, FileText, FileSignature, MessageSquare, Wallet, Receipt, ShieldCheck, HandCoins,
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
@@ -18,12 +18,12 @@ type Icon = React.ComponentType<{ className?: string }>
 // clinical eligibility calls, not running practice operations, so they get
 // a trimmed, clinical-only nav (Home/My Patients/Patients/Trials/Calendar/
 // Client Forms/Messages, plus their own Account tab in Settings) -- no
-// Workbook, Identity Matching, Form Templates (building/editing form
-// structures is a coordinator/admin task), Billing, or the Operations
-// group (Reports/Documents/Broadcasts/Experience Surveys/Pipeline
-// Dashboard), which are the coordinator's and admin's tools. Client Forms
-// stays visible to PI -- reviewing a patient's actual submitted answers is
-// clinical review, not practice administration. Admin and CRC both keep
+// Workbook, Form Templates (building/editing form structures is a
+// coordinator/admin task), Billing, or the Operations group (Reports/
+// Documents/Broadcasts/Experience Surveys/Pipeline Dashboard), which are
+// the coordinator's and admin's tools. Client Forms stays visible to PI --
+// reviewing a patient's actual submitted answers is clinical review, not
+// practice administration. Admin and CRC both keep
 // full operational access -- see src/lib/role-capabilities.ts, which this
 // must stay consistent with.
 const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
@@ -31,7 +31,6 @@ const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/doctor', label: 'My Patients', icon: Stethoscope, roles: ['pi'] as Role[] },
   { href: '/patients', label: 'Patients', icon: Users },
   { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: ['admin', 'crc'] as Role[] },
-  { href: '/identity-matching', label: 'Identity Matching', icon: Fingerprint, roles: ['admin', 'crc'] as Role[] },
   { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
   { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc'] as Role[] },

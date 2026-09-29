@@ -9,7 +9,6 @@ import { invalidateCache, patientListCacheKey, patientDetailCacheKey } from '@/l
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 import { GET as listPatients, POST as createPatient } from '@/app/api/patients/route'
 import { GET as getPatient, DELETE as deletePatientRoute } from '@/app/api/patients/[anonId]/route'
-import { POST as refreshPatient } from '@/app/api/patients/[anonId]/refresh/route'
 
 // The global setup mock (vitest.setup.ts) stubs `next/headers` so `getSession()`
 // resolves to "no session" — that's correct for testing the 401 paths below, but
@@ -174,25 +173,6 @@ describe('POST /api/patients', () => {
     expect(body.city).toBe('Riverside')
     expect(body.zip).toBe('92501')
     expect(body.currentProvider).toBe('Dr. Kunam')
-  })
-})
-
-describe('POST /api/patients/[anonId]/refresh', () => {
-  it('returns 401 when there is no authenticated session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
-    const response = await refreshPatient(new NextRequest('http://localhost/api/patients/RD-0001/refresh', { method: 'POST' }), { params: Promise.resolve({ anonId: 'RD-0001' }) })
-    expect(response.status).toBe(401)
-  })
-
-  it('re-evaluates and returns the overall status for a known patient', async () => {
-    const response = await refreshPatient(new NextRequest('http://localhost/api/patients/RD-0001/refresh', { method: 'POST' }), { params: Promise.resolve({ anonId: 'RD-0001' }) })
-    const body = await response.json()
-    expect(['green', 'yellow', 'red']).toContain(body.overallStatus)
-  })
-
-  it('returns 404 for an unknown anonymous id', async () => {
-    const response = await refreshPatient(new NextRequest('http://localhost/api/patients/RD-9999/refresh', { method: 'POST' }), { params: Promise.resolve({ anonId: 'RD-9999' }) })
-    expect(response.status).toBe(404)
   })
 })
 

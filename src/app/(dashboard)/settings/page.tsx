@@ -1,4 +1,4 @@
-import { Building2, Plug, SlidersHorizontal, UserCircle2, Users, IdCard, Monitor } from 'lucide-react'
+import { Building2, SlidersHorizontal, UserCircle2, Users, IdCard, Monitor } from 'lucide-react'
 import { eq } from 'drizzle-orm'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { getDb } from '@/db/client'
@@ -10,7 +10,6 @@ import { ROLE_CAPABILITIES } from '@/lib/role-capabilities'
 import { AutoClassifyToggle } from '@/components/AutoClassifyToggle'
 import { QueueDisplayPinForm } from '@/components/QueueDisplayPinForm'
 import { PracticeInfoForm } from '@/components/PracticeInfoForm'
-import { EhrConnectionsForm } from '@/components/EhrConnectionsForm'
 import { ProviderProfilesPanel } from '@/components/settings/ProviderProfilesPanel'
 import { StaffManagementPanel } from '@/components/settings/StaffManagementPanel'
 import { StaffMfaSelfResetForm } from '@/components/settings/StaffMfaSelfResetForm'
@@ -51,12 +50,6 @@ export default async function SettingsPage() {
   const practiceTab = (
     <section className={SECTION}>
       <PracticeInfoForm initial={{ practiceName: settings.practiceName, practiceSite: settings.practiceSite, practiceTimezone: settings.practiceTimezone }} isAdmin={isAdmin} />
-    </section>
-  )
-
-  const ehrTab = (
-    <section className={SECTION}>
-      <EhrConnectionsForm initial={{ intakeqConfigured: settings.intakeqConfigured, tebraConfigured: settings.tebraConfigured }} isAdmin={isAdmin} />
     </section>
   )
 
@@ -122,7 +115,6 @@ export default async function SettingsPage() {
       <h1 className="mb-6 text-2xl font-bold text-foreground">Settings</h1>
       <Tabs tabs={[
         { id: 'practice', label: <><Building2 className="h-4 w-4" aria-hidden="true" />Practice</>, content: practiceTab },
-        { id: 'ehr', label: <><Plug className="h-4 w-4" aria-hidden="true" />EHR Connections</>, content: ehrTab },
         { id: 'classification', label: <><SlidersHorizontal className="h-4 w-4" aria-hidden="true" />Classification</>, content: classificationTab },
         { id: 'queue-display', label: <><Monitor className="h-4 w-4" aria-hidden="true" />Queue Display</>, content: queueDisplayTab },
         { id: 'providers', label: <><Users className="h-4 w-4" aria-hidden="true" />Providers</>, content: providersTab },

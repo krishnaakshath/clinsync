@@ -5,11 +5,6 @@ import { getDb } from '@/db/client'
 import { patients, payers } from '@/db/schema'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'frontdesk', name: 'Taylor Nguyen' })) }))
-vi.mock('@/connectors/tebra.mock', () => ({
-  createPatient: vi.fn(async (input: { firstName: string; lastName: string; birthDate: string; city: string; zip: string; email: string; generalPractitioner: string }) => ({
-    tebraPatientId: 'tebra-test-001', ...input,
-  })),
-}))
 
 const createdPatientIds: string[] = []
 afterEach(async () => {
