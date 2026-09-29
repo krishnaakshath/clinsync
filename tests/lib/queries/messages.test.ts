@@ -26,8 +26,9 @@ afterEach(async () => {
   }
 })
 
-async function seed(patientId: string, senderRole: 'provider' | 'patient', body: string) {
-  const created = await sendMessage(patientId, senderRole, senderRole === 'provider' ? 'Dr. Rajiv Kunam' : 'Test Patient', body)
+async function seed(patientId: string, senderRole: 'provider' | 'patient' | 'system', body: string) {
+  const senderName = senderRole === 'provider' ? 'Dr. Rajiv Kunam' : senderRole === 'system' ? 'Clinsync (Automated)' : 'Test Patient'
+  const created = await sendMessage(patientId, senderRole, senderName, body)
   createdIds.push(created.id)
   return created
 }
@@ -103,6 +104,37 @@ describe('listMessageThreads', () => {
     expect(mine).toBeTruthy()
     expect(mine!.unreadByProviderCount).toBeGreaterThanOrEqual(1)
     expect(mine!.lastMessagePreview?.id).toBe(secondUnread.id)
+  })
+})
+
+describe('system messages', () => {
+  it('getUnreadCountForPatient counts a system message the same as a provider message', async () => {
+    const before = await getUnreadCountForPatient(PATIENT_A)
+    await seed(PATIENT_A, 'provider', 'provider notice')
+    await seed(PATIENT_A, 'system', 'automated notice')
+    const after = await getUnreadCountForPatient(PATIENT_A)
+    expect(after).toBe(before + 2)
+  })
+
+  it('markReadByPatient sets readByPatientAt on a system message', async () => {
+    const systemMsg = await seed(PATIENT_A, 'system', 'automated notice to mark read')
+    await markReadByPatient(PATIENT_A)
+    const [refreshed] = await getDb().select().from(messages).where(inArray(messages.id, [systemMsg.id]))
+    expect(refreshed.readByPatientAt).not.toBeNull()
+  })
+
+  it('getUnreadCountForProvider is unchanged by a system message', async () => {
+    const before = await getUnreadCountForProvider()
+    await seed(PATIENT_A, 'system', 'automated notice not for provider')
+    const after = await getUnreadCountForProvider()
+    expect(after).toBe(before)
+  })
+
+  it('markReadByProvider leaves a system message\'s readByProviderAt null', async () => {
+    const systemMsg = await seed(PATIENT_A, 'system', 'automated notice untouched by provider read')
+    await markReadByProvider(PATIENT_A)
+    const [refreshed] = await getDb().select().from(messages).where(inArray(messages.id, [systemMsg.id]))
+    expect(refreshed.readByProviderAt).toBeNull()
   })
 })
 
