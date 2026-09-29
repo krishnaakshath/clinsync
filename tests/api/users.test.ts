@@ -99,6 +99,14 @@ describe('POST /api/users', () => {
     expect(body.role).toBe('frontdesk')
   })
 
+  it('accepts the pharmacy role', async () => {
+    const res = await createUser(postReq({ name: 'Test Pharmacy User', email: 'newpharmacy.test@example.com', role: 'pharmacy' }))
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    createdIds.push(body.id)
+    expect(body.role).toBe('pharmacy')
+  })
+
   it('rejects an unexpected extra field (.strict() enforcement)', async () => {
     const res = await createUser(postReq({ name: 'Test User', email: 'newstaff.test@example.com', role: 'crc', passwordHash: 'x' }))
     expect(res.status).toBe(400)

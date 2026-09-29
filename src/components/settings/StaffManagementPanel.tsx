@@ -81,6 +81,7 @@ function AddStaffForm({ onCreated }: { onCreated: (row: StaffRow, password: stri
             <option value="pi">Principal Investigator</option>
             <option value="admin">Administrator</option>
             <option value="frontdesk">Front Desk</option>
+            <option value="pharmacy">Pharmacy</option>
           </select>
         </div>
       </div>
