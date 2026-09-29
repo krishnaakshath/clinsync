@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listFormTemplates } from '@/lib/queries/form-templates'
@@ -6,6 +7,9 @@ import { CreateFormButton } from '@/components/CreateFormButton'
 
 export default async function FormsPage() {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:37 — the Form Templates entry is rendered for admin/crc
+  // only. Same list, same redirect target as workbook/page.tsx:12.
+  if (!['admin', 'crc'].includes(session.role)) redirect('/')
   const templates = await listFormTemplates()
   await logAudit(session, 'viewed form templates', null)
 

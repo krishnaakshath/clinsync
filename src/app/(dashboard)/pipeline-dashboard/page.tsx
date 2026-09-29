@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import type { ComponentType } from 'react'
 import { UserPlus, FileCheck2, ClipboardCheck, Hourglass } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
@@ -57,6 +58,9 @@ function resolveRange(preset: string | undefined, from: string | undefined, to: 
 
 export default async function PipelineDashboardPage({ searchParams }: { searchParams: Promise<{ preset?: string; from?: string; to?: string }> }) {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:64 — the Pipeline Dashboard entry is rendered for admin/crc
+  // only. Same list, same redirect target as workbook/page.tsx:12.
+  if (!['admin', 'crc'].includes(session.role)) redirect('/')
   const sp = await searchParams
   const range = resolveRange(sp.preset, sp.from, sp.to)
   const [performance, trend] = await Promise.all([

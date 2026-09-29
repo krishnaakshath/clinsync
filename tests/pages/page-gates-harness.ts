@@ -103,4 +103,38 @@ export const PAGE_GATES: PageGateCase[] = [
     props: { searchParams: Promise.resolve({}) },
     allowed: ['admin', 'crc', 'frontdesk'],
   },
+  // LeftNav.tsx:60 — { href: '/reports', roles: ['admin', 'crc'] }. No row
+  // for (dashboard)/reports/page.tsx itself: it is a bare
+  // redirect('/reports/patients') with no session read, and once this leaf
+  // is gated it grants nothing (spec §3.2) -- Task 5's coverage rule
+  // matches the /reports nav href via this leaf instead.
+  { route: '/reports/patients', load: () => import('@/app/(dashboard)/reports/patients/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:60 — { href: '/reports', roles: ['admin', 'crc'] }
+  { route: '/reports/appointments/all', load: () => import('@/app/(dashboard)/reports/appointments/all/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:60 — { href: '/reports', roles: ['admin', 'crc'] }
+  { route: '/reports/claims/insurance-collections', load: () => import('@/app/(dashboard)/reports/claims/insurance-collections/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:60 — { href: '/reports', roles: ['admin', 'crc'] }
+  { route: '/reports/encounters/all', load: () => import('@/app/(dashboard)/reports/encounters/all/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:60 — { href: '/reports', roles: ['admin', 'crc'] }
+  { route: '/reports/notes/unsigned', load: () => import('@/app/(dashboard)/reports/notes/unsigned/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:61 — { href: '/documents', roles: ['admin', 'crc'] }
+  { route: '/documents', load: () => import('@/app/(dashboard)/documents/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:61 — { href: '/documents', roles: ['admin', 'crc'] }
+  { route: '/documents/fax-history', load: () => import('@/app/(dashboard)/documents/fax-history/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:64 — { href: '/pipeline-dashboard', roles: ['admin', 'crc'] }
+  {
+    route: '/pipeline-dashboard',
+    load: () => import('@/app/(dashboard)/pipeline-dashboard/page'),
+    props: { searchParams: Promise.resolve({}) },
+    allowed: ['admin', 'crc'],
+  },
+  // LeftNav.tsx:37 — { href: '/forms', roles: ['admin', 'crc'] }
+  { route: '/forms', load: () => import('@/app/(dashboard)/forms/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:37 — { href: '/forms', roles: ['admin', 'crc'] }
+  {
+    route: '/forms/[templateId]',
+    load: () => import('@/app/(dashboard)/forms/[templateId]/page'),
+    props: { params: Promise.resolve({ templateId: '1' }) },
+    allowed: ['admin', 'crc'],
+  },
 ]
