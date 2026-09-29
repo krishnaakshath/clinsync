@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { documents, patients, admissions, documentTypeEnum } from '@/db/schema'
-import { eq, desc, and, sql } from 'drizzle-orm'
+import { eq, desc, and, sql, asc, inArray } from 'drizzle-orm'
 import { getOrSetCache, documentsListCacheKey } from '@/lib/cache'
 
 export type DocumentRow = typeof documents.$inferSelect
@@ -13,10 +13,24 @@ export interface CreateDocumentInput {
   documentType: DocumentType
   patientId: string | null
   admissionId: number | null
+  // Required key (not optional) so a new caller of createDocument() cannot
+  // silently omit it -- see POST /api/documents, which passes null
+  // explicitly. Only the order-scoped upload route (Task 3) ever passes a
+  // real id here.
+  labOrderId: number | null
   fileUrl: string | null
   fileType: string
   filedByName: string | null
   filedAt: Date | null
+}
+
+export interface ImagingAttachment {
+  id: number
+  name: string
+  fileUrl: string | null
+  fileType: string
+  filedAt: Date | null
+  filedByName: string | null
 }
 
 export async function listDocuments() {
@@ -115,4 +129,42 @@ export async function deleteDocument(id: number): Promise<DocumentRow | null> {
   if (!existing) return null
   await getDb().delete(documents).where(eq(documents.id, id))
   return existing
+}
+
+// Batched across every order a caller wants imaging for (e.g. a whole lab
+// board), so multi-view screens issue one query instead of N. Not cached:
+// documentsListCacheKey() is list-wide (all patients' documents together),
+// so caching this per-order-set query under that key would return another
+// order's rows on a hit. No per-order-set cache key exists, and this plan
+// doesn't add one.
+export async function listImagingForOrders(orderIds: number[]): Promise<Map<number, ImagingAttachment[]>> {
+  // inArray(x, []) is a SQL footgun -- an empty list would either produce
+  // `IN ()` (a syntax error) or, depending on the driver, silently match
+  // nothing in a way that's easy to mistake for "matched everything." Short
+  // -circuit instead of ever handing an empty array to inArray().
+  if (orderIds.length === 0) return new Map()
+
+  const rows = await getDb()
+    .select({
+      id: documents.id,
+      name: documents.name,
+      fileUrl: documents.fileUrl,
+      fileType: documents.fileType,
+      filedAt: documents.filedAt,
+      filedByName: documents.filedByName,
+      labOrderId: documents.labOrderId,
+    })
+    .from(documents)
+    .where(inArray(documents.labOrderId, orderIds))
+    .orderBy(asc(documents.id))
+
+  const byOrderId = new Map<number, ImagingAttachment[]>()
+  for (const { labOrderId, ...attachment } of rows) {
+    // labOrderId is non-null for every row here -- the WHERE clause only
+    // matches documents whose labOrderId is in orderIds (all numbers).
+    const list = byOrderId.get(labOrderId!) ?? []
+    list.push(attachment)
+    byOrderId.set(labOrderId!, list)
+  }
+  return byOrderId
 }

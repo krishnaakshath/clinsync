@@ -101,6 +101,10 @@ export async function POST(request: NextRequest) {
     documentType,
     patientId: patientId ?? null,
     admissionId: admissionId ?? null,
+    // Never set by this generic route -- only the order-scoped upload route
+    // (Task 3) associates a document with a lab order, and it derives
+    // patientId from the order itself so the two can never disagree.
+    labOrderId: null,
     fileUrl: blob.url,
     fileType,
     filedByName: patientId !== undefined ? session.name : null,

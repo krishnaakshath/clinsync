@@ -201,4 +201,11 @@ describe('POST /api/documents', () => {
     const res = await receiveDocument(formDataReq(baseFields(), file) as never)
     expect(res.status).toBe(403)
   })
+
+  it('rejects a labOrderId form field (.strict() mass-assignment guard)', async () => {
+    const file = new File([new Uint8Array([1, 2, 3])], 'scan.pdf', { type: 'application/pdf' })
+    const res = await receiveDocument(formDataReq(baseFields({ labOrderId: '1' }), file) as never)
+    expect(res.status).toBe(400)
+    expect(vi.mocked(mockedPut)).not.toHaveBeenCalled()
+  })
 })
