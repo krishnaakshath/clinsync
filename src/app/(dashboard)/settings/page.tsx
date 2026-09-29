@@ -19,7 +19,7 @@ import { Tabs } from '@/components/Tabs'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 
-const ROLE_LABEL: Record<string, string> = { admin: 'Administrator', pi: 'Principal Investigator', crc: 'Clinical Research Coordinator' }
+const ROLE_LABEL: Record<string, string> = { admin: 'Administrator', pi: 'Principal Investigator', crc: 'Clinical Research Coordinator', frontdesk: 'Front Desk / Reception', pharmacy: 'Pharmacy' }
 
 export default async function SettingsPage() {
   // Must be the first statement — see the comment in patients/page.tsx.

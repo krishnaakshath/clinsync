@@ -18,6 +18,9 @@ export default async function DashboardHomePage() {
   // a real separate route rather than a conditional render here avoids
   // duplicating /doctor's assignment-matching logic in two places.
   if (session.role === 'pi') redirect('/doctor')
+  // Same reasoning as PI above: pharmacy has its own dedicated route
+  // (Patient Lookup) rather than a conditional render here.
+  if (session.role === 'pharmacy') redirect('/pharmacy/patient-lookup')
   // Called and awaited directly (not `<FrontDeskDashboard session={session} />`) so this
   // page resolves to a plain, already-rendered element tree instead of an unresolved async
   // component nested inside another one's return value -- React's client renderer (used by

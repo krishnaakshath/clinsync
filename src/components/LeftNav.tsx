@@ -7,7 +7,7 @@ import {
   Calendar, FileText, FileSignature, MessageSquare, Wallet, Receipt, ShieldCheck, HandCoins,
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
-  ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard, CalendarClock,
+  ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard, CalendarClock, Search,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
@@ -27,23 +27,24 @@ type Icon = React.ComponentType<{ className?: string }>
 // full operational access -- see src/lib/role-capabilities.ts, which this
 // must stay consistent with.
 const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
-  { href: '/', label: 'Home', icon: LayoutDashboard },
+  { href: '/', label: 'Home', icon: LayoutDashboard, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/doctor', label: 'My Patients', icon: Stethoscope, roles: ['pi'] as Role[] },
-  { href: '/patients', label: 'Patients', icon: Users },
+  { href: '/patients', label: 'Patients', icon: Users, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: ['admin', 'crc'] as Role[] },
   { href: '/identity-matching', label: 'Identity Matching', icon: Fingerprint, roles: ['admin', 'crc'] as Role[] },
-  { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical },
-  { href: '/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+  { href: '/calendar', label: 'Calendar', icon: Calendar, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc'] as Role[] },
-  { href: '/client-forms', label: 'Client Forms', icon: FileSignature },
+  { href: '/client-forms', label: 'Client Forms', icon: FileSignature, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/front-desk/check-in', label: 'Check-In', icon: ClipboardCheck, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
   { href: '/front-desk/assignments', label: 'Assignments', icon: ListChecks, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
   { href: '/inpatient/beds', label: 'Beds', icon: BedDouble, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
-  { href: '/pharmacy', label: 'Pharmacy', icon: Pill },
+  { href: '/pharmacy', label: 'Pharmacy', icon: Pill, roles: ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'] as Role[] },
+  { href: '/pharmacy/patient-lookup', label: 'Patient Lookup', icon: Search, roles: ['pharmacy', 'admin'] as Role[] },
   { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
-  { href: '/staff', label: 'Staff', icon: IdCard },
+  { href: '/staff', label: 'Staff', icon: IdCard, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/booking-requests', label: 'Booking Requests', icon: CalendarClock, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
-  { href: '/messages', label: 'Messages', icon: MessageSquare },
+  { href: '/messages', label: 'Messages', icon: MessageSquare, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
 ]
 
 const BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
