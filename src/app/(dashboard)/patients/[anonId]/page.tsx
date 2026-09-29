@@ -5,6 +5,7 @@ import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
 import { RefreshEligibilityButton } from '@/components/RefreshEligibilityButton'
+import { ConfirmEligibilityButton } from '@/components/ConfirmEligibilityButton'
 import { PatientPortalAccessPanel } from '@/components/PatientPortalAccessPanel'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { PatientQuickGlance } from '@/components/PatientQuickGlance'
@@ -170,6 +171,16 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         <div className="flex items-center gap-3">
           {session.role === 'admin' && <DeletePatientButton patientId={patient.id} patientName={name} />}
           {patient.overallStatus && <RefreshEligibilityButton anonId={patient.id} />}
+          {patient.selectionConfirmedAt ? (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+              <span>
+                Eligibility confirmed by {patient.selectionConfirmedByName} on {new Date(patient.selectionConfirmedAt).toLocaleDateString()} — patient notified {new Date(patient.selectionNotifiedAt!).toLocaleDateString()}.
+              </span>
+            </p>
+          ) : patient.overallStatus === 'green' && ['admin', 'pi', 'crc'].includes(session.role) ? (
+            <ConfirmEligibilityButton anonId={patient.id} />
+          ) : null}
           <StatusChip status={patient.overallStatus ?? 'yellow'} />
         </div>
       </div>
