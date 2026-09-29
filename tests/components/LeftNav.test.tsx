@@ -25,4 +25,13 @@ describe('LeftNav', () => {
     expect(screen.queryByRole('link', { name: /workbook/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /form templates/i })).not.toBeInTheDocument()
   })
+
+  it('hides Billing, Workbook, Reports and Broadcasts from a pi', () => {
+    render(<LeftNav role="pi" />)
+    expect(screen.getByRole('link', { name: /my patients/i })).toBeInTheDocument()
+    for (const hidden of [/workbook/i, /identity matching/i, /form templates/i, /reports/i, /documents/i, /broadcasts/i, /experience surveys/i, /pipeline dashboard/i]) {
+      expect(screen.queryByRole('link', { name: hidden })).not.toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', { name: /billing/i })).not.toBeInTheDocument()
+  })
 })

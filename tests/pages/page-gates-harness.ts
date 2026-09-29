@@ -168,4 +168,22 @@ export const PAGE_GATES: PageGateCase[] = [
     props: { params: Promise.resolve({ id: '1' }) },
     allowed: ['admin', 'crc'],
   },
+
+  // The seven nav entries below were already gated before this plan (Task
+  // 5 pins them so the derivation assertions cover the whole nav, not just
+  // this branch's diff).
+  // LeftNav.tsx:31 — { href: '/doctor', roles: ['pi'] }
+  { route: '/doctor', load: () => import('@/app/(dashboard)/doctor/page'), allowed: ['pi'] },
+  // LeftNav.tsx:39 — { href: '/front-desk/check-in', roles: ['frontdesk', 'admin', 'crc'] }
+  { route: '/front-desk/check-in', load: () => import('@/app/(dashboard)/front-desk/check-in/page'), allowed: ['frontdesk', 'admin', 'crc'] },
+  // LeftNav.tsx:40 — { href: '/front-desk/assignments', roles: ['frontdesk', 'admin', 'crc'] }
+  { route: '/front-desk/assignments', load: () => import('@/app/(dashboard)/front-desk/assignments/page'), allowed: ['frontdesk', 'admin', 'crc'] },
+  // LeftNav.tsx:41 — { href: '/inpatient/beds', roles: ['frontdesk', 'admin', 'crc', 'pi'] }
+  { route: '/inpatient/beds', load: () => import('@/app/(dashboard)/inpatient/beds/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi'] },
+  // LeftNav.tsx:43 — { href: '/labs', roles: ['frontdesk', 'admin', 'crc', 'pi'] }
+  { route: '/labs', load: () => import('@/app/(dashboard)/labs/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi'] },
+  // LeftNav.tsx:45 — { href: '/booking-requests', roles: ['frontdesk', 'admin', 'crc', 'pi'] }
+  { route: '/booking-requests', load: () => import('@/app/(dashboard)/booking-requests/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi'] },
+  // LeftNav.tsx:65 — { href: '/audit-log', roles: ['admin'] }
+  { route: '/audit-log', load: () => import('@/app/(dashboard)/audit-log/page'), allowed: ['admin'] },
 ]
