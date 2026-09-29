@@ -152,6 +152,22 @@ describe('unified patient record migration', () => {
     }
   })
 
+  it('name and dob are NOT NULL on patients; city/zip/phone/email stay nullable', async () => {
+    const db = getDb()
+    const result = await db.execute<{ column_name: string; is_nullable: string }>(sql`
+      SELECT column_name, is_nullable FROM information_schema.columns
+      WHERE table_name = 'patients' AND column_name IN ('name', 'dob', 'city', 'zip', 'phone', 'email')
+    `)
+    const nullability = new Map(result.rows.map((r) => [r.column_name, r.is_nullable]))
+
+    for (const column of ['name', 'dob']) {
+      expect(nullability.get(column), `expected ${column} to be NOT NULL`).toBe('NO')
+    }
+    for (const column of ['city', 'zip', 'phone', 'email']) {
+      expect(nullability.get(column), `expected ${column} to remain nullable`).toBe('YES')
+    }
+  })
+
   it('diagnoses table no longer has the source column', async () => {
     const db = getDb()
     const result = await db.execute<{ column_name: string }>(sql`
