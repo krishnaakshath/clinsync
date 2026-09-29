@@ -13,7 +13,18 @@ function unwrapRef(ref: string): string {
 
 async function nextAnonId(): Promise<string> {
   const existing = await getDb().select({ id: patients.id }).from(patients)
-  const nextNum = existing.length === 0 ? 1 : Math.max(...existing.map((p) => parseInt(p.id.replace('RD-', ''), 10))) + 1
+  // Only consider ids that actually match the RD-#### shape when computing
+  // the max. Math.max propagates NaN from a single bad operand to its
+  // entire result, so any non-conforming id (a dedicated TEST-*-<timestamp>
+  // fixture id left behind by a test that didn't clean itself up, for
+  // example) would otherwise permanently poison every future call -- once
+  // one bad row exists, every subsequent patient gets id "RD-0NaN", which
+  // then collides on the unique constraint forever after the first one.
+  const numbers = existing
+    .map((p) => /^RD-(\d+)$/.exec(p.id))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => parseInt(m[1], 10))
+  const nextNum = numbers.length === 0 ? 1 : Math.max(...numbers) + 1
   return `RD-${String(nextNum).padStart(4, '0')}`
 }
 
