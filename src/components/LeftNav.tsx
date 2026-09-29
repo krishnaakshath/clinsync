@@ -32,7 +32,7 @@ type Icon = React.ComponentType<{ className?: string }>
 // its server-side gate assertions from, so a `roles`-restricted entry
 // added here without a matching PAGE_GATES row fails that suite.
 export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
-  { href: '/', label: 'Home', icon: LayoutDashboard, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+  { href: '/', label: 'Home', icon: LayoutDashboard },
   { href: '/doctor', label: 'My Patients', icon: Stethoscope, roles: ['pi'] as Role[] },
   { href: '/patients', label: 'Patients', icon: Users, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: ['admin', 'crc'] as Role[] },
@@ -68,7 +68,7 @@ export const NAV_TRAILING_ITEMS: { href: string; label: string; icon: Icon; role
   { href: '/experience-surveys', label: 'Experience Surveys', icon: Star, roles: ['admin', 'crc'] as Role[] },
   { href: '/pipeline-dashboard', label: 'Pipeline Dashboard', icon: Activity, roles: ['admin', 'crc'] as Role[] },
   { href: '/audit-log', label: 'Audit Log', icon: History, roles: ['admin'] as Role[] },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/settings', label: 'Settings', icon: Settings, roles: ['admin', 'crc', 'pi', 'frontdesk', 'pharmacy'] as Role[] },
 ]
 
 function isActive(pathname: string | null, href: string): boolean {
@@ -107,7 +107,7 @@ export function LeftNav({ role }: { role: Role }) {
   const [billingOpen, setBillingOpen] = useState(billingActive)
 
   return (
-    <nav className="w-60 shrink-0 overflow-y-auto bg-sidebar p-3">
+    <nav className="w-60 shrink-0 overflow-y-auto bg-card border-r border-border p-3">
       <div className="mb-4 px-2.5 py-2">
         <ClinsyncLogo className="text-lg font-semibold tracking-tight text-sidebar-foreground" />
       </div>

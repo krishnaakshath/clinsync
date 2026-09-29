@@ -21,6 +21,7 @@ export default async function DashboardHomePage() {
   // Same reasoning as PI above: pharmacy has its own dedicated route
   // (Patient Lookup) rather than a conditional render here.
   if (session.role === 'pharmacy') redirect('/pharmacy/patient-lookup')
+  if (session.role === 'billing') redirect('/billing/charges')
   // Called and awaited directly (not `<FrontDeskDashboard session={session} />`) so this
   // page resolves to a plain, already-rendered element tree instead of an unresolved async
   // component nested inside another one's return value -- React's client renderer (used by
