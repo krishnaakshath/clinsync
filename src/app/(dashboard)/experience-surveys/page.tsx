@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Star, MessagesSquare, Send } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -12,6 +13,8 @@ const STATUS_LABEL: Record<string, string> = { sent: 'Sent', completed: 'Complet
 
 export default async function ExperienceSurveysPage({ searchParams }: { searchParams: Promise<{ status?: string; dateFrom?: string; dateTo?: string; sortBy?: string; sortDir?: string }> }) {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }
+  if (!['admin', 'crc'].includes(session.role)) redirect('/')
   const sp = await searchParams
   const filters = {
     status: sp.status === 'sent' || sp.status === 'completed' ? (sp.status as 'sent' | 'completed') : undefined,

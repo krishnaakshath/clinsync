@@ -36,6 +36,11 @@ import { GET as listIdentityMatches } from '@/app/api/identity-matches/route'
 import { POST as confirmIdentityMatch } from '@/app/api/identity-matches/[id]/confirm/route'
 import { POST as rejectIdentityMatch } from '@/app/api/identity-matches/[id]/reject/route'
 import { POST as postMockPayment } from '@/app/api/mock-payments/route'
+import { GET as listBroadcasts, POST as postBroadcast } from '@/app/api/broadcasts/route'
+import { GET as getBroadcast } from '@/app/api/broadcasts/[id]/route'
+import { GET as listBroadcastRecipients } from '@/app/api/broadcasts/recipients/route'
+import { GET as listReviews, POST as postReview } from '@/app/api/reviews/route'
+import { GET as getReview, PUT as putReview } from '@/app/api/reviews/[id]/route'
 
 describe('GET /api/workbook/full', () => {
   it('403s pi and frontdesk', async () => {
@@ -178,5 +183,177 @@ describe('POST /api/mock-payments', () => {
       )
       expect(res.status, `role ${role}`).not.toBe(403)
     }
+  })
+})
+
+// LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }
+describe('GET /api/broadcasts', () => {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
+      sessionRole = role
+      const res = await listBroadcasts()
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  it('returns 200 for admin', async () => {
+    sessionRole = 'admin'
+    const res = await listBroadcasts()
+    expect(res.status).toBe(200)
+  })
+})
+
+// LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }. Nothing
+// here sends a real broadcast: an invalid (empty) body proves admin gets past
+// the gate to the route's own Zod validation, which then 400s (route.ts:40) --
+// never reaching the simulated-delivery insert.
+describe('POST /api/broadcasts', () => {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
+      sessionRole = role
+      const res = await postBroadcast(
+        new NextRequest('http://localhost/api/broadcasts', { method: 'POST', body: JSON.stringify({}) })
+      )
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  it('does not 403 admin', async () => {
+    sessionRole = 'admin'
+    const res = await postBroadcast(
+      new NextRequest('http://localhost/api/broadcasts', { method: 'POST', body: JSON.stringify({}) })
+    )
+    expect(res.status).toBe(400)
+  })
+})
+
+// LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }
+describe('GET /api/broadcasts/[id]', () => {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
+      sessionRole = role
+      const res = await getBroadcast(
+        new NextRequest('http://localhost/api/broadcasts/999999'),
+        { params: Promise.resolve({ id: '999999' }) }
+      )
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  it('returns 200 for admin', async () => {
+    sessionRole = 'admin'
+    const res = await getBroadcast(
+      new NextRequest('http://localhost/api/broadcasts/999999'),
+      { params: Promise.resolve({ id: '999999' }) }
+    )
+    expect(res.status).toBe(200)
+  })
+})
+
+// LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }
+describe('GET /api/broadcasts/recipients', () => {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
+      sessionRole = role
+      const res = await listBroadcastRecipients(new NextRequest('http://localhost/api/broadcasts/recipients'))
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  it('returns 200 for admin', async () => {
+    sessionRole = 'admin'
+    const res = await listBroadcastRecipients(new NextRequest('http://localhost/api/broadcasts/recipients'))
+    expect(res.status).toBe(200)
+  })
+})
+
+// LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }
+describe('GET /api/reviews', () => {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
+      sessionRole = role
+      const res = await listReviews(new NextRequest('http://localhost/api/reviews'))
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  it('returns 200 for admin', async () => {
+    sessionRole = 'admin'
+    const res = await listReviews(new NextRequest('http://localhost/api/reviews'))
+    expect(res.status).toBe(200)
+  })
+})
+
+// LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }.
+// An invalid (empty) body proves admin gets past the gate to the route's own
+// Zod validation, which then 400s (route.ts:38) -- never recording a survey
+// send.
+describe('POST /api/reviews', () => {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
+      sessionRole = role
+      const res = await postReview(
+        new NextRequest('http://localhost/api/reviews', { method: 'POST', body: JSON.stringify({}) })
+      )
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  it('does not 403 admin', async () => {
+    sessionRole = 'admin'
+    const res = await postReview(
+      new NextRequest('http://localhost/api/reviews', { method: 'POST', body: JSON.stringify({}) })
+    )
+    expect(res.status).toBe(400)
+  })
+})
+
+// LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }
+describe('GET /api/reviews/[id]', () => {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
+      sessionRole = role
+      const res = await getReview(
+        new NextRequest('http://localhost/api/reviews/999999'),
+        { params: Promise.resolve({ id: '999999' }) }
+      )
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  it('returns 200 for admin', async () => {
+    sessionRole = 'admin'
+    const res = await getReview(
+      new NextRequest('http://localhost/api/reviews/999999'),
+      { params: Promise.resolve({ id: '999999' }) }
+    )
+    expect(res.status).toBe(200)
+  })
+})
+
+// LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }.
+// This is staff recording a survey response on behalf of a patient, not a
+// patient-facing endpoint (spec §7.2) -- nothing here records a real survey
+// response: an invalid (empty) body proves admin gets past the gate to the
+// route's own Zod validation, which then 400s (route.ts:35).
+describe('PUT /api/reviews/[id]', () => {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
+      sessionRole = role
+      const res = await putReview(
+        new NextRequest('http://localhost/api/reviews/999999', { method: 'PUT', body: JSON.stringify({}) }),
+        { params: Promise.resolve({ id: '999999' }) }
+      )
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  it('does not 403 admin', async () => {
+    sessionRole = 'admin'
+    const res = await putReview(
+      new NextRequest('http://localhost/api/reviews/999999', { method: 'PUT', body: JSON.stringify({}) }),
+      { params: Promise.resolve({ id: '999999' }) }
+    )
+    expect(res.status).toBe(400)
   })
 })

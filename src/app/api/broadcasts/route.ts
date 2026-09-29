@@ -28,13 +28,18 @@ const createBroadcastSchema = z
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  // LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }
+  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   await logAudit(session, 'viewed broadcasts list', null)
   return NextResponse.json(await listBroadcasts())
 }
 
+// Sends a (simulated) broadcast to a patient cohort — LeftNav.tsx:62 —
+// { href: '/broadcasts', roles: ['admin', 'crc'] }
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = createBroadcastSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid broadcast payload', details: parsed.error.flatten() }, { status: 400 })

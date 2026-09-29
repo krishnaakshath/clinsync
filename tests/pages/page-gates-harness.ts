@@ -140,4 +140,32 @@ export const PAGE_GATES: PageGateCase[] = [
     props: { params: Promise.resolve({ templateId: '1' }) },
     allowed: ['admin', 'crc'],
   },
+  // LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }
+  {
+    route: '/broadcasts',
+    load: () => import('@/app/(dashboard)/broadcasts/page'),
+    props: { searchParams: Promise.resolve({}) },
+    allowed: ['admin', 'crc'],
+  },
+  // LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }
+  {
+    route: '/broadcasts/[id]',
+    load: () => import('@/app/(dashboard)/broadcasts/[id]/page'),
+    props: { params: Promise.resolve({ id: '1' }) },
+    allowed: ['admin', 'crc'],
+  },
+  // LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }
+  {
+    route: '/experience-surveys',
+    load: () => import('@/app/(dashboard)/experience-surveys/page'),
+    props: { searchParams: Promise.resolve({}) },
+    allowed: ['admin', 'crc'],
+  },
+  // LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }
+  {
+    route: '/experience-surveys/[id]',
+    load: () => import('@/app/(dashboard)/experience-surveys/[id]/page'),
+    props: { params: Promise.resolve({ id: '1' }) },
+    allowed: ['admin', 'crc'],
+  },
 ]
