@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
-import { medicationDispenses, medicationInventory, medicationEpisodes, patients, medications } from '@/db/schema'
-import { and, desc, eq, gte, sql } from 'drizzle-orm'
+import { medicationDispenses, medicationInventory, medicationEpisodes, patients, medications, charges } from '@/db/schema'
+import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm'
+import { invalidateChargesList } from '@/lib/queries/charges'
 
 export interface DispenseInput {
   patientId: string
@@ -75,4 +76,77 @@ export async function listDispensesForPatient(patientId: string) {
   // dispensedAt timestamp (defaultNow() has millisecond resolution, so this
   // is possible for near-simultaneous dispenses), giving a stable order.
   return getDb().select().from(medicationDispenses).where(eq(medicationDispenses.patientId, patientId)).orderBy(desc(medicationDispenses.dispensedAt), desc(medicationDispenses.id))
+}
+
+export async function getDispenseById(id: number): Promise<typeof medicationDispenses.$inferSelect | null> {
+  const [row] = await getDb().select().from(medicationDispenses).where(eq(medicationDispenses.id, id))
+  return row ?? null
+}
+
+export interface DispenseChargeInput {
+  dispenseId: number
+  patientId: string
+  providerName: string
+  dateOfService: string
+  diagnosisCode: { code: string; description: string }
+  procedureCode: { code: string; description: string; units: number; chargeCents: number }
+  amountCents: number
+}
+
+export interface DispenseChargeResult {
+  ok: boolean
+  error?: string
+  chargeId?: number
+}
+
+// Same transactional posture as dispenseMedication above: the charge insert
+// and the dispense's chargeId link commit or roll back together, so a
+// dispense is never left pointing at a charge that rolled back and a charge
+// is never orphaned from its dispense.
+//
+// The link step is a conditional UPDATE (chargeId IS NULL in the WHERE, not
+// a separate read-then-write) so two concurrent bill calls for the same
+// dispense can't both succeed -- if this returns zero rows, the dispense was
+// billed by another request between the route's own check and here, and we
+// throw to roll back the whole transaction (including the just-inserted
+// charge) rather than leave an orphan charge row. The .unique() index on
+// medicationDispenses.chargeId is the real backstop; this conditional WHERE
+// is what turns a race into a clean rollback instead of a
+// constraint-violation 500.
+export async function createChargeForDispense(input: DispenseChargeInput): Promise<DispenseChargeResult> {
+  const db = getDb()
+
+  try {
+    const chargeId = await db.transaction(async (tx) => {
+      const [created] = await tx.insert(charges).values({
+        patientId: input.patientId,
+        providerName: input.providerName,
+        dateOfService: input.dateOfService,
+        diagnosisCodes: [input.diagnosisCode],
+        procedureCodes: [input.procedureCode],
+        amountCents: input.amountCents,
+        status: 'draft',
+      }).returning()
+
+      const linked = await tx.update(medicationDispenses)
+        .set({ chargeId: created.id })
+        .where(and(eq(medicationDispenses.id, input.dispenseId), isNull(medicationDispenses.chargeId)))
+        .returning({ id: medicationDispenses.id })
+      if (linked.length === 0) throw new Error('ALREADY_BILLED')
+
+      return created.id
+    })
+
+    // Deliberately outside the transaction: a cache invalidation for a
+    // rolled-back write would be wasted work, and the charges list is
+    // cached for 30s (charges.ts:26, cache.ts:78) so it would otherwise not
+    // show the new row.
+    await invalidateChargesList()
+    return { ok: true, chargeId }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'ALREADY_BILLED') {
+      return { ok: false, error: 'This dispense has already been billed' }
+    }
+    throw err
+  }
 }
