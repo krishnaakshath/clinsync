@@ -11,6 +11,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 
+  // Confirming a match merges two patient identity records -- same
+  // allowlist as LeftNav.tsx:34's Identity Matching nav entry.
+  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const { id } = await params
   // Confirming doesn't just flip the queue row's status -- it pulls both
   // systems' data for the matched pair and creates the actual patient chart,

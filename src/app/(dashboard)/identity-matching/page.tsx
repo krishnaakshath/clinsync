@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listPendingIdentityMatches } from '@/lib/queries/identity-matches'
@@ -6,6 +7,10 @@ export default async function IdentityMatchingPage() {
   // Must be the first statement — see the comment in patients/page.tsx for
   // why relying on the layout's redirect() alone isn't sufficient.
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:34 hides this section from every role but admin/crc; that is
+  // nav rendering, not enforcement. Same list, same redirect target as
+  // audit-log/page.tsx:20.
+  if (!['admin', 'crc'].includes(session.role)) redirect('/')
   const matches = await listPendingIdentityMatches()
   await logAudit(session, 'viewed identity matching queue', null)
 

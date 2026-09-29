@@ -15,6 +15,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 
+  // Rejecting a match splits two patient identity records apart -- same
+  // allowlist as LeftNav.tsx:34's Identity Matching nav entry.
+  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const { id } = await params
   const [updated] = await getDb().update(identityMatches).set({ status: 'rejected' }).where(eq(identityMatches.id, Number(id))).returning()
   if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
