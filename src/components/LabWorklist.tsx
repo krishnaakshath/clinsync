@@ -248,6 +248,8 @@ export function LabWorklist({ orders, labTests, role }: { orders: WorklistOrder[
           testName={resultFor.testName}
           defaultUnit={testDefaults(resultFor.testId)?.defaultUnit ?? null}
           defaultReferenceRange={testDefaults(resultFor.testId)?.referenceRange ?? null}
+          category={resultFor.category}
+          attachments={resultFor.attachments}
           onClose={() => setResultFor(null)}
         />
       )}

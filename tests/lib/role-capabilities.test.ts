@@ -16,4 +16,12 @@ describe('ROLE_CAPABILITIES', () => {
       expect(entry.bullets.length).toBeGreaterThan(0)
     }
   })
+
+  it('names imaging attachment on the admin and pi capability bullets', () => {
+    for (const role of ['admin', 'pi'] as const) {
+      expect(ROLE_CAPABILITIES[role].bullets.join(' ')).toContain('attach imaging results')
+    }
+    expect(ROLE_CAPABILITIES.frontdesk.bullets.join(' ')).not.toContain('attach imaging')
+    expect(ROLE_CAPABILITIES.crc.bullets.join(' ')).not.toContain('attach imaging')
+  })
 })
