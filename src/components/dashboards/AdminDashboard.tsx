@@ -12,7 +12,7 @@ export interface DashboardData {
   latestForms: { id: number; status: string; sentDate: Date | null; completedDate: Date | null; templateName: string; patientName: string }[]
   pendingForms: { id: number; status: string; sentDate: Date | null; completedDate: Date | null; templateName: string; patientName: string }[]
   pendingFormsTotal: number
-  pendingClassification: { id: string; nameTebra: string | null; nameIntakeq: string }[]
+  pendingClassification: { id: string; name: string }[]
   recentEvents: { id: number; action: string; userName: string; timestamp: Date }[]
   patientsByMonth: { month: string; count: number }[]
   screeningBreakdown: { green: number; yellow: number; red: number }
@@ -25,7 +25,7 @@ export interface DashboardPageProps {
   session: Session
   data: DashboardData
   templates: { id: number; name: string }[]
-  patients: { id: string; nameTebra: string | null; nameIntakeq: string }[]
+  patients: { id: string; name: string }[]
   appointmentsInRange: { id: number; patientId: string; patientName: string; providerName: string; visitReason: string; status: string; startsAt: string }[]
   staffByRole: { role: string; count: number }[]
   // Optional (not just AdminDashboard-only) because this interface is
@@ -220,7 +220,7 @@ export function AdminDashboard({ session, data, templates, patients, appointment
           {data.pendingClassification.length === 0 ? <EmptyRow text="Everything's been classified." /> : (
             <ul className="divide-y divide-border">
               {data.pendingClassification.map((p) => {
-                const name = p.nameTebra ?? p.nameIntakeq
+                const name = p.name
                 return (
                   <li key={p.id}>
                     <Link href={`/patients/${p.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:bg-secondary/40 -mx-2 px-2 rounded-lg">

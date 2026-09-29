@@ -31,7 +31,7 @@ export async function listPatientCollections() {
         const patient = allPatients.find((p) => p.id === patientId)
         return {
           patientId,
-          patientName: patient ? (patient.nameTebra ?? patient.nameIntakeq) : patientId,
+          patientName: patient ? patient.name : patientId,
           balanceCents: v.balanceCents,
           unappliedCents: v.unappliedCents,
         }

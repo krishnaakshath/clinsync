@@ -39,13 +39,10 @@ export async function GET() {
 
       return {
         id: p.id,
-        nameIntakeq: p.nameIntakeq,
-        nameTebra: p.nameTebra,
-        dobIntakeq: p.dobIntakeq,
-        dobTebra: p.dobTebra,
-        phoneIntakeq: p.phoneIntakeq,
-        phoneTebra: p.phoneTebra,
-        emailIntakeq: p.emailIntakeq,
+        name: p.name,
+        dob: p.dob,
+        phone: p.phone,
+        email: p.email,
         identityVerified: detail?.identityVerification?.verified ?? false,
         idType: detail?.identityVerification?.idType ?? null,
         currentProvider: p.currentProvider,

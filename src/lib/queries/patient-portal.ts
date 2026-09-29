@@ -55,8 +55,8 @@ export async function getPatientPortalData(patientId: string) {
 
   return {
     id: patient.id,
-    name: patient.nameTebra ?? patient.nameIntakeq,
-    dob: patient.dobTebra ?? patient.dobIntakeq,
+    name: patient.name,
+    dob: patient.dob,
     currentProvider: patient.currentProvider,
     portalConfigured: !!patient.portalPasswordHash,
     diagnoses: dx,
@@ -76,12 +76,12 @@ export async function getPatientPortalData(patientId: string) {
  * getPatientPortalData() fetches for whichever single page is active.
  */
 export async function getPatientPortalIdentity(patientId: string) {
-  const [patient] = await getDb().select({ id: patients.id, nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq, dobTebra: patients.dobTebra, dobIntakeq: patients.dobIntakeq }).from(patients).where(eq(patients.id, patientId))
+  const [patient] = await getDb().select({ id: patients.id, name: patients.name, dob: patients.dob }).from(patients).where(eq(patients.id, patientId))
   if (!patient) return null
   return {
     id: patient.id,
-    name: patient.nameTebra ?? patient.nameIntakeq,
-    dob: patient.dobTebra ?? patient.dobIntakeq,
+    name: patient.name,
+    dob: patient.dob,
   }
 }
 

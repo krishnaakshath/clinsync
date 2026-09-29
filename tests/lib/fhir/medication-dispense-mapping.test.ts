@@ -16,7 +16,7 @@ afterEach(async () => {
 describe('medicationDispenseToFhir', () => {
   it('maps a dispense row with its medication name', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-D1', intakeqClientIdRef: 'test-ref-d1', nameIntakeq: 'Dispense Patient', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-D1', name: 'Dispense Patient', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
@@ -46,7 +46,7 @@ describe('medicationDispenseToFhir', () => {
 
   it('medicationDispensesToFhir maps a list of rows', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-D2', intakeqClientIdRef: 'test-ref-d2', nameIntakeq: 'Dispense Patient 2', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-D2', name: 'Dispense Patient 2', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 

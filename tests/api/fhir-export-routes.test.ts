@@ -61,19 +61,19 @@ beforeAll(async () => {
   const db = getDb()
 
   const [patientA] = await db.insert(patients).values({
-    id: 'RD-FHIR-ROUTES-A', intakeqClientIdRef: 'test-ref-routes-a', nameIntakeq: 'Route Patient A', dobIntakeq: '1980-01-01',
+    id: 'RD-FHIR-ROUTES-A', name: 'Route Patient A', dob: '1980-01-01',
   }).returning()
   createdPatientIds.push(patientA.id)
   patientAId = patientA.id
 
   const [patientB] = await db.insert(patients).values({
-    id: 'RD-FHIR-ROUTES-B', intakeqClientIdRef: 'test-ref-routes-b', nameIntakeq: 'Route Patient B', dobIntakeq: '1981-01-01',
+    id: 'RD-FHIR-ROUTES-B', name: 'Route Patient B', dob: '1981-01-01',
   }).returning()
   createdPatientIds.push(patientB.id)
   patientBId = patientB.id
 
   const [patientEmpty] = await db.insert(patients).values({
-    id: 'RD-FHIR-ROUTES-EMPTY', intakeqClientIdRef: 'test-ref-routes-empty', nameIntakeq: 'Route Patient Empty', dobIntakeq: '1982-01-01',
+    id: 'RD-FHIR-ROUTES-EMPTY', name: 'Route Patient Empty', dob: '1982-01-01',
   }).returning()
   createdPatientIds.push(patientEmpty.id)
   patientEmptyId = patientEmpty.id
@@ -89,12 +89,12 @@ beforeAll(async () => {
   createdAllergyIds.push(allergyB.id)
 
   const [diagnosisA] = await db.insert(diagnoses).values({
-    patientId: patientA.id, code: 'J45.909', description: 'Asthma-RouteA', source: 'tebra', date: '2024-01-01',
+    patientId: patientA.id, code: 'J45.909', description: 'Asthma-RouteA', date: '2024-01-01',
   }).returning()
   createdDiagnosisIds.push(diagnosisA.id)
 
   const [diagnosisB] = await db.insert(diagnoses).values({
-    patientId: patientB.id, code: 'E11.9', description: 'Diabetes-RouteB', source: 'tebra', date: '2024-01-01',
+    patientId: patientB.id, code: 'E11.9', description: 'Diabetes-RouteB', date: '2024-01-01',
   }).returning()
   createdDiagnosisIds.push(diagnosisB.id)
 })

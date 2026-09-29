@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { getDb } from '@/db/client'
-import { trials, patients, identityMatches, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments, rooms, documents, faxes, broadcasts, reviews } from '@/db/schema'
+import { trials, patients, charges, insuranceClaims, patientStatements, mockPayments, providers, appointments, rooms, documents, faxes, broadcasts, reviews } from '@/db/schema'
 import { seed } from '@/db/seed'
 
 describe('seed', () => {
@@ -18,17 +18,6 @@ describe('seed', () => {
   it('creates at least 15 patients', async () => {
     const rows = await getDb().select().from(patients)
     expect(rows.length).toBeGreaterThanOrEqual(15)
-  })
-
-  it('creates at least 2 identity match records', async () => {
-    // Not asserting on status: seed() only inserts these two rows on a truly
-    // empty database (see the "already seeded" skip-and-top-up guard above)
-    // and confirming/rejecting a match is real, permanent app behavior now
-    // (see lib/ehr-sync.ts) -- against this shared, long-lived dev DB, one or
-    // both of the two demo rows may legitimately have moved out of 'pending'
-    // by the time this runs.
-    const rows = await getDb().select().from(identityMatches)
-    expect(rows.length).toBeGreaterThanOrEqual(2)
   })
 
   it('creates charges covering every status in the workflow', async () => {

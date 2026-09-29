@@ -53,8 +53,7 @@ export async function listAllRoomsWithOccupant(): Promise<RoomWithOccupant[]> {
       bedNumber: rooms.bedNumber,
       status: rooms.status,
       blockedReason: rooms.blockedReason,
-      occupantNameTebra: patients.nameTebra,
-      occupantNameIntakeq: patients.nameIntakeq,
+      occupantName: patients.name,
     })
     .from(rooms)
     .leftJoin(patients, eq(rooms.occupiedByPatientId, patients.id))
@@ -65,7 +64,7 @@ export async function listAllRoomsWithOccupant(): Promise<RoomWithOccupant[]> {
     bedNumber: r.bedNumber,
     status: r.status,
     blockedReason: r.blockedReason,
-    occupantName: r.occupantNameTebra ?? r.occupantNameIntakeq ?? null,
+    occupantName: r.occupantName ?? null,
   }))
 }
 

@@ -18,12 +18,12 @@ beforeAll(() => {
 const baseProps: DashboardPageProps = {
   session: { role: 'admin', name: 'Test Admin', userId: null },
   data: {
-    latestForms: [], pendingForms: [], pendingFormsTotal: 3, pendingClassification: [{ id: 'RD-0001', nameTebra: 'Jane Doe', nameIntakeq: 'Jane Doe' }],
+    latestForms: [], pendingForms: [], pendingFormsTotal: 3, pendingClassification: [{ id: 'RD-0001', name: 'Jane Doe' }],
     recentEvents: [], patientsByMonth: [{ month: 'Jan', count: 2 }], screeningBreakdown: { green: 1, yellow: 2, red: 0 },
     peakHourRange: '10:00 AM – 12:00 PM', avgExperienceRating: 4.5, completedReviewCount: 2,
   },
   templates: [{ id: 1, name: 'Intake Form' }],
-  patients: [{ id: 'RD-0001', nameTebra: 'Jane Doe', nameIntakeq: 'Jane Doe' }],
+  patients: [{ id: 'RD-0001', name: 'Jane Doe' }],
   appointmentsInRange: [],
   staffByRole: [{ role: 'admin', count: 1 }, { role: 'pi', count: 2 }, { role: 'crc', count: 3 }],
   canStartTelemedicine: true,

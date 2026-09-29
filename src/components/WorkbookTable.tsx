@@ -10,13 +10,16 @@ import { DeletePatientDialog, type DeleteTarget } from '@/components/DeletePatie
 // data surfaces already use.
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 
-// Columns match the source 30-heading workbook in order (see
-// src/lib/queries/workbook.ts). This is an internal, staff-only operational
-// grid meant to replicate a document coordinators already use day to day.
-// The underlying field keys (tebraChartUrl, intakeqEmail, etc.) still name
-// the real external systems Clinsync integrates with -- accurate internal
-// naming, never rendered -- but every column LABEL below is genericized:
-// Clinsync's own UI never names a competing product.
+// Columns match the source workbook in order (see src/lib/queries/workbook.ts;
+// originally 30 headings, now 29 -- 'Link Tebra'/tebraChartUrl was dropped
+// entirely since Task 1 of the unified-patient-record plan removed that
+// column with no single-sourced replacement). This is an internal,
+// staff-only operational grid meant to replicate a document coordinators
+// already use day to day. The underlying field keys (intakeqEmail,
+// patientEmail, etc.) still name the real external systems Clinsync
+// integrates with -- accurate internal naming, never rendered -- but every
+// column LABEL below is genericized: Clinsync's own UI never names a
+// competing product.
 const COLUMNS: { key: keyof WorkbookRow | 'name'; label: string }[] = [
   { key: 'id', label: 'Anonymous Number' },
   { key: 'dateAdded', label: 'Date Added to Tab' },
@@ -42,7 +45,6 @@ const COLUMNS: { key: keyof WorkbookRow | 'name'; label: string }[] = [
   { key: 'inactiveMeds', label: 'Inactive Meds' },
   { key: 'oldNotes', label: 'Old Notes' },
   { key: 'oldRecs', label: 'Old Recs' },
-  { key: 'tebraChartUrl', label: 'Link to EHR Chart' },
   { key: 'intakeqEmail', label: 'Intake Email' },
   { key: 'patientEmail', label: 'Patient Email' },
   { key: 'outsideMedsConfirmation', label: 'Meds List from Pharmacy (Outside Confirmation)' },

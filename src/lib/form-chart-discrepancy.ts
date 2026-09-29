@@ -14,10 +14,10 @@ export interface DiscrepancyResult {
 
 /**
  * Dual verification: what the patient says on their own intake form vs.
- * what their actual chart shows. The existing Dual-Sourced Fields table on
- * Patient Detail already compares Tebra vs. IntakeQ for demographics
- * (name/DOB/email) -- this checks self-report vs. chart for clinical
- * content instead, which nothing else in the app does. A "Yes" (select
+ * what their actual chart shows. This is unrelated to the (now-removed)
+ * Tebra-vs-IntakeQ demographic comparison the medical record page used to
+ * show -- this checks self-report vs. chart for clinical content instead,
+ * which nothing else in the app does. A "Yes" (select
  * questions) or any non-empty free-text answer (text questions) counts as
  * the patient claiming they're on that medication class; an empty/"No"
  * answer counts as claiming they're not.

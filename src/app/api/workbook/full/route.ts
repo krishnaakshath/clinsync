@@ -10,7 +10,7 @@ export async function GET() {
 
   const rows = await listWorkbookRows()
   const buffer = await buildFullWorkbookXlsx(rows)
-  await logAudit(session, 'exported full 30-column pre-screening workbook', null)
+  await logAudit(session, 'exported full 29-column pre-screening workbook', null)
 
   // See buildWorkbookXlsx's comment in src/lib/excel-export.ts for why this
   // is wrapped in a plain Uint8Array rather than passed as a Node Buffer.

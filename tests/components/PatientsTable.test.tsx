@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { PatientsTable, type PatientRow } from '@/components/PatientsTable'
 
 const ROWS: PatientRow[] = [
-  { id: 'RD-0001', overallStatus: 'green', nameTebra: 'Maria Alvarez', nameIntakeq: 'Maria Alvarez', dobTebra: '1985-03-12', dobIntakeq: '1985-03-12', currentProvider: 'Dr. R. Kunam', referralType: 'Provider referral', lastCommunication: null },
-  { id: 'RD-0002', overallStatus: 'red', nameTebra: 'James Thornton', nameIntakeq: 'James Thornton', dobTebra: '1990-11-02', dobIntakeq: '1990-11-02', currentProvider: 'Dr. R. Kunam', referralType: 'Provider referral', lastCommunication: null },
+  { id: 'RD-0001', overallStatus: 'green', name: 'Maria Alvarez', dob: '1985-03-12', currentProvider: 'Dr. R. Kunam', referralType: 'Provider referral', lastCommunication: null },
+  { id: 'RD-0002', overallStatus: 'red', name: 'James Thornton', dob: '1990-11-02', currentProvider: 'Dr. R. Kunam', referralType: 'Provider referral', lastCommunication: null },
 ]
 
 describe('PatientsTable', () => {

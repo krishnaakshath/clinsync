@@ -6,10 +6,8 @@ vi.mock('@/lib/queries/rooms', () => ({ listAvailableRooms: vi.fn(async () => []
 
 const basePatient = {
   id: 'RD-0001',
-  nameTebra: 'Test Patient',
-  nameIntakeq: 'Test Patient',
-  dobTebra: '1990-01-01',
-  dobIntakeq: '1990-01-01',
+  name: 'Test Patient',
+  dob: '1990-01-01',
   diagnoses: [],
   medications: [],
   allergies: [],

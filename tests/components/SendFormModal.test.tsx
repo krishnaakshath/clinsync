@@ -10,7 +10,7 @@ describe('SendFormModal', () => {
     render(
       <SendFormModal
         templates={[{ id: 1, name: 'Intake Form' }]}
-        patients={[{ id: 'RD-0001', nameTebra: null, nameIntakeq: 'Test Patient' }]}
+        patients={[{ id: 'RD-0001', name: 'Test Patient' }]}
         onClose={onClose}
       />
     )

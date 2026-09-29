@@ -61,18 +61,6 @@ function InsuranceField({ label, value }: { label: string; value: string | null 
   )
 }
 
-function ComparisonRow({ label, intakeq, tebra, merged }: { label: string; intakeq: string | null; tebra: string | null; merged: string | null }) {
-  const mismatch = intakeq && tebra && intakeq !== tebra
-  return (
-    <div className="grid grid-cols-4 gap-2 border-b border-border py-3 text-sm last:border-b-0">
-      <span className="font-medium text-muted-foreground">{label}</span>
-      <span className="text-foreground">{intakeq ?? '—'}</span>
-      <span className="text-foreground">{tebra ?? '—'}</span>
-      <span className={mismatch ? 'rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800' : 'text-foreground'}>{merged ?? '—'}</span>
-    </div>
-  )
-}
-
 /**
  * Dedicated, standalone page for a single patient's medical record --
  * carved out of the Patient Detail page's Overview tab so "open the chart"
@@ -100,7 +88,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const carePlans = await listCarePlansForPatient(anonId)
   await logAudit(session, 'viewed patient medical record', anonId)
 
-  const name = patient.nameTebra ?? patient.nameIntakeq
+  const name = patient.name
   const canWriteInsurance = ['admin', 'crc', 'frontdesk'].includes(session.role)
   // Matches POST /api/patients/[anonId]/lab-orders's own role gate (spec §8: ordering is a clinical action).
   const canOrderLabs = ['admin', 'pi'].includes(session.role)
@@ -125,7 +113,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
           <PatientAvatar name={name} size="lg" />
           <div>
             <h1 className="text-xl font-bold text-foreground">{name}</h1>
-            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dobTebra ?? patient.dobIntakeq}</p>
+            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dob}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Chart data as of {new Date(patient.chartDataAsOf).toLocaleString()}</p>
           </div>
         </div>
@@ -141,25 +129,14 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
       </div>
 
       <section className={SECTION}>
-        <h2 className={SECTION_HEADING}>Dual-Sourced Fields</h2>
-        <div className="grid grid-cols-4 gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Field</span><span>Intake Form</span><span>Clinical Record</span><span>Merged (used)</span>
-        </div>
-        <ComparisonRow label="Name" intakeq={patient.nameIntakeq} tebra={patient.nameTebra} merged={patient.nameTebra ?? patient.nameIntakeq} />
-        <ComparisonRow label="DOB" intakeq={patient.dobIntakeq} tebra={patient.dobTebra} merged={patient.dobTebra ?? patient.dobIntakeq} />
-        <ComparisonRow label="Email" intakeq={patient.emailIntakeq} tebra={patient.emailTebra} merged={patient.emailTebra ?? patient.emailIntakeq} />
-      </section>
-
-      <section className={SECTION}>
         <h2 className={SECTION_HEADING}>Diagnoses</h2>
         {patient.diagnoses.length === 0 ? (
           <p className="text-sm text-muted-foreground">No diagnoses recorded.</p>
         ) : (
           <ul className="space-y-1.5 text-sm text-foreground">
             {patient.diagnoses.map((d) => (
-              <li key={`dx-${d.id}`} className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
-                <span><span className="font-mono text-xs text-muted-foreground">{d.code}</span> — {d.description}</span>
-                <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{d.source}</span>
+              <li key={`dx-${d.id}`} className="border-b border-border py-1.5 last:border-b-0">
+                <span className="font-mono text-xs text-muted-foreground">{d.code}</span> — {d.description}
               </li>
             ))}
           </ul>

@@ -129,10 +129,8 @@ export default async function DoctorPortalPage() {
       <PatientsTable patients={myPatients.map((p) => ({
         id: p.id,
         overallStatus: p.overallStatus,
-        nameTebra: p.nameTebra,
-        nameIntakeq: p.nameIntakeq,
-        dobTebra: p.dobTebra,
-        dobIntakeq: p.dobIntakeq,
+        name: p.name,
+        dob: p.dob,
         currentProvider: p.currentProvider,
         referralType: p.referralType,
         lastCommunication: p.lastCommunication,

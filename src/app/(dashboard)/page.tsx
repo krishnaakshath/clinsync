@@ -53,7 +53,7 @@ export default async function DashboardHomePage() {
     session,
     data,
     templates: templates.map((t) => ({ id: t.id, name: t.name })),
-    patients: patients.map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq })),
+    patients: patients.map((p) => ({ id: p.id, name: p.name })),
     appointmentsInRange: appointmentsInRange.map((a) => ({
       id: a.id, patientId: a.patientId, patientName: a.patientName, providerName: a.providerName,
       visitReason: a.visitReason, status: a.status, startsAt: a.startsAt.toString(),

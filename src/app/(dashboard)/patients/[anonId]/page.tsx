@@ -46,7 +46,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
   const [admissionHistory, availableRooms] = await Promise.all([listAdmissionsForPatient(anonId), listAvailableRooms()])
 
-  const name = patient.nameTebra ?? patient.nameIntakeq
+  const name = patient.name
 
   const overviewTab = (
     <section className={SECTION}>
@@ -164,7 +164,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
           <PatientAvatar name={name} size="lg" />
           <div>
             <h1 className="text-xl font-bold text-foreground">{name}</h1>
-            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dobTebra ?? patient.dobIntakeq}</p>
+            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dob}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">

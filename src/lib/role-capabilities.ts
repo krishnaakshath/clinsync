@@ -2,17 +2,16 @@ import type { Role } from '@/lib/auth'
 
 /**
  * Sourced only from role-gated behavior that actually exists in the code
- * today (auto-classify toggle, practice info, EHR connections, and provider
- * name edits are all admin-only — see settings/page.tsx and its API
- * routes). Not aspirational, doesn't describe a permission the app doesn't
- * enforce.
+ * today (auto-classify toggle, practice info, and provider name edits are
+ * all admin-only — see settings/page.tsx and its API routes). Not
+ * aspirational, doesn't describe a permission the app doesn't enforce.
  */
 export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; bullets: string[] }> = {
   crc: {
     label: 'Clinical Research Coordinator',
-    summary: 'Runs day-to-day pre-screening and practice operations: reviews patients, resolves identity matches, manages intake forms, and handles billing.',
+    summary: 'Runs day-to-day pre-screening and practice operations: reviews patients, manages intake forms, and handles billing.',
     bullets: [
-      'View and search the Patients workbook across all trials, Workbook, and Identity Matching',
+      'View and search the Patients workbook across all trials',
       'Send and track intake forms via Form Templates and Client Forms',
       'Manage Calendar, Billing, Broadcasts, Experience Surveys, and the Pipeline Dashboard',
       'View Reports and Documents, and receive, file, and re-file incoming documents to a patient',
@@ -44,7 +43,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
     summary: 'Full operational access plus practice-level configuration that affects every user.',
     bullets: [
       'Everything a Research Coordinator can do',
-      'Edit Practice Information and EHR Connection settings',
+      'Edit Practice Information',
       'Toggle auto-classification on form completion',
       'Rename entries in the Provider Profiles roster',
       'Issue and revoke Patient Portal access credentials',

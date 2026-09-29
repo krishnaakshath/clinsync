@@ -3,10 +3,7 @@ import type { WorkbookRow } from '@/lib/queries/workbook'
 
 const COLUMNS = [
   'Anonymous Number',
-  'Name (IntakeQ)', 'Name (Tebra)', 'Name Match',
-  'DOB (IntakeQ)', 'DOB (Tebra)', 'DOB Match',
-  'Phone (IntakeQ)', 'Phone (Tebra)',
-  'Email (IntakeQ)',
+  'Name', 'DOB', 'Phone', 'Email',
   'Identity Verified', 'ID Type',
   'Current Provider', 'Referral Type',
   'Diagnoses', 'Current Medications', 'Allergies',
@@ -16,13 +13,10 @@ const COLUMNS = [
 
 export interface ExportablePatient {
   id: string
-  nameIntakeq: string
-  nameTebra: string | null
-  dobIntakeq: string
-  dobTebra: string | null
-  phoneIntakeq: string | null
-  phoneTebra: string | null
-  emailIntakeq: string | null
+  name: string
+  dob: string
+  phone: string | null
+  email: string | null
   identityVerified: boolean
   idType: string | null
   currentProvider: string | null
@@ -54,8 +48,6 @@ export async function buildWorkbookXlsx(patients: ExportablePatient[]): Promise<
   sheet.addRow(COLUMNS)
 
   for (const p of patients) {
-    const nameMatch = p.nameTebra == null ? 'No Tebra Record' : (p.nameTebra !== p.nameIntakeq ? 'MISMATCH' : 'Match')
-    const dobMatch = p.dobTebra == null ? 'No Tebra Record' : (p.dobTebra !== p.dobIntakeq ? 'MISMATCH' : 'Match')
     const diagnosesStr = p.diagnoses.map((d) => `${d.code}: ${d.description}`).join('; ')
     const medsStr = p.medications.map((m) => `${m.name}${m.dose ? ` ${m.dose}` : ''} (since ${m.startDate})`).join('; ')
     const allergiesStr = p.allergies.map((a) => `${a.allergen} (${a.severity})`).join('; ')
@@ -63,10 +55,7 @@ export async function buildWorkbookXlsx(patients: ExportablePatient[]): Promise<
 
     sheet.addRow([
       p.id,
-      sanitizeCell(p.nameIntakeq), sanitizeCell(p.nameTebra), nameMatch,
-      sanitizeCell(p.dobIntakeq), sanitizeCell(p.dobTebra), dobMatch,
-      sanitizeCell(p.phoneIntakeq), sanitizeCell(p.phoneTebra),
-      sanitizeCell(p.emailIntakeq),
+      sanitizeCell(p.name), sanitizeCell(p.dob), sanitizeCell(p.phone), sanitizeCell(p.email),
       p.identityVerified ? 'Yes' : 'No', sanitizeCell(p.idType),
       sanitizeCell(p.currentProvider), sanitizeCell(p.referralType),
       sanitizeCell(diagnosesStr), sanitizeCell(medsStr), sanitizeCell(allergiesStr),
@@ -89,12 +78,17 @@ export async function buildWorkbookXlsx(patients: ExportablePatient[]): Promise<
 // their original order -- this list, and the row-building order below, must
 // stay in lockstep with WorkbookRow's field order (src/lib/queries/workbook.ts)
 // so the in-app grid and this download always show the same columns the same way.
+// Originally 30 headings; 'Link Tebra' was dropped (down to 29) once the
+// unified-patient-record migration removed patients.tebraChartUrl outright
+// (not unified into a single-sourced column like name/dob/phone/etc. -- see
+// Task 1 of that plan, which killed it as a cross-system reference with no
+// replacement) -- there is no longer any data to put in that column.
 const FULL_WORKBOOK_COLUMNS = [
   'Anonymous Number', 'Date Added to Tab', 'Patient Name', 'Current Provider', 'Rating Scales',
   'DOB', 'Age', 'City', 'Zip', 'Phone',
   'Dx Codes', 'Last Communication', 'Referral Type', 'Availability', 'Past & Future Appt Date',
   'Comm Consent Signed/Pref/IntakeQ', 'Form Notes', 'Reviewer Notes', 'Clinician Reviewer Notes', "Dr. Kunam's Recommendation",
-  'Active Meds', 'Inactive Meds', 'Old Notes', 'Old Recs', 'Link Tebra',
+  'Active Meds', 'Inactive Meds', 'Old Notes', 'Old Recs',
   'IntakeQ Email', 'Patient Email', 'Meds List from Pharmacy (Outside Confirmation)', 'Template Word Doc in SharePoint', 'Research Depression Prescreening Sent Date',
 ]
 
@@ -109,7 +103,7 @@ export async function buildFullWorkbookXlsx(rows: WorkbookRow[]): Promise<Buffer
       r.dob, r.age, sanitizeCell(r.city), sanitizeCell(r.zip), sanitizeCell(r.phone),
       sanitizeCell(r.dxCodes), sanitizeCell(r.lastCommunication), sanitizeCell(r.referralType), sanitizeCell(r.availability), sanitizeCell(r.apptDates),
       sanitizeCell(r.commConsent), sanitizeCell(r.formNotes), sanitizeCell(r.reviewerNotes), sanitizeCell(r.clinicianReviewerNotes), sanitizeCell(r.piRecommendation),
-      sanitizeCell(r.activeMeds), sanitizeCell(r.inactiveMeds), sanitizeCell(r.oldNotes), sanitizeCell(r.oldRecs), sanitizeCell(r.tebraChartUrl),
+      sanitizeCell(r.activeMeds), sanitizeCell(r.inactiveMeds), sanitizeCell(r.oldNotes), sanitizeCell(r.oldRecs),
       sanitizeCell(r.intakeqEmail), sanitizeCell(r.patientEmail), sanitizeCell(r.outsideMedsConfirmation), sanitizeCell(r.templateDocUrl), sanitizeCell(r.prescreeningSentDate),
     ])
   }

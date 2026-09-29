@@ -38,16 +38,14 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
 
       {/* Project down to only what PatientsTable renders before crossing
           the Server->Client Component boundary -- the full row includes
-          clinician notes, both encrypted-ID columns, and every contact
-          field from both source systems, none of which this table shows,
-          but all of which would otherwise ship into the client bundle. */}
+          clinician notes and every other contact field, none of which this
+          table shows, but all of which would otherwise ship into the
+          client bundle. */}
       <PatientsTable patients={patients.map((p) => ({
         id: p.id,
         overallStatus: p.overallStatus,
-        nameTebra: p.nameTebra,
-        nameIntakeq: p.nameIntakeq,
-        dobTebra: p.dobTebra,
-        dobIntakeq: p.dobIntakeq,
+        name: p.name,
+        dob: p.dob,
         currentProvider: p.currentProvider,
         referralType: p.referralType,
         lastCommunication: p.lastCommunication,

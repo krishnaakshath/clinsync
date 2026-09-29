@@ -83,7 +83,7 @@ describe('GET /api/queue-display', () => {
   it('never includes a real patient name in the response body (Review Focus #2)', async () => {
     await setPin(TEST_PIN)
     const [patientRow] = await getDb().select().from(patients).limit(1)
-    const realName = patientRow.nameIntakeq ?? patientRow.nameTebra
+    const realName = patientRow.name
     const providerRows = await listActiveProviders()
     const created = await getDb().insert(doctorAssignments).values({ patientId: patientRow.id, providerId: providerRows[0].id, visitType: 'outpatient', urgency: 'routine', reason: 'Should never appear', assignedByName: 'Test Staff', queueTicketNumber: 1 }).returning()
     createdAssignmentIds.push(created[0].id)

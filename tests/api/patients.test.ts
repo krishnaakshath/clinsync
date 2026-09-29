@@ -4,13 +4,11 @@ import { eq } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
 import { patients } from '@/db/schema'
-import * as tebra from '@/connectors/tebra.mock'
 import { invalidateCache, patientListCacheKey, patientDetailCacheKey } from '@/lib/cache'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 import { GET as listPatients, POST as createPatient } from '@/app/api/patients/route'
 import { GET as getPatient, DELETE as deletePatientRoute } from '@/app/api/patients/[anonId]/route'
-import { POST as refreshPatient } from '@/app/api/patients/[anonId]/refresh/route'
 
 // The global setup mock (vitest.setup.ts) stubs `next/headers` so `getSession()`
 // resolves to "no session" — that's correct for testing the 401 paths below, but
@@ -81,7 +79,7 @@ describe('patient list/detail never expose the encrypted TOTP secret', () => {
 
   beforeAll(async () => {
     await getDb().insert(patients).values({
-      id: LEAK_TEST_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'MFA Leak Test Patient', dobIntakeq: '1990-01-01',
+      id: LEAK_TEST_ID, name: 'MFA Leak Test Patient', dob: '1990-01-01',
       mfaSecretEncrypted: 'enc-secret-that-must-not-leak', mfaEnabled: true,
     })
     await invalidateCache(patientListCacheKey(null))
@@ -152,7 +150,7 @@ describe('POST /api/patients', () => {
     expect(response.status).toBe(403)
   })
 
-  it('creates the chart in Tebra first, then mirrors it into a new patient row', async () => {
+  it('inserts the submitted demographics directly into a new patient row', async () => {
     const response = await createPatient(req({
       name: 'Test Patient',
       dob: '1990-01-01',
@@ -166,37 +164,15 @@ describe('POST /api/patients', () => {
     const body = await response.json()
     createdIds.push(body.id)
     expect(body.id).toMatch(/^RD-\d{4}$/)
-    // Tebra is the system of record here -- the chart is filed under
-    // nameTebra/dobTebra, with nameIntakeq/dobIntakeq mirrored only to
-    // satisfy the schema's NOT NULL pair, not fabricated intake answers.
-    expect(body.nameTebra).toBe('Test Patient')
-    expect(body.nameIntakeq).toBe('Test Patient')
-    expect(body.cityTebra).toBe('Riverside')
+    // Single-sourced fields, set directly from the request body -- no
+    // Tebra/IntakeQ mirroring or mock side effect.
+    expect(body.name).toBe('Test Patient')
+    expect(body.dob).toBe('1990-01-01')
+    expect(body.email).toBe('test.patient@example.com')
+    expect(body.phone).toBe('555-0100')
+    expect(body.city).toBe('Riverside')
+    expect(body.zip).toBe('92501')
     expect(body.currentProvider).toBe('Dr. Kunam')
-    expect(body.tebraPatientIdRef).toMatch(/^ENC\[tebra-/)
-    expect(body.intakeqClientIdRef).toMatch(/^ENC\[no-intake-/)
-
-    const tebraPatients = await tebra.listPatients()
-    expect(tebraPatients.some((p) => `${p.firstName} ${p.lastName}` === 'Test Patient' && p.birthDate === '1990-01-01')).toBe(true)
-  })
-})
-
-describe('POST /api/patients/[anonId]/refresh', () => {
-  it('returns 401 when there is no authenticated session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
-    const response = await refreshPatient(new NextRequest('http://localhost/api/patients/RD-0001/refresh', { method: 'POST' }), { params: Promise.resolve({ anonId: 'RD-0001' }) })
-    expect(response.status).toBe(401)
-  })
-
-  it('re-evaluates and returns the overall status for a known patient', async () => {
-    const response = await refreshPatient(new NextRequest('http://localhost/api/patients/RD-0001/refresh', { method: 'POST' }), { params: Promise.resolve({ anonId: 'RD-0001' }) })
-    const body = await response.json()
-    expect(['green', 'yellow', 'red']).toContain(body.overallStatus)
-  })
-
-  it('returns 404 for an unknown anonymous id', async () => {
-    const response = await refreshPatient(new NextRequest('http://localhost/api/patients/RD-9999/refresh', { method: 'POST' }), { params: Promise.resolve({ anonId: 'RD-9999' }) })
-    expect(response.status).toBe(404)
   })
 })
 

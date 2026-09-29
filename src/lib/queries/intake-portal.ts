@@ -13,10 +13,10 @@ export interface IntakePortalData {
 }
 
 const AUTOFILL_SOURCE = {
-  name: (p: typeof patients.$inferSelect) => p.nameIntakeq,
-  dob: (p: typeof patients.$inferSelect) => p.dobIntakeq,
-  email: (p: typeof patients.$inferSelect) => p.emailIntakeq ?? '',
-  phone: (p: typeof patients.$inferSelect) => p.phoneIntakeq ?? '',
+  name: (p: typeof patients.$inferSelect) => p.name,
+  dob: (p: typeof patients.$inferSelect) => p.dob,
+  email: (p: typeof patients.$inferSelect) => p.email ?? '',
+  phone: (p: typeof patients.$inferSelect) => p.phone ?? '',
 } as const
 
 // The one place "is this token still usable" is decided -- both
