@@ -7,6 +7,7 @@ import { NoteForm, NoteCard } from '@/components/NoteForm'
 import { InsuranceCardUpload } from '@/components/InsuranceCardUpload'
 import { LabResultsSection } from '@/components/LabResultsSection'
 import { CarePlanSection } from '@/components/CarePlanSection'
+import { MedicationHistorySection } from '@/components/MedicationHistorySection'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
@@ -14,10 +15,12 @@ import { listNotesForPatient } from '@/lib/queries/encounter-notes'
 import { getPayerName } from '@/lib/queries/payers'
 import { listDispensesForPatient } from '@/lib/queries/medication-dispenses'
 import { listMedicationsWithInventory } from '@/lib/queries/medications'
+import { listAllProviders } from '@/lib/queries/providers'
 import { listOrdersForPatient } from '@/lib/queries/lab-orders'
 import { listLabTests } from '@/lib/queries/lab-tests'
 import { listFormSubmissions } from '@/lib/queries/form-submissions'
 import { listCarePlansForPatient } from '@/lib/queries/care-plans'
+import { resolveSessionProvider } from '@/lib/provider-identity'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -90,6 +93,8 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const dispenses = await listDispensesForPatient(anonId)
   const medicationCatalog = await listMedicationsWithInventory()
   const medicationById = new Map(medicationCatalog.map((m) => [m.id, m]))
+  const allProviders = await listAllProviders()
+  const sessionProvider = await resolveSessionProvider(session)
   const [labOrders, labTests] = await Promise.all([listOrdersForPatient(anonId), listLabTests()])
   const screeningSubmissions = (await listFormSubmissions({ patientId: anonId, status: 'completed' })).filter((s) => s.bandLabel !== null)
   const carePlans = await listCarePlansForPatient(anonId)
@@ -99,6 +104,17 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const canWriteInsurance = ['admin', 'crc', 'frontdesk'].includes(session.role)
   // Matches POST /api/patients/[anonId]/lab-orders's own role gate (spec §8: ordering is a clinical action).
   const canOrderLabs = ['admin', 'pi'].includes(session.role)
+  // Matches POST /api/patients/[anonId]/prescriptions's own role gate (spec §10: prescribing is the clinical tier).
+  const canPrescribe = ['admin', 'pi'].includes(session.role)
+  // admin needs the explicit on-behalf-of picker only when its own session
+  // has no provider row behind it (spec §5).
+  const needsOnBehalfOf = session.role === 'admin' && sessionProvider === null
+  // Built from the FULL roster (listAllProviders), not just active ones, so
+  // a prescription written by a since-deactivated provider still shows its
+  // prescriber.
+  const prescriberById = Object.fromEntries(allProviders.map((p) => [p.id, { name: p.name, credentials: p.credentials, specialty: p.specialty }]))
+  const specialties = [...new Set(allProviders.filter((p) => p.isActive).map((p) => p.specialty))].sort()
+  const activeProviders = allProviders.filter((p) => p.isActive).map((p) => ({ id: p.id, name: p.name, specialty: p.specialty }))
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -151,38 +167,16 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
       </section>
 
       <section className={SECTION}>
-        <h2 className={SECTION_HEADING}>Medication History</h2>
-        {patient.medications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No medications recorded.</p>
-        ) : (
-          <div className="space-y-4">
-            {(['active', 'inactive'] as const).map((status) => {
-              const meds = patient.medications.filter((m) => m.status === status)
-              if (meds.length === 0) return null
-              return (
-                <div key={status}>
-                  <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${status === 'active' ? 'text-emerald-700' : 'text-muted-foreground'}`}>
-                    {status === 'active' ? 'Currently Taking' : 'Past Medications'}
-                  </p>
-                  <ul className="space-y-1.5">
-                    {meds.map((m) => (
-                      <li key={`med-${m.id}`} className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm">
-                        <Pill className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground">{m.name} <span className="font-normal text-muted-foreground">({m.medicationClass})</span></p>
-                          <p className="text-xs text-muted-foreground">
-                            {m.dose ?? 'Dose not recorded'} · started {formatDate(m.startDate)}
-                            {m.status === 'inactive' && m.stopDate ? ` · stopped ${formatDate(m.stopDate)}` : ''}
-                          </p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <MedicationHistorySection
+          patientId={anonId}
+          episodes={patient.medications}
+          prescriberById={prescriberById}
+          catalog={medicationCatalog}
+          specialties={specialties}
+          activeProviders={activeProviders}
+          needsOnBehalfOf={needsOnBehalfOf}
+          canPrescribe={canPrescribe}
+        />
       </section>
 
       <section className={SECTION}>
