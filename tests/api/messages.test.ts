@@ -81,7 +81,7 @@ describe('GET /api/messages/[patientId]', () => {
     const otherMessage = await sendMessage(OTHER_PATIENT_ID, 'patient', 'Test Patient B', 'Should never appear in patient A\'s thread')
     createdIds.push(otherMessage.id)
 
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz', userId: null })
     const res = await GET(req() as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     const body = await res.json()
     const bodyText = JSON.stringify(body)

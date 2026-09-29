@@ -111,7 +111,7 @@ describe('auth session cookie', () => {
   })
 
   it('parses a validly-signed token carrying the pharmacy role', async () => {
-    const value = await buildSessionCookieValue('pharmacy', 'Robin Shah')
-    expect(await parseSessionCookie(value)).toEqual({ role: 'pharmacy', name: 'Robin Shah' })
+    const value = await buildSessionCookieValue('pharmacy', 'Robin Shah', null)
+    expect(await parseSessionCookie(value)).toEqual({ role: 'pharmacy', name: 'Robin Shah', userId: null })
   })
 })

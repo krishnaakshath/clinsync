@@ -39,7 +39,7 @@ async function makeSubmission() {
 describe('GET /api/form-submissions/[id] -- answer visibility for admin and pi', () => {
   it('returns the real submitted answer to an admin session', async () => {
     const submission = await makeSubmission()
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin', userId: null })
     const res = await GET(new Request(`http://localhost/api/form-submissions/${submission.id}`) as never, { params: Promise.resolve({ id: String(submission.id) }) })
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -48,7 +48,7 @@ describe('GET /api/form-submissions/[id] -- answer visibility for admin and pi',
 
   it('returns the real submitted answer to a pi session', async () => {
     const submission = await makeSubmission()
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI', userId: null })
     const res = await GET(new Request(`http://localhost/api/form-submissions/${submission.id}`) as never, { params: Promise.resolve({ id: String(submission.id) }) })
     expect(res.status).toBe(200)
     const body = await res.json()
