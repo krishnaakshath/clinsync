@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getFormTemplate, invalidateFormTemplatesList } from '@/lib/queries/form-templates'
+import { getFormTemplateFolder } from '@/lib/queries/form-template-folders'
 
 const updateTemplateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -24,6 +25,7 @@ const updateTemplateSchema = z.object({
     bands: z.array(z.object({ min: z.number(), max: z.number(), label: z.string() })),
   }).nullable().optional(),
   isActive: z.boolean().optional(),
+  folderId: z.number().int().positive().nullable().optional(),
 }).strict()
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +45,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const parsed = updateTemplateSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid template payload', details: parsed.error.flatten() }, { status: 400 })
+
+  // A raw FK violation on a bad folderId would surface as an opaque 500;
+  // check it explicitly so the client can tell "you sent a bad folder" from
+  // "the server broke".
+  if (typeof parsed.data.folderId === 'number' && !(await getFormTemplateFolder(parsed.data.folderId))) {
+    return NextResponse.json({ error: 'No such folder' }, { status: 400 })
+  }
 
   await getDb().update(formTemplates).set(parsed.data).where(eq(formTemplates.id, Number(id)))
   await invalidateFormTemplatesList()
