@@ -7,7 +7,7 @@ import { InsuranceClaimsTable } from '@/components/InsuranceClaimsTable'
 export default async function InsuranceCollectionsPage() {
   const session = await requireSessionOrRedirect()
   // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk only.
-  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'billing'].includes(session.role)) redirect('/')
   const claims = await listInsuranceClaims()
   await logAudit(session, 'viewed insurance collections', null)
 

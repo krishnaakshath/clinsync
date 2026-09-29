@@ -96,7 +96,7 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
   )
 }
 
-export const BILLING_ROLES: Role[] = ['admin', 'crc', 'frontdesk']
+export const BILLING_ROLES: Role[] = ['admin', 'crc', 'billing']
 
 export function LeftNav({ role }: { role: Role }) {
   const pathname = usePathname()

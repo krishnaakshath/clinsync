@@ -17,7 +17,7 @@ function KpiCard({ label, value }: { label: string; value: string }) {
 export default async function BillingAnalyticsPage() {
   const session = await requireSessionOrRedirect()
   // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk only.
-  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'billing'].includes(session.role)) redirect('/')
   const data = await getBillingAnalyticsData()
   await logAudit(session, 'viewed billing analytics', null)
 

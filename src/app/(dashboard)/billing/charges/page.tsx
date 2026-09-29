@@ -8,7 +8,7 @@ import { ChargesTable } from '@/components/ChargesTable'
 export default async function ChargesPage() {
   const session = await requireSessionOrRedirect()
   // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk only.
-  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'billing'].includes(session.role)) redirect('/')
   const [charges, patients] = await Promise.all([listCharges(), listPatientsWithStatus(null)])
   await logAudit(session, 'viewed charges', null)
 

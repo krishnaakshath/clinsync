@@ -20,7 +20,7 @@ export default async function ChargeCaptureDetailPage({ params }: { params: Prom
   const session = await requireSessionOrRedirect()
   // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk
   // only. Must precede notFound() below, not follow it.
-  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'billing'].includes(session.role)) redirect('/')
 
   const { chargeId } = await params
   const charge = await getCharge(Number(chargeId))

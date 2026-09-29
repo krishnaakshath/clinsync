@@ -7,7 +7,7 @@ import { listAllUsers, createUser } from '@/lib/queries/users'
 const createUserSchema = z.object({
   name: z.string().trim().min(1),
   email: z.string().trim().email(),
-  role: z.enum(['admin', 'pi', 'crc', 'frontdesk', 'pharmacy']),
+  role: z.enum(['admin', 'pi', 'crc', 'frontdesk', 'pharmacy', 'billing']),
 }).strict()
 
 export async function GET() {

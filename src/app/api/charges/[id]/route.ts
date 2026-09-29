@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // the billing team's approval authority. Pharmacy records that a billable
   // thing happened (via the dispense-billing path) without deciding what to
   // do about it, so it does not get to move a charge through this workflow.
-  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'crc', 'billing'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
 

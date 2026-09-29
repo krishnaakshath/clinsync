@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   // /api/pharmacy/dispenses/[dispenseId]/charge). Same tier as /billing's own
   // nav visibility (LeftNav.tsx:98). This also, correctly, closes the route
   // to `pi`, which had incidental access via the missing gate.
-  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'crc', 'billing'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = createChargeSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid charge payload', details: parsed.error.flatten() }, { status: 400 })
