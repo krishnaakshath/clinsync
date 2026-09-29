@@ -29,7 +29,9 @@ describe.each(PAGE_GATES)('$route', (c) => {
 })
 
 function coveringRows(href: string) {
-  return PAGE_GATES.filter((r) => r.route === href || r.route.startsWith(`${href}/`))
+  const exact = PAGE_GATES.filter((r) => r.route === href)
+  if (exact.length > 0) return exact
+  return PAGE_GATES.filter((r) => r.route.startsWith(`${href}/`))
 }
 
 describe('every role-restricted nav entry has a matching server-side gate', () => {

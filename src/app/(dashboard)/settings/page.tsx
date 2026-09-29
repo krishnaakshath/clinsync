@@ -1,5 +1,6 @@
 import { Building2, SlidersHorizontal, UserCircle2, Users, IdCard, Monitor } from 'lucide-react'
 import { eq } from 'drizzle-orm'
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { getDb } from '@/db/client'
 import { users } from '@/db/schema'
@@ -23,6 +24,7 @@ const ROLE_LABEL: Record<string, string> = { admin: 'Administrator', pi: 'Princi
 export default async function SettingsPage() {
   // Must be the first statement — see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
+  if (session.role === 'billing') redirect('/')
   const settings = await getSettingsSummary()
   const providers = await listAllProviders()
   const staff = await listAllUsers()

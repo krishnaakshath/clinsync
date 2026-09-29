@@ -84,3 +84,4 @@ export async function FrontDeskDashboard({ session }: { session: Session }) {
     </div>
   )
 }
+
