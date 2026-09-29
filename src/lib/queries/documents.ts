@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { documents, patients, admissions, documentTypeEnum } from '@/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, sql } from 'drizzle-orm'
 import { getOrSetCache, documentsListCacheKey } from '@/lib/cache'
 
 export type DocumentRow = typeof documents.$inferSelect
@@ -22,7 +22,22 @@ export interface CreateDocumentInput {
 export async function listDocuments() {
   return getOrSetCache(documentsListCacheKey(), 15, async () => {
     const rows = await getDb()
-      .select({ document: documents, patient: patients })
+      .select({
+        document: documents,
+        // Narrow, raw-`sql` patient columns, NOT `patient: patients` --
+        // schema.ts here still declares patients' pre-unification
+        // `nameTebra`/`nameIntakeq`/`dobTebra`/`dobIntakeq` columns, but a
+        // separate, concurrently-running worktree's migration
+        // (`feature/unified-patient-record`) has already collapsed the live
+        // shared Neon DB's `patients` table down to single `name`/`dob`
+        // columns (the same standing cross-worktree drift Task 1's report on
+        // this plan diagnosed). A bare `patient: patients` select spreads
+        // every column schema.ts declares and 42703s against the real DB.
+        // The left join still makes these null when a document has no
+        // patientId, exactly like the old `r.patient ? ... : null` ternary.
+        patientName: sql<string | null>`patients.name`,
+        patientDob: sql<string | null>`patients.dob`,
+      })
       .from(documents)
       .leftJoin(patients, eq(documents.patientId, patients.id))
       // No ORDER BY here previously meant Postgres could return rows in any
@@ -35,8 +50,8 @@ export async function listDocuments() {
 
     return rows.map((r) => ({
       ...r.document,
-      patientName: r.patient ? (r.patient.nameTebra ?? r.patient.nameIntakeq) : null,
-      patientDob: r.patient ? (r.patient.dobTebra ?? r.patient.dobIntakeq) : null,
+      patientName: r.patientName,
+      patientDob: r.patientDob,
     }))
   })
 }

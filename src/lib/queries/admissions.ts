@@ -38,6 +38,41 @@ export async function getAdmissionById(id: number): Promise<Admission | null> {
   return row ?? null
 }
 
+export interface ActiveAdmissionSummary {
+  admissionId: number
+  patientId: string
+  roomLabel: string | null
+  admittedAt: Date
+}
+
+// One query for every currently-admitted patient, not a per-patient
+// getActiveAdmissionForPatient() call keyed off the patient dropdown -- that
+// would be an N+1 against however many patients the Receive Document modal
+// lists. Consumed by that modal's inline "Currently admitted — {room}" /
+// "Outpatient" context (spec §6.1-6.2), which is display-only and gates
+// nothing.
+export async function listActiveAdmissions(): Promise<ActiveAdmissionSummary[]> {
+  const rows = await getDb()
+    .select({
+      admissionId: admissions.id,
+      patientId: admissions.patientId,
+      admittedAt: admissions.admittedAt,
+      ward: rooms.ward,
+      roomNumber: rooms.roomNumber,
+      bedNumber: rooms.bedNumber,
+    })
+    .from(admissions)
+    .leftJoin(rooms, eq(admissions.currentRoomId, rooms.id))
+    .where(eq(admissions.status, 'admitted'))
+
+  return rows.map((r) => ({
+    admissionId: r.admissionId,
+    patientId: r.patientId,
+    roomLabel: r.ward !== null ? `${r.ward} ${r.roomNumber}-${r.bedNumber}` : null,
+    admittedAt: r.admittedAt,
+  }))
+}
+
 export interface AdmissionTransferRecord {
   id: number
   fromRoomId: number | null
