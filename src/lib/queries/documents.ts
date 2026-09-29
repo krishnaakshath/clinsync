@@ -1,7 +1,23 @@
 import { getDb } from '@/db/client'
-import { documents, patients } from '@/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { documents, patients, admissions, documentTypeEnum } from '@/db/schema'
+import { eq, desc, and } from 'drizzle-orm'
 import { getOrSetCache, documentsListCacheKey } from '@/lib/cache'
+
+export type DocumentRow = typeof documents.$inferSelect
+export type DocumentType = (typeof documentTypeEnum.enumValues)[number]
+
+export interface CreateDocumentInput {
+  name: string
+  documentDate: string
+  receivedFrom: string
+  documentType: DocumentType
+  patientId: string | null
+  admissionId: number | null
+  fileUrl: string | null
+  fileType: string
+  filedByName: string | null
+  filedAt: Date | null
+}
 
 export async function listDocuments() {
   return getOrSetCache(documentsListCacheKey(), 15, async () => {
@@ -28,4 +44,32 @@ export async function listDocuments() {
 export async function getDocument(id: number) {
   const [row] = await getDb().select().from(documents).where(eq(documents.id, id))
   return row ?? null
+}
+
+// The route that inserts these owns cache invalidation (matching
+// insurance-card/route.ts's precedent), not this function -- a plain insert
+// has no "which cached view is now stale" knowledge of its own.
+export async function createDocument(input: CreateDocumentInput): Promise<DocumentRow> {
+  const [created] = await getDb().insert(documents).values(input).returning()
+  return created
+}
+
+// Not cached: documentsListCacheKey() is list-wide (all patients' documents
+// together), so caching this per-patient query under that key would return
+// the wrong patient's documents on a cache hit. No per-patient documents
+// cache key exists, and this plan doesn't add one.
+export async function listDocumentsForPatient(patientId: string): Promise<DocumentRow[]> {
+  return getDb()
+    .select()
+    .from(documents)
+    .where(eq(documents.patientId, patientId))
+    .orderBy(desc(documents.documentDate), desc(documents.id))
+}
+
+export async function isAdmissionForPatient(admissionId: number, patientId: string): Promise<boolean> {
+  const rows = await getDb()
+    .select({ id: admissions.id })
+    .from(admissions)
+    .where(and(eq(admissions.id, admissionId), eq(admissions.patientId, patientId)))
+  return rows.length > 0
 }
