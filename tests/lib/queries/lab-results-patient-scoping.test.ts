@@ -17,8 +17,8 @@ describe('lab order patient scoping', () => {
   it('two patients lab histories stay independent', async () => {
     const db = getDb()
     const [test] = await db.select().from(labTests).limit(1)
-    const [providerRow] = await db.select().from(providers).limit(1)
-    const patientsRows = await db.select().from(patients).limit(2)
+    const [providerRow] = await db.select({ id: providers.id }).from(providers).limit(1)
+    const patientsRows = await db.select({ id: patients.id }).from(patients).limit(2)
     const [patientA, patientB] = patientsRows
 
     const [orderA] = await db.insert(labOrders).values({ patientId: patientA.id, labTestId: test.id, orderedByProviderId: providerRow.id }).returning()
