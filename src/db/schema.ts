@@ -743,3 +743,27 @@ export const staffCredentials = pgTable('staff_credentials', {
   credentialNumber: text('credential_number'),
   expiresOn: date('expires_on'),
 })
+
+export const carePlanStatusEnum = pgEnum('care_plan_status', ['active', 'superseded'])
+export const carePlanGoalStatusEnum = pgEnum('care_plan_goal_status', ['active', 'met', 'not_met', 'discontinued'])
+
+export const carePlans = pgTable('care_plans', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  title: text('title').notNull(),
+  authorName: text('author_name').notNull(),
+  status: carePlanStatusEnum('status').default('active').notNull(),
+  startedAt: timestamp('started_at').defaultNow().notNull(),
+  nextReviewDate: date('next_review_date'),
+  supersededAt: timestamp('superseded_at'),
+})
+
+export const carePlanGoals = pgTable('care_plan_goals', {
+  id: serial('id').primaryKey(),
+  carePlanId: integer('care_plan_id').notNull().references(() => carePlans.id),
+  description: text('description').notNull(),
+  targetDate: date('target_date'),
+  status: carePlanGoalStatusEnum('status').default('active').notNull(),
+  statusUpdatedAt: timestamp('status_updated_at'),
+  statusUpdatedByName: text('status_updated_by_name'),
+})

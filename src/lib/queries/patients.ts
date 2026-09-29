@@ -3,6 +3,7 @@ import {
   patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications,
   formSubmissions, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
   rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes, medicationAdministrations,
+  medicationDispenses, carePlans, carePlanGoals, labOrders, labResults,
 } from '@/db/schema'
 import { eq, inArray, or } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
@@ -164,6 +165,15 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(formChartDiscrepancies).where(eq(formChartDiscrepancies.patientId, anonId))
   await db.delete(reviews).where(eq(reviews.patientId, anonId))
   await db.delete(patientTrialScreenings).where(eq(patientTrialScreenings.patientId, anonId))
+  // medicationDispenses.medicationEpisodeId is a nullable FK to
+  // medicationEpisodes(id) with no ON DELETE action -- same ordering hazard
+  // as medicationAdministrations above, so dispenses referencing an episode
+  // must be cleared before medicationEpisodes itself. (Final whole-branch
+  // review of feature/care-plans: medicationDispenses had a direct
+  // patient_id FK to patients with no ON DELETE action and was missing from
+  // this cascade entirely -- confirmed the third instance of this exact bug
+  // class in this function, alongside care_plans below.)
+  await db.delete(medicationDispenses).where(eq(medicationDispenses.patientId, anonId))
   await db.delete(medicationEpisodes).where(eq(medicationEpisodes.patientId, anonId))
   await db.delete(diagnoses).where(eq(diagnoses.patientId, anonId))
   await db.delete(formSubmissions).where(eq(formSubmissions.patientId, anonId))
@@ -195,6 +205,29 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(documents).where(eq(documents.patientId, anonId))
   await db.delete(faxes).where(eq(faxes.patientId, anonId))
   await db.update(rooms).set({ status: 'available', occupiedByPatientId: null }).where(eq(rooms.occupiedByPatientId, anonId))
+
+  // care_plans.patient_id is a NOT NULL FK to patients(id) with no ON DELETE
+  // action (Task 1 of feature/care-plans). This cascade was never updated
+  // for it -- deleting a patient with a care plan deleted their whole chart
+  // and then failed on the final `DELETE FROM patients` below with a
+  // foreign-key violation, leaving a half-deleted patient with orphaned
+  // care_plans/care_plan_goals rows. Children (goals) before parent (plans),
+  // scoped to this patient, same discipline as the rest of this function.
+  const carePlanIds = (await db.select({ id: carePlans.id }).from(carePlans).where(eq(carePlans.patientId, anonId))).map((p) => p.id)
+  if (carePlanIds.length > 0) {
+    await db.delete(carePlanGoals).where(inArray(carePlanGoals.carePlanId, carePlanIds))
+  }
+  await db.delete(carePlans).where(eq(carePlans.patientId, anonId))
+
+  // lab_orders.patient_id is a NOT NULL FK to patients(id) with no ON DELETE
+  // action, same gap as care_plans/medicationDispenses above. Children
+  // (results) before parent (orders), scoped to this patient.
+  const labOrderIds = (await db.select({ id: labOrders.id }).from(labOrders).where(eq(labOrders.patientId, anonId))).map((o) => o.id)
+  if (labOrderIds.length > 0) {
+    await db.delete(labResults).where(inArray(labResults.labOrderId, labOrderIds))
+  }
+  await db.delete(labOrders).where(eq(labOrders.patientId, anonId))
+
   await db.delete(patients).where(eq(patients.id, anonId))
 
   await invalidateCache(patientDetailCacheKey(anonId))

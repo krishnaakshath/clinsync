@@ -6,6 +6,7 @@ import { AllergyBadge } from '@/components/AllergyBadge'
 import { NoteForm, NoteCard } from '@/components/NoteForm'
 import { InsuranceCardUpload } from '@/components/InsuranceCardUpload'
 import { LabResultsSection } from '@/components/LabResultsSection'
+import { CarePlanSection } from '@/components/CarePlanSection'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
@@ -16,6 +17,7 @@ import { listMedicationsWithInventory } from '@/lib/queries/medications'
 import { listOrdersForPatient } from '@/lib/queries/lab-orders'
 import { listLabTests } from '@/lib/queries/lab-tests'
 import { listFormSubmissions } from '@/lib/queries/form-submissions'
+import { listCarePlansForPatient } from '@/lib/queries/care-plans'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -90,6 +92,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const medicationById = new Map(medicationCatalog.map((m) => [m.id, m]))
   const [labOrders, labTests] = await Promise.all([listOrdersForPatient(anonId), listLabTests()])
   const screeningSubmissions = (await listFormSubmissions({ patientId: anonId, status: 'completed' })).filter((s) => s.bandLabel !== null)
+  const carePlans = await listCarePlansForPatient(anonId)
   await logAudit(session, 'viewed patient medical record', anonId)
 
   const name = patient.nameTebra ?? patient.nameIntakeq
@@ -180,6 +183,10 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
             })}
           </div>
         )}
+      </section>
+
+      <section className={SECTION}>
+        <CarePlanSection patientId={anonId} plans={carePlans} canWrite={['admin', 'pi'].includes(session.role)} />
       </section>
 
       <section className={SECTION}>
