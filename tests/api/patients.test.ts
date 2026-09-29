@@ -68,7 +68,7 @@ describe('GET /api/patients/[anonId]', () => {
   })
 
   it('returns 200 for a pi session -- spec §6.1: this plan\'s sweep left the read path open to the whole chart', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI', userId: null })
     const response = await getPatient(new NextRequest('http://localhost/api/patients/RD-0001'), { params: Promise.resolve({ anonId: 'RD-0001' }) })
     expect(response.status).toBe(200)
   })
