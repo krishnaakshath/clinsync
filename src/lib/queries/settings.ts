@@ -9,6 +9,23 @@ export async function getAppSettings() {
   return row ?? { id: 1, autoClassifyOnComplete: false, practiceName: null, practiceSite: null, practiceTimezone: 'America/Los_Angeles', intakeqApiKeyEncrypted: null, tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null, adminMfaSecretEncrypted: null, adminMfaEnabled: false, adminMfaMethod: 'totp' as const, adminPhone: null, queueDisplayPin: null }
 }
 
+// Scoped practice-identity read for the printable prescription page
+// (prescriptions plan, Task 5). getAppSettings()'s bare select() pulls in
+// every column schema.ts declares for `app_settings`, including
+// `intakeq_api_key_encrypted`/`tebra_customer_key_encrypted`/
+// `tebra_user_encrypted`/`tebra_password_encrypted` -- columns the live
+// shared Neon DB doesn't have (confirmed via information_schema; same class
+// of cross-worktree schema drift as `patients`' dropped Tebra/IntakeQ split
+// columns, just on this table, and not yet reconciled by any migration).
+// This narrow select only asks Postgres for the two columns the print page
+// actually needs, both unchanged on the live table, so it works against the
+// DB as it actually is today, without touching `getAppSettings()` itself or
+// `schema.ts`.
+export async function getPracticeIdentity(): Promise<{ practiceName: string | null; practiceSite: string | null }> {
+  const [row] = await getDb().select({ practiceName: appSettings.practiceName, practiceSite: appSettings.practiceSite }).from(appSettings)
+  return row ?? { practiceName: null, practiceSite: null }
+}
+
 // What the Settings page actually renders -- booleans for whether each EHR
 // credential is on file, never the encrypted value itself. The page is a
 // Server Component that only ever needs "is this configured", and there's

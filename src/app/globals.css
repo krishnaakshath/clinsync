@@ -140,3 +140,14 @@
     @apply font-sans;
   }
 }
+
+/* First print styling in this codebase (spec §6). Forces light-on-white
+   regardless of the active theme: this page's one job is to come out of a
+   printer legibly, and .dark's oklch background would otherwise print as
+   a grey slab. `.no-print` is the on-screen-controls contract used by
+   src/app/prescriptions/print/page.tsx. */
+@media print {
+  .no-print { display: none !important; }
+  html, body { background: #fff !important; color: #000 !important; }
+  @page { margin: 18mm; }
+}
