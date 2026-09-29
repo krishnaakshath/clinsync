@@ -10,7 +10,7 @@ export interface CreateNoteInput {
   admissionId: number | null
   noteType: 'progress' | 'nursing' | 'intake'
   authorName: string
-  authorRole: 'crc' | 'pi' | 'admin' | 'frontdesk'
+  authorRole: 'crc' | 'pi' | 'admin' | 'frontdesk' | 'pharmacy'
   subjective: string | null
   objective: string | null
   assessment: string | null

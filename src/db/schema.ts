@@ -1,7 +1,7 @@
 import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial } from 'drizzle-orm/pg-core'
 
 export const verdictEnum = pgEnum('verdict', ['green', 'yellow', 'red'])
-export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin', 'frontdesk'])
+export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'])
 export const mfaMethodEnum = pgEnum('mfa_method', ['totp', 'sms', 'email'])
 export const matchStatusEnum = pgEnum('match_status', ['pending', 'confirmed', 'rejected'])
 export const payerTypeEnum = pgEnum('payer_type', ['commercial', 'medicare', 'medicaid', 'tricare', 'other'])
@@ -657,6 +657,15 @@ export const medicationDispenses = pgTable('medication_dispenses', {
   dispensedByName: text('dispensed_by_name').notNull(),
   dispensedAt: timestamp('dispensed_at').defaultNow().notNull(),
   notes: text('notes'),
+  // The dispense->bill link lives on this table, not as a
+  // medicationDispenseId column on `charges`: charges is the general billing
+  // table every service line shares, and "is this dispense billed yet" is a
+  // property of the dispense. The .unique() is the real work -- it makes
+  // double-billing one dispense a database-level impossibility rather than a
+  // check the route has to remember, while still permitting unlimited NULLs
+  // (Postgres does not treat NULLs as equal) for the many dispenses that are
+  // samples or in-office doses and are never billed.
+  chargeId: integer('charge_id').references(() => charges.id).unique(),
 })
 
 export const marStatusEnum = pgEnum('mar_status', ['scheduled', 'given', 'held', 'refused'])

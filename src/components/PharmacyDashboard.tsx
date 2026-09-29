@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DispenseMedicationModal } from '@/components/DispenseMedicationModal'
-import type { MedicationWithInventory } from '@/lib/queries/medications'
+import { AddMedicationModal } from '@/components/AddMedicationModal'
+import type { MedicationWithInventory, ActiveMedicationSummaryRow } from '@/lib/queries/medications'
 
 type StockStatus = 'ok' | 'low' | 'out'
 
@@ -36,8 +37,37 @@ function StockPill({ status }: { status: StockStatus }) {
   )
 }
 
-export function PharmacyDashboard({ medications, canDispense }: { medications: MedicationWithInventory[]; canDispense: boolean }) {
+// Groups the already-sorted (by medicationClass, then count desc) summary
+// rows by class, preserving the query's own ordering rather than
+// re-sorting -- a Map (not a plain object) keeps insertion order stable
+// regardless of what the class strings look like.
+function groupByClass(rows: ActiveMedicationSummaryRow[]): Map<string, ActiveMedicationSummaryRow[]> {
+  const groups = new Map<string, ActiveMedicationSummaryRow[]>()
+  for (const row of rows) {
+    const existing = groups.get(row.medicationClass)
+    if (existing) existing.push(row)
+    else groups.set(row.medicationClass, [row])
+  }
+  return groups
+}
+
+export function PharmacyDashboard({
+  medications,
+  canDispense,
+  prescribedSummary,
+  canAddMedication,
+}: {
+  medications: MedicationWithInventory[]
+  canDispense: boolean
+  prescribedSummary: ActiveMedicationSummaryRow[]
+  canAddMedication: boolean
+}) {
   const [dispensing, setDispensing] = useState<MedicationWithInventory | null>(null)
+  // `null` = closed; `{}` = open with no prefill (header button);
+  // `{ name, medicationClass }` = open prefilled from a not-in-catalog row.
+  const [addingMedication, setAddingMedication] = useState<{ name?: string; medicationClass?: string } | null>(null)
+
+  const groupedSummary = groupByClass(prescribedSummary)
 
   return (
     <div className="rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
@@ -83,6 +113,69 @@ export function PharmacyDashboard({ medications, canDispense }: { medications: M
 
       {dispensing && (
         <DispenseMedicationModal medication={dispensing} onClose={() => setDispensing(null)} />
+      )}
+
+      {/* Practice-wide "currently prescribed" summary -- counts and drug
+          names only, grouped by class, never a patient identity. This is an
+          aggregate a pharmacist can leave open at a counter, unlike the
+          stock table above which stays exactly as it was. */}
+      <div className="mt-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Currently prescribed across the practice</h2>
+          {canAddMedication && (
+            <Button size="sm" onClick={() => setAddingMedication({})}>Add medication</Button>
+          )}
+        </div>
+
+        {prescribedSummary.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No active prescriptions on file.</p>
+        ) : (
+          <div className="space-y-6">
+            {Array.from(groupedSummary.entries()).map(([medicationClass, rows]) => (
+              <div key={medicationClass}>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{medicationClass}</h3>
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <table className="w-full border-collapse text-sm">
+                    <tbody>
+                      {rows.map((row, i) => (
+                        <tr key={row.name} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''}`}>
+                          <td className="p-3">
+                            <span className="font-medium text-foreground">{row.name}</span>
+                            {!row.inCatalog && (
+                              <span className="ml-2 inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                                Not in catalog
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right text-foreground">{row.activeEpisodeCount} active</td>
+                          <td className="p-3 text-right">
+                            {!row.inCatalog && canAddMedication && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setAddingMedication({ name: row.name, medicationClass: row.medicationClass })}
+                              >
+                                Add to catalog
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {addingMedication && (
+        <AddMedicationModal
+          initialName={addingMedication.name}
+          initialClass={addingMedication.medicationClass}
+          onClose={() => setAddingMedication(null)}
+        />
       )}
     </div>
   )

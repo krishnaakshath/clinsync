@@ -15,7 +15,7 @@ const dispenseSchema = z.object({
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'pi'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'pi', 'pharmacy'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = dispenseSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid dispense payload', details: parsed.error.flatten() }, { status: 400 })

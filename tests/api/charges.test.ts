@@ -1,11 +1,14 @@
-import { describe, it, expect, vi, afterAll } from 'vitest'
+import { describe, it, expect, vi, afterAll, afterEach } from 'vitest'
 import { GET, POST } from '@/app/api/charges/route'
 import { GET as getOne, PATCH } from '@/app/api/charges/[id]/route'
 import { getDb } from '@/db/client'
 import { charges, auditLog } from '@/db/schema'
 import { inArray, desc, eq, or, like } from 'drizzle-orm'
 
-vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+let sessionRole: 'admin' | 'pi' | 'crc' | 'frontdesk' | 'pharmacy' = 'crc'
+vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: sessionRole, name: 'Jamie Ruiz' })) }))
+
+afterEach(() => { sessionRole = 'crc' })
 
 // This suite exercises the real create/PATCH DB path against the shared dev
 // database (not mocked), so every charge it creates is tracked here and
@@ -159,5 +162,73 @@ describe('PATCH /api/charges/[id]', () => {
     const req = new Request('http://localhost', { method: 'PATCH', body: JSON.stringify({ status: 'pending_approval' }) })
     const res = await PATCH(req as never, { params: Promise.resolve({ id: '999999' }) })
     expect(res.status).toBe(404)
+  })
+})
+
+describe('charges route role gating', () => {
+  function validChargeBody(patientId: string) {
+    return new Request('http://localhost/api/charges', {
+      method: 'POST',
+      body: JSON.stringify({
+        patientId, providerName: 'Dr. R. Kunam', dateOfService: '2026-09-17',
+        diagnosisCodes: [{ code: 'F33.1', description: 'MDD' }],
+        procedureCodes: [{ code: '90837', description: 'Psychotherapy', units: 1, chargeCents: 15000 }],
+      }),
+    })
+  }
+
+  it('rejects a pharmacy session on POST /api/charges', async () => {
+    sessionRole = 'pharmacy'
+    const res = await POST(validChargeBody('RD-0001') as never)
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects a pi session on POST /api/charges -- incidental access the missing gate allowed', async () => {
+    sessionRole = 'pi'
+    const res = await POST(validChargeBody('RD-0001') as never)
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects a pharmacy session on PATCH /api/charges/[id]', async () => {
+    sessionRole = 'crc'
+    const created = await (await POST(validChargeBody('RD-0001') as never)).json()
+    if (created.id) createdChargeIds.push(created.id)
+
+    sessionRole = 'pharmacy'
+    const req = new Request(`http://localhost/api/charges/${created.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'pending_approval' }) })
+    const res = await PATCH(req as never, { params: Promise.resolve({ id: String(created.id) }) })
+    expect(res.status).toBe(403)
+
+    // Narrow select on `charges` alone (no `patients` join) -- getOne()/getCharge()
+    // join to `patients` for patientName/patientDob, which in this shared dev DB
+    // currently 500s due to unrelated column drift from a concurrent worktree's
+    // migration. Asserting directly against `charges` avoids that entirely.
+    const [row] = await getDb().select({ status: charges.status }).from(charges).where(eq(charges.id, created.id))
+    expect(row?.status).toBe('draft')
+  })
+
+  it('rejects a pi session on PATCH /api/charges/[id]', async () => {
+    sessionRole = 'crc'
+    const created = await (await POST(validChargeBody('RD-0001') as never)).json()
+    if (created.id) createdChargeIds.push(created.id)
+
+    sessionRole = 'pi'
+    const req = new Request(`http://localhost/api/charges/${created.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'pending_approval' }) })
+    const res = await PATCH(req as never, { params: Promise.resolve({ id: String(created.id) }) })
+    expect(res.status).toBe(403)
+  })
+
+  it('still allows admin and frontdesk on POST /api/charges', async () => {
+    sessionRole = 'admin'
+    const adminRes = await POST(validChargeBody('RD-0001') as never)
+    expect(adminRes.status).toBe(201)
+    const adminBody = await adminRes.json()
+    if (adminBody.id) createdChargeIds.push(adminBody.id)
+
+    sessionRole = 'frontdesk'
+    const frontdeskRes = await POST(validChargeBody('RD-0001') as never)
+    expect(frontdeskRes.status).toBe(201)
+    const frontdeskBody = await frontdeskRes.json()
+    if (frontdeskBody.id) createdChargeIds.push(frontdeskBody.id)
   })
 })
