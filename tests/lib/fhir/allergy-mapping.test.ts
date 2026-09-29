@@ -14,7 +14,7 @@ afterEach(async () => {
 describe('allergyToFhir', () => {
   it('maps an allergy with a recorded reaction', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-A1', intakeqClientIdRef: 'test-ref-a1', nameIntakeq: 'Allergy Patient', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-A1', name: 'Allergy Patient', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
@@ -34,7 +34,7 @@ describe('allergyToFhir', () => {
 
   it('maps an allergy with no recorded reaction to "Not specified"', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-A2', intakeqClientIdRef: 'test-ref-a2', nameIntakeq: 'Allergy Patient 2', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-A2', name: 'Allergy Patient 2', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
@@ -51,7 +51,7 @@ describe('allergyToFhir', () => {
 
   it('allergiesToFhir maps a list of rows', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-A3', intakeqClientIdRef: 'test-ref-a3', nameIntakeq: 'Allergy Patient 3', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-A3', name: 'Allergy Patient 3', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 

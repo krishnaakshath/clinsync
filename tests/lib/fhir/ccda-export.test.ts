@@ -23,13 +23,13 @@ beforeAll(async () => {
   const db = getDb()
 
   const [emptyPatient] = await db.insert(patients).values({
-    id: 'RD-FHIR-CCDA-EMPTY', intakeqClientIdRef: 'test-ref-ccda-empty', nameIntakeq: 'CCDA Empty Patient', dobIntakeq: '1990-01-01',
+    id: 'RD-FHIR-CCDA-EMPTY', name: 'CCDA Empty Patient', dob: '1990-01-01',
   }).returning()
   emptyPatientId = emptyPatient.id
   emptyPatientData = (await gatherPatientFhirData(emptyPatientId))!
 
   const [patient] = await db.insert(patients).values({
-    id: 'RD-FHIR-CCDA-1', intakeqClientIdRef: 'test-ref-ccda-1', nameIntakeq: 'CCDA Patient', dobIntakeq: '1980-01-01',
+    id: 'RD-FHIR-CCDA-1', name: 'CCDA Patient', dob: '1980-01-01',
   }).returning()
   patientId = patient.id
 
@@ -41,7 +41,7 @@ beforeAll(async () => {
   allergyId = allergyRow.id
 
   const [diagnosisRow] = await db.insert(diagnoses).values({
-    patientId, code: 'J45.909', description: 'Asthma, unspecified', source: 'tebra', date: '2024-01-01',
+    patientId, code: 'J45.909', description: 'Asthma, unspecified', date: '2024-01-01',
   }).returning()
   diagnosisId = diagnosisRow.id
 

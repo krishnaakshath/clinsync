@@ -182,7 +182,7 @@ function mapWorklistRow(r: {
     orderedAt: r.order.orderedAt,
     collectedAt: r.order.collectedAt,
     patientId: r.order.patientId,
-    patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+    patientName: r.patient.name,
     testId: r.test.id,
     testName: r.test.name,
     testCode: r.test.code,

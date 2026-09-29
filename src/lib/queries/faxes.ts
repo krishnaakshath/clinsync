@@ -21,8 +21,8 @@ export async function listFaxes() {
       // and reports.ts's visitDate). Normalize up front so callers see one
       // consistent shape either way.
       faxDate: r.fax.faxDate.toISOString(),
-      patientName: r.patient ? (r.patient.nameTebra ?? r.patient.nameIntakeq) : null,
-      patientDob: r.patient ? (r.patient.dobTebra ?? r.patient.dobIntakeq) : null,
+      patientName: r.patient ? r.patient.name : null,
+      patientDob: r.patient ? r.patient.dob : null,
     }))
   })
 }

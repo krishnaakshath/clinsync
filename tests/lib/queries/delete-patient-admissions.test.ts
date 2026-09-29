@@ -19,7 +19,7 @@ describe('deletePatient — admissions cleanup', () => {
     const [providerRow] = await db.select().from(providers).limit(1)
 
     const testPatientId = `TEST-DEL-${Date.now()}`
-    await db.insert(patients).values({ id: testPatientId, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Delete Test Patient', dobIntakeq: '2000-01-01' })
+    await db.insert(patients).values({ id: testPatientId, name: 'Delete Test Patient', dob: '2000-01-01' })
 
     const [admission] = await db.insert(admissions).values({ patientId: testPatientId, currentRoomId: room1.id, attendingProviderId: providerRow.id }).returning()
     await db.insert(admissionTransfers).values({ admissionId: admission.id, fromRoomId: room1.id, toRoomId: room2.id, reason: 'Test', transferredByName: 'Test Nurse' })
@@ -48,7 +48,7 @@ describe('deletePatient — admissions cleanup', () => {
     const [providerRow] = await db.select().from(providers).limit(1)
 
     const testPatientId = `TEST-DEL-MED-${Date.now()}`
-    await db.insert(patients).values({ id: testPatientId, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Delete Med Test Patient', dobIntakeq: '2000-01-01' })
+    await db.insert(patients).values({ id: testPatientId, name: 'Delete Med Test Patient', dob: '2000-01-01' })
 
     const [admission] = await db.insert(admissions).values({ patientId: testPatientId, currentRoomId: room.id, attendingProviderId: providerRow.id }).returning()
     const [episode] = await db.insert(medicationEpisodes).values({ patientId: testPatientId, name: 'Sertraline', medicationClass: 'SSRI', startDate: '2024-01-01', status: 'active' }).returning()

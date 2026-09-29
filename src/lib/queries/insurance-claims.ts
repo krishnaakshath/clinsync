@@ -15,7 +15,7 @@ export async function listInsuranceClaims() {
       .orderBy(desc(insuranceClaims.submittedDate), desc(insuranceClaims.id))
     return rows.map((r) => ({
       ...r.claim,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.name,
       dateOfService: r.charge.dateOfService,
     }))
   })

@@ -119,9 +119,8 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
         ) : (
           <ul className="space-y-1.5 text-sm text-foreground">
             {patient.diagnoses.map((d) => (
-              <li key={`dx-${d.id}`} className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
-                <span><span className="font-mono text-xs text-muted-foreground">{d.code}</span> — {d.description}</span>
-                <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{d.source}</span>
+              <li key={`dx-${d.id}`} className="border-b border-border py-1.5 last:border-b-0">
+                <span className="font-mono text-xs text-muted-foreground">{d.code}</span> — {d.description}
               </li>
             ))}
           </ul>

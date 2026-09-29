@@ -14,7 +14,7 @@ afterEach(async () => {
 describe('medicationEpisodeToFhir', () => {
   it('maps an active episode to a MedicationRequest', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-M1', intakeqClientIdRef: 'test-ref-m1', nameIntakeq: 'Med Patient', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-M1', name: 'Med Patient', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
@@ -35,7 +35,7 @@ describe('medicationEpisodeToFhir', () => {
 
   it('returns null for an inactive episode', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-M2', intakeqClientIdRef: 'test-ref-m2', nameIntakeq: 'Med Patient 2', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-M2', name: 'Med Patient 2', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
@@ -50,7 +50,7 @@ describe('medicationEpisodeToFhir', () => {
 
   it('omits dosageInstruction entirely when dose is null', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-M3', intakeqClientIdRef: 'test-ref-m3', nameIntakeq: 'Med Patient 3', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-M3', name: 'Med Patient 3', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
@@ -65,7 +65,7 @@ describe('medicationEpisodeToFhir', () => {
 
   it('medicationEpisodesToFhir filters out inactive episodes', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-M4', intakeqClientIdRef: 'test-ref-m4', nameIntakeq: 'Med Patient 4', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-M4', name: 'Med Patient 4', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 

@@ -131,7 +131,7 @@ describe('createCarePlan concurrency (Important finding, final whole-branch revi
   it('only one of three concurrent createCarePlan calls for the same patient ends up active', async () => {
     const db = getDb()
     const testPatientId = `TEST-CP-RACE-${Date.now()}`
-    await db.insert(patients).values({ id: testPatientId, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Care Plan Race Test Patient', dobIntakeq: '2000-01-01' })
+    await db.insert(patients).values({ id: testPatientId, name: 'Care Plan Race Test Patient', dob: '2000-01-01' })
 
     try {
       await Promise.all([

@@ -72,10 +72,10 @@ export async function listMessageThreads() {
 
   const patientIds = [...new Set(all.map((m) => m.patientId))]
   const patientRows = await db
-    .select({ id: patients.id, nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq })
+    .select({ id: patients.id, name: patients.name })
     .from(patients)
     .where(inArray(patients.id, patientIds))
-  const nameById = new Map(patientRows.map((p) => [p.id, p.nameTebra ?? p.nameIntakeq]))
+  const nameById = new Map(patientRows.map((p) => [p.id, p.name]))
 
   const threads = new Map<string, { patientId: string; patientName: string; lastMessageAt: Date; unreadByProviderCount: number; lastMessagePreview: (typeof all)[number] }>()
   for (const m of all) {
@@ -101,7 +101,7 @@ export async function listMessageThreads() {
 
 /** The display name to attribute a patient-authored message to, at send time. */
 export async function getPatientDisplayName(patientId: string): Promise<string | null> {
-  const [row] = await getDb().select({ nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq }).from(patients).where(eq(patients.id, patientId))
+  const [row] = await getDb().select({ name: patients.name }).from(patients).where(eq(patients.id, patientId))
   if (!row) return null
-  return row.nameTebra ?? row.nameIntakeq
+  return row.name
 }

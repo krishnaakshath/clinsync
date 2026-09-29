@@ -40,7 +40,7 @@ export async function listFormSubmissions(filters: FormSubmissionFilters) {
     answers: r.submission.answers,
     templateName: r.template.name,
     diagnosisTag: r.template.diagnosisTag,
-    patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+    patientName: r.patient.name,
     totalScore: r.score?.totalScore ?? null,
     bandLabel: r.score?.bandLabel ?? null,
   }))
@@ -67,7 +67,7 @@ export async function getFormSubmission(id: number) {
     templateName: row.template.name,
     questions: row.template.questions,
     category: row.template.category,
-    patientName: row.patient.nameTebra ?? row.patient.nameIntakeq,
+    patientName: row.patient.name,
     totalScore: row.score?.totalScore ?? null,
     bandLabel: row.score?.bandLabel ?? null,
   }

@@ -22,7 +22,7 @@ function mapAppointmentRow(r: { appointment: typeof appointments.$inferSelect; p
   return {
     id: r.appointment.id,
     patientId: r.appointment.patientId,
-    patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+    patientName: r.patient.name,
     providerId: r.appointment.providerId,
     providerName: r.provider.name,
     providerColorTag: r.provider.colorTag,

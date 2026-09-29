@@ -80,7 +80,7 @@ async function loginMfa(request: NextRequest) {
 }
 
 beforeAll(async () => {
-  await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Login MFA Test Patient', dobIntakeq: '1990-01-01' })
+  await getDb().insert(patients).values({ id: TEST_PATIENT_ID, name: 'Login MFA Test Patient', dob: '1990-01-01' })
   await setPatientPortalPassword(TEST_PATIENT_ID, TEST_PASSWORD)
 })
 

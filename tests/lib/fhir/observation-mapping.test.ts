@@ -22,7 +22,7 @@ describe('observationsToFhir', () => {
   it('maps resulted orders to Observations and drops still-ordered rows with no result', async () => {
     const db = getDb()
     const [patient] = await db.insert(patients).values({
-      id: 'RD-FHIR-O1', intakeqClientIdRef: 'test-ref-o1', nameIntakeq: 'Obs Patient', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-O1', name: 'Obs Patient', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
     const [providerRow] = await db.select().from(providers).limit(1)
@@ -71,7 +71,7 @@ describe('observationsToFhir', () => {
   it('maps abnormal and critical flags to A and AA interpretation codes', async () => {
     const db = getDb()
     const [patient] = await db.insert(patients).values({
-      id: 'RD-FHIR-O2', intakeqClientIdRef: 'test-ref-o2', nameIntakeq: 'Obs Patient 2', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-O2', name: 'Obs Patient 2', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
     const [providerRow] = await db.select().from(providers).limit(1)

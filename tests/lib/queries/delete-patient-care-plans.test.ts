@@ -21,7 +21,7 @@ describe('deletePatient — care plans cleanup', () => {
   it('deletes care plans and their goals for the patient, and does not leave an FK violation', { timeout: 30000 }, async () => {
     const db = getDb()
     const testPatientId = `TEST-DEL-CP-${Date.now()}`
-    await db.insert(patients).values({ id: testPatientId, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Delete Care Plan Test Patient', dobIntakeq: '2000-01-01' })
+    await db.insert(patients).values({ id: testPatientId, name: 'Delete Care Plan Test Patient', dob: '2000-01-01' })
 
     const plan = await createCarePlan({
       patientId: testPatientId,

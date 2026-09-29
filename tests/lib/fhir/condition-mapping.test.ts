@@ -14,13 +14,13 @@ afterEach(async () => {
 describe('conditionToFhir', () => {
   it('maps a diagnosis with a code, description, and recorded date, with no `system` on the coding', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-C1', intakeqClientIdRef: 'test-ref-c1', nameIntakeq: 'Condition Patient', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-C1', name: 'Condition Patient', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
     const [diagnosisRow] = await getDb().insert(diagnoses).values({
       patientId: patient.id, code: 'F32.9', description: 'Major depressive disorder, single episode, unspecified',
-      source: 'tebra', date: '2026-01-15',
+      date: '2026-01-15',
     }).returning()
     createdDiagnosisIds.push(diagnosisRow.id)
 
@@ -36,13 +36,12 @@ describe('conditionToFhir', () => {
 
   it('maps a null date to a null recordedDate', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-C2', intakeqClientIdRef: 'test-ref-c2', nameIntakeq: 'Condition Patient 2', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-C2', name: 'Condition Patient 2', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
     const [diagnosisRow] = await getDb().insert(diagnoses).values({
       patientId: patient.id, code: 'Z00.00', description: 'Encounter for general adult medical examination',
-      source: 'intakeq',
     }).returning()
     createdDiagnosisIds.push(diagnosisRow.id)
 
@@ -52,13 +51,13 @@ describe('conditionToFhir', () => {
 
   it('conditionsToFhir maps a list of rows', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-C3', intakeqClientIdRef: 'test-ref-c3', nameIntakeq: 'Condition Patient 3', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-C3', name: 'Condition Patient 3', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
     const rows = await getDb().insert(diagnoses).values([
-      { patientId: patient.id, code: 'F41.1', description: 'Generalized anxiety disorder', source: 'tebra', date: '2026-02-01' },
-      { patientId: patient.id, code: 'F43.10', description: 'Post-traumatic stress disorder, unspecified', source: 'intakeq' },
+      { patientId: patient.id, code: 'F41.1', description: 'Generalized anxiety disorder', date: '2026-02-01' },
+      { patientId: patient.id, code: 'F43.10', description: 'Post-traumatic stress disorder, unspecified' },
     ]).returning()
     rows.forEach((r) => createdDiagnosisIds.push(r.id))
 

@@ -16,7 +16,7 @@ afterEach(async () => {
 describe('gatherPatientFhirData', () => {
   it('returns patient-scoped rows for a fixture patient, with empty arrays for data-free tables', async () => {
     const [patient] = await getDb().insert(patients).values({
-      id: 'RD-FHIR-GATHER-1', intakeqClientIdRef: 'test-ref-gather-1', nameIntakeq: 'Gather Patient', dobIntakeq: '1980-01-01',
+      id: 'RD-FHIR-GATHER-1', name: 'Gather Patient', dob: '1980-01-01',
     }).returning()
     createdPatientIds.push(patient.id)
 
@@ -26,7 +26,7 @@ describe('gatherPatientFhirData', () => {
     createdAllergyIds.push(allergyRow.id)
 
     const [diagnosisRow] = await getDb().insert(diagnoses).values({
-      patientId: patient.id, code: 'J45.909', description: 'Asthma, unspecified', source: 'tebra', date: '2024-01-01',
+      patientId: patient.id, code: 'J45.909', description: 'Asthma, unspecified', date: '2024-01-01',
     }).returning()
     createdDiagnosisIds.push(diagnosisRow.id)
 
