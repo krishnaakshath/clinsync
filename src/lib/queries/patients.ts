@@ -191,6 +191,17 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   // (followUpAppointmentId) -- the same FK-ordering discipline applied one level deeper.
   await db.delete(insuranceEligibilityChecks).where(eq(insuranceEligibilityChecks.patientId, anonId))
   await db.delete(encounterNotes).where(eq(encounterNotes.patientId, anonId))
+  // documents.admission_id is a nullable FK to admissions(id) with no ON
+  // DELETE action -- the same ordering hazard already documented above for
+  // medicationAdministrations and doctorAssignments. Documents filed to this
+  // patient go first; the update then catches the pathological case of a
+  // document filed to someone else (or Unfiled) that still references one of
+  // this patient's admissions, which the DB permits even though the routes
+  // never create it.
+  await db.delete(documents).where(eq(documents.patientId, anonId))
+  if (patientAdmissionIds.length > 0) {
+    await db.update(documents).set({ admissionId: null }).where(inArray(documents.admissionId, patientAdmissionIds))
+  }
   if (patientAdmissionIds.length > 0) {
     await db.delete(admissionTransfers).where(inArray(admissionTransfers.admissionId, patientAdmissionIds))
   }
@@ -202,7 +213,6 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(mockPayments).where(eq(mockPayments.patientId, anonId))
   await db.delete(patientStatements).where(eq(patientStatements.patientId, anonId))
   await db.delete(charges).where(eq(charges.patientId, anonId))
-  await db.delete(documents).where(eq(documents.patientId, anonId))
   await db.delete(faxes).where(eq(faxes.patientId, anonId))
   await db.update(rooms).set({ status: 'available', occupiedByPatientId: null }).where(eq(rooms.occupiedByPatientId, anonId))
 

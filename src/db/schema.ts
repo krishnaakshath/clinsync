@@ -691,7 +691,12 @@ export const insuranceEligibilityChecks = pgTable('insurance_eligibility_checks'
 })
 
 export const documentStatusEnum = pgEnum('document_status', ['new', 'processed'])
-export const documentLabelEnum = pgEnum('document_label', ['other', 'drivers_license', 'legal_document'])
+export const documentTypeEnum = pgEnum('document_type', [
+  'other', 'drivers_license', 'legal_document',
+  'insurance_card_primary_front', 'insurance_card_primary_back',
+  'insurance_card_secondary_front', 'insurance_card_secondary_back',
+  'insurance_eob', 'insurance_authorization',
+])
 export const faxDeliveryStatusEnum = pgEnum('fax_delivery_status', ['delivered', 'failed'])
 
 export const documents = pgTable('documents', {
@@ -700,9 +705,19 @@ export const documents = pgTable('documents', {
   documentDate: date('document_date').notNull(),
   status: documentStatusEnum('status').default('new').notNull(),
   receivedFrom: text('received_from').notNull(),
-  label: documentLabelEnum('label').default('other').notNull(),
+  documentType: documentTypeEnum('document_type').default('other').notNull(),
   patientId: text('patient_id').references(() => patients.id),
-  fileType: text('file_type').notNull(), // metadata only, e.g. "PDF" / "JPG" -- no file is ever stored
+  // Set only when staff explicitly associate the document with a stay -- never
+  // derived from "whatever admission is active now." Cleared whenever
+  // patientId changes or is cleared (see deletePatient's FK-ordering fix).
+  admissionId: integer('admission_id').references(() => admissions.id),
+  // fileType is display metadata derived from the uploaded file's MIME type
+  // (e.g. "PDF" / "JPG"). fileUrl is null only for pre-2026-09-29
+  // metadata-only rows that predate real file storage.
+  fileType: text('file_type').notNull(),
+  fileUrl: text('file_url'),
+  filedByName: text('filed_by_name'),
+  filedAt: timestamp('filed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
