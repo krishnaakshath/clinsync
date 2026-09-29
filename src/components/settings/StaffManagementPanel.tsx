@@ -7,16 +7,17 @@ export interface StaffRow {
   id: number
   name: string
   email: string
-  role: 'admin' | 'pi' | 'crc' | 'frontdesk'
+  role: 'admin' | 'pi' | 'crc' | 'frontdesk' | 'pharmacy'
   mfaEnabled: boolean
 }
 
-const ROLE_LABEL: Record<StaffRow['role'], string> = { admin: 'Administrator', pi: 'Principal Investigator', crc: 'Coordinator', frontdesk: 'Front Desk' }
+const ROLE_LABEL: Record<StaffRow['role'], string> = { admin: 'Administrator', pi: 'Principal Investigator', crc: 'Coordinator', frontdesk: 'Front Desk', pharmacy: 'Pharmacy' }
 const ROLE_BADGE: Record<StaffRow['role'], string> = {
   admin: 'bg-accent/10 text-accent',
   pi: 'bg-primary/10 text-primary',
   crc: 'bg-sky-500/10 text-sky-700',
   frontdesk: 'bg-emerald-500/10 text-emerald-700',
+  pharmacy: 'bg-violet-500/10 text-violet-700',
 }
 
 function AddStaffForm({ onCreated }: { onCreated: (row: StaffRow, password: string) => void }) {

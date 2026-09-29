@@ -52,6 +52,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Order lab tests and manage the Lab worklist: mark samples collected, enter results, and cancel orders',
       'Add and edit staff members and credentials in the Staff Directory',
       'Confirm or decline public booking requests into real appointments',
+      'Look up a patient at the pharmacy counter, dispense, and log a dispense bill.',
     ],
   },
   frontdesk: {
@@ -66,6 +67,18 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'View the Lab worklist and mark samples collected',
       'View the Staff Directory and credential expiry status',
       'Confirm or decline public booking requests into real appointments',
+    ],
+  },
+  pharmacy: {
+    label: 'Pharmacy',
+    summary: 'Works the dispensing counter: looks a patient up by ID, reads what their doctor prescribed, dispenses from practice stock, and logs the bill — never prescribes, never edits a prescription, and never approves a charge.',
+    bullets: [
+      'Look up any patient by their patient ID to see their prescribed medications',
+      'View a patient\'s active medication episodes as the prescriber entered them (read-only)',
+      'Dispense a medication from practice stock against a specific prescription',
+      'Log a bill for a dispense as a draft charge for the billing team to review',
+      'View the medication catalog, stock levels, and what the practice is currently prescribing',
+      'Add a medication to the practice catalog',
     ],
   },
 }
