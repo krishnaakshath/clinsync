@@ -18,7 +18,13 @@ vi.mock('@/lib/auth', async () => {
 })
 
 export const ALL_ROLES: Role[] = ['admin', 'crc', 'pi', 'frontdesk']
-const DENIED_ROLES = ALL_ROLES.filter((r) => !['admin', 'crc'].includes(r)) // ['pi', 'frontdesk']
+// Named for the allowlist it's computed against, not just "denied" -- Tasks
+// 2 and 4 gate different routes against different allowlists (e.g.
+// admin-only billing routes, or admin/crc/frontdesk routes), and a
+// generically-named constant here is exactly the kind of thing a future
+// author copies without checking, silently testing the wrong roles as
+// denied.
+const deniedFor = (allowed: Role[]): Role[] => ALL_ROLES.filter((r) => !allowed.includes(r))
 
 afterEach(() => {
   sessionRole = 'crc'
@@ -32,7 +38,7 @@ import { POST as rejectIdentityMatch } from '@/app/api/identity-matches/[id]/rej
 
 describe('GET /api/workbook/full', () => {
   it('403s pi and frontdesk', async () => {
-    for (const role of DENIED_ROLES) {
+    for (const role of deniedFor(['admin', 'crc'])) {
       sessionRole = role
       const res = await getWorkbookFull()
       expect(res.status, `role ${role}`).toBe(403)
@@ -61,7 +67,7 @@ describe('GET /api/workbook/full', () => {
 
 describe('GET /api/workbook/export', () => {
   it('403s pi and frontdesk', async () => {
-    for (const role of DENIED_ROLES) {
+    for (const role of deniedFor(['admin', 'crc'])) {
       sessionRole = role
       const res = await getWorkbookExport()
       expect(res.status, `role ${role}`).toBe(403)
@@ -89,7 +95,7 @@ describe('GET /api/workbook/export', () => {
 
 describe('GET /api/identity-matches', () => {
   it('403s pi and frontdesk', async () => {
-    for (const role of DENIED_ROLES) {
+    for (const role of deniedFor(['admin', 'crc'])) {
       sessionRole = role
       const res = await listIdentityMatches(new NextRequest('http://localhost/api/identity-matches'))
       expect(res.status, `role ${role}`).toBe(403)
@@ -105,7 +111,7 @@ describe('GET /api/identity-matches', () => {
 
 describe('POST /api/identity-matches/[id]/confirm', () => {
   it('403s pi and frontdesk', async () => {
-    for (const role of DENIED_ROLES) {
+    for (const role of deniedFor(['admin', 'crc'])) {
       sessionRole = role
       const res = await confirmIdentityMatch(
         new NextRequest('http://localhost/api/identity-matches/999999/confirm', { method: 'POST', headers: { accept: 'application/json' } }),
@@ -127,7 +133,7 @@ describe('POST /api/identity-matches/[id]/confirm', () => {
 
 describe('POST /api/identity-matches/[id]/reject', () => {
   it('403s pi and frontdesk', async () => {
-    for (const role of DENIED_ROLES) {
+    for (const role of deniedFor(['admin', 'crc'])) {
       sessionRole = role
       const res = await rejectIdentityMatch(
         new NextRequest('http://localhost/api/identity-matches/999999/reject', { method: 'POST', headers: { accept: 'application/json' } }),
