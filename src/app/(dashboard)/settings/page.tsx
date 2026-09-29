@@ -24,9 +24,7 @@ const ROLE_LABEL: Record<string, string> = { admin: 'Administrator', pi: 'Princi
 export default async function SettingsPage() {
   // Must be the first statement — see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
-  if (session.role === 'billing') {
-    redirect('/')
-  }
+  if (session.role === 'billing') redirect('/')
   const settings = await getSettingsSummary()
   const providers = await listAllProviders()
   const staff = await listAllUsers()

@@ -36,6 +36,13 @@
       "when": 1789662580468,
       "tag": "0004_even_war_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790708558118,
+      "tag": "0005_tidy_manta",
+      "breakpoints": true
     }
   ]
 }

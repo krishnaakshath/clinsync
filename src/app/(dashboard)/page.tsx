@@ -21,7 +21,7 @@ export default async function DashboardHomePage() {
   // Same reasoning as PI above: pharmacy has its own dedicated route
   // (Patient Lookup) rather than a conditional render here.
   if (session.role === 'pharmacy') redirect('/pharmacy/patient-lookup')
-  if (session.role === 'billing') redirect('/billing/charges')
+  if (session.role === 'billing') redirect('/billing/ar-dashboard')
   // Called and awaited directly (not `<FrontDeskDashboard session={session} />`) so this
   // page resolves to a plain, already-rendered element tree instead of an unresolved async
   // component nested inside another one's return value -- React's client renderer (used by
@@ -45,7 +45,7 @@ export default async function DashboardHomePage() {
   ])
   await logAudit(session, 'viewed home dashboard', null)
 
-  const staffByRole = ['admin', 'pi', 'crc', 'frontdesk', 'pharmacy'].map((role) => ({
+  const staffByRole = ['admin', 'pi', 'crc', 'frontdesk', 'pharmacy', 'billing'].map((role) => ({
     role,
     count: allStaff.filter((u) => u.role === role).length,
   }))
