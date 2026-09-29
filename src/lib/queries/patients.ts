@@ -5,7 +5,7 @@ import {
   rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes, medicationAdministrations,
   medicationDispenses, carePlans, carePlanGoals, labOrders, labResults,
 } from '@/db/schema'
-import { eq, inArray, or } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
 import { listDiscrepanciesForPatient } from '@/lib/queries/discrepancies'
 import type { Verdict } from '@/lib/rule-engine'
@@ -249,12 +249,12 @@ export interface LikelyDuplicatePatient {
 
 export async function findLikelyDuplicatePatients(name: string, dob: string): Promise<LikelyDuplicatePatient[]> {
   const rows = await getDb()
-    .select({ id: patients.id, nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq, dobTebra: patients.dobTebra, dobIntakeq: patients.dobIntakeq })
+    .select({ id: patients.id, name: patients.name, dob: patients.dob })
     .from(patients)
-    .where(or(eq(patients.dobIntakeq, dob), eq(patients.dobTebra, dob)))
+    .where(eq(patients.dob, dob))
 
   const needle = name.trim().toLowerCase()
   return rows
-    .filter((r) => (r.nameTebra ?? r.nameIntakeq).toLowerCase().includes(needle) || needle.includes((r.nameTebra ?? r.nameIntakeq).toLowerCase()))
-    .map((r) => ({ id: r.id, name: r.nameTebra ?? r.nameIntakeq, dob: (r.dobTebra ?? r.dobIntakeq) as string }))
+    .filter((r) => r.name.toLowerCase().includes(needle) || needle.includes(r.name.toLowerCase()))
+    .map((r) => ({ id: r.id, name: r.name, dob: r.dob }))
 }

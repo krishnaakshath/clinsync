@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { GET, PUT } from '@/app/api/intake/[token]/route'
 import { POST as sendForm } from '@/app/api/form-submissions/route'
 import { getDb } from '@/db/client'
-import { formSubmissions, formTemplates, formChartDiscrepancies } from '@/db/schema'
+import { formSubmissions, formTemplates, formChartDiscrepancies, patients } from '@/db/schema'
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
 
@@ -62,6 +62,15 @@ describe('GET /api/intake/[token]', () => {
     expect(Array.isArray(body.questions)).toBe(true)
     expect(body).not.toHaveProperty('idNumberEncrypted')
     expect(body).not.toHaveProperty('diagnoses')
+
+    // AUTOFILL_SOURCE reads the single-sourced `name`/`dob` columns directly
+    // (post-unified-patient-record) -- confirm the autofill values match
+    // RD-0001's actual row rather than some stale mirrored field.
+    const [patient] = await getDb().select({ name: patients.name, dob: patients.dob }).from(patients).where(eq(patients.id, 'RD-0001'))
+    const nameQuestion = body.questions.find((q: { id: string }) => q.id === 'q1')
+    const dobQuestion = body.questions.find((q: { id: string }) => q.id === 'q2')
+    if (nameQuestion) expect(body.autofill[nameQuestion.id]).toBe(patient.name)
+    if (dobQuestion) expect(body.autofill[dobQuestion.id]).toBe(patient.dob)
   })
 
   it('returns expired state for a token whose tokenExpiresAt has passed', async () => {
