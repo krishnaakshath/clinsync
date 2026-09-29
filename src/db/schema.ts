@@ -3,7 +3,6 @@ import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial
 export const verdictEnum = pgEnum('verdict', ['green', 'yellow', 'red'])
 export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin', 'frontdesk'])
 export const mfaMethodEnum = pgEnum('mfa_method', ['totp', 'sms', 'email'])
-export const matchStatusEnum = pgEnum('match_status', ['pending', 'confirmed', 'rejected'])
 export const payerTypeEnum = pgEnum('payer_type', ['commercial', 'medicare', 'medicaid', 'tricare', 'other'])
 export const insuranceRelationshipEnum = pgEnum('insurance_relationship', ['self', 'spouse', 'child', 'other'])
 export const insurancePlanTypeEnum = pgEnum('insurance_plan_type', ['ppo', 'hmo', 'epo', 'pos', 'medicare', 'medicaid'])
@@ -44,25 +43,12 @@ export const trials = pgTable('trials', {
 export const patients = pgTable('patients', {
   id: text('id').primaryKey(),                  // anonymous id "RD-0001"
   dateAdded: timestamp('date_added').defaultNow().notNull(),
-  // Pseudonymous cross-system linkage IDs, wrapped with the `ENC[...]`
-  // string convention -- NOT ciphertext (see the comment in lib/crypto.ts
-  // for why real encryption isn't warranted here). Named `...Ref`, not
-  // `...Encrypted`, so the property name doesn't assert a guarantee this
-  // column doesn't actually provide.
-  intakeqClientIdRef: text('intakeq_client_id_encrypted').notNull(),
-  tebraPatientIdRef: text('tebra_patient_id_encrypted'),
-  nameIntakeq: text('name_intakeq').notNull(),
-  nameTebra: text('name_tebra'),
-  dobIntakeq: date('dob_intakeq').notNull(),
-  dobTebra: date('dob_tebra'),
-  cityIntakeq: text('city_intakeq'),
-  cityTebra: text('city_tebra'),
-  zipIntakeq: text('zip_intakeq'),
-  zipTebra: text('zip_tebra'),
-  phoneIntakeq: text('phone_intakeq'),
-  phoneTebra: text('phone_tebra'),
-  emailIntakeq: text('email_intakeq'),
-  emailTebra: text('email_tebra'),
+  name: text('name').notNull(),
+  dob: date('dob').notNull(),
+  city: text('city'),
+  zip: text('zip'),
+  phone: text('phone'),
+  email: text('email'),
   currentProvider: text('current_provider'),
   ratingScales: jsonb('rating_scales').$type<{ name: string; score: number; date: string }[]>().default([]),
   referralType: text('referral_type'),
@@ -73,7 +59,6 @@ export const patients = pgTable('patients', {
   commConsentPref: text('comm_consent_pref'),
   templateDocUrl: text('template_doc_url'),
   prescreeningSentDate: date('prescreening_sent_date'),
-  tebraChartUrl: text('tebra_chart_url'),
   // Staff-owned fields (2, 12, 17-20, 23, 24, 28 in the 30-column map) — never overwritten by refresh
   // Hospital-issued patient portal credential -- distinct from any staff
   // account, scrypt-hashed the same way as lib/password.ts. Null means the
@@ -114,7 +99,6 @@ export const diagnoses = pgTable('diagnoses', {
   patientId: text('patient_id').notNull().references(() => patients.id),
   code: text('code').notNull(),
   description: text('description').notNull(),
-  source: text('source', { enum: ['tebra', 'intakeq'] }).notNull(),
   date: date('date'),
 })
 
@@ -149,18 +133,6 @@ export const screeningCriteriaResults = pgTable('screening_criteria_results', {
   evidenceQuote: text('evidence_quote'),
   evidenceSourceDoc: text('evidence_source_doc'),
   evidenceSourceDate: date('evidence_source_date'),
-})
-
-export const identityMatches = pgTable('identity_matches', {
-  id: serial('id').primaryKey(),
-  intakeqClientIdRef: text('intakeq_client_id_encrypted').notNull(),
-  referralName: text('referral_name').notNull(),
-  referralDob: date('referral_dob').notNull(),
-  candidateTebraPatientIdRef: text('candidate_tebra_patient_id_encrypted').notNull(),
-  candidateName: text('candidate_name').notNull(),
-  candidateDob: date('candidate_dob').notNull(),
-  confidence: integer('confidence').notNull(), // 0-100
-  status: matchStatusEnum('status').default('pending').notNull(),
 })
 
 export const auditLog = pgTable('audit_log', {
@@ -407,16 +379,6 @@ export const appSettings = pgTable('app_settings', {
   practiceName: text('practice_name'),
   practiceSite: text('practice_site'),
   practiceTimezone: text('practice_timezone').default('America/Los_Angeles'),
-  // Credentials for the real Tebra/IntakeQ APIs, stored so an admin can
-  // provision them here once the vendor issues real access -- this pilot
-  // has a signed BAA but no API access yet, so nothing reads these fields
-  // to make an outbound call today. AES-256-GCM encrypted at rest via
-  // lib/crypto.ts, same as identityVerifications.idNumberEncrypted; never
-  // decrypted for display, only for a future real sync job to consume.
-  intakeqApiKeyEncrypted: text('intakeq_api_key_encrypted'),
-  tebraCustomerKeyEncrypted: text('tebra_customer_key_encrypted'),
-  tebraUserEncrypted: text('tebra_user_encrypted'),
-  tebraPasswordEncrypted: text('tebra_password_encrypted'),
   // The admin account authenticates via ADMIN_EMAIL/ADMIN_PASSWORD_HASH env
   // vars (api/login/route.ts), not a users row -- its MFA state has nowhere
   // else to live, so it goes on this pilot-wide singleton instead.
