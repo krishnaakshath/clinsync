@@ -5,7 +5,7 @@ import {
   rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes, medicationAdministrations,
   medicationDispenses, carePlans, carePlanGoals, labOrders, labResults,
 } from '@/db/schema'
-import { eq, inArray, or } from 'drizzle-orm'
+import { eq, inArray, or, sql } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
 import { listDiscrepanciesForPatient } from '@/lib/queries/discrepancies'
 import type { Verdict } from '@/lib/rule-engine'
@@ -46,6 +46,33 @@ export type PatientWithStatus = PatientRowWithoutMfaSecret & { trialId?: string;
  * own guidance: fetch data in Server Components from its source, not via
  * Route Handlers).
  */
+export interface PatientNameOption {
+  id: string
+  name: string
+}
+
+// Deliberately NOT `listPatientsWithStatus`: this worktree's `schema.ts`
+// still declares patients' pre-unification `nameTebra`/`nameIntakeq` (etc.)
+// columns, but a separate, concurrently-running worktree's migration
+// (`feature/unified-patient-record`) has already collapsed the live shared
+// Neon DB's `patients` table down to a single `name`/`dob` pair -- the same
+// standing cross-worktree drift Task 1's report on this plan diagnosed.
+// `listPatientsWithStatus`'s bare `patient: patients` select spreads every
+// column `schema.ts` declares, including the now-nonexistent
+// `name_tebra`/`name_intakeq`, and 42703s against the real live DB. This
+// narrow select only ever asks Postgres for `id` and the live table's actual
+// `name` column (via a raw `sql` fragment, since `schema.ts` has no typed
+// accessor for it), so it works against the DB as it actually is today.
+// Used to populate a plain patient <select> (Receive Document modal, inline
+// document filing) -- not general patient data, so it doesn't need
+// screening/criteria/MFA fields `listPatientsWithStatus` also carries.
+export async function listPatientNameOptions(): Promise<PatientNameOption[]> {
+  return getDb()
+    .select({ id: patients.id, name: sql<string>`patients.name` })
+    .from(patients)
+    .orderBy(sql`patients.name`)
+}
+
 export async function listPatientsWithStatus(trialId: string | null): Promise<PatientWithStatus[]> {
   return getOrSetCache(patientListCacheKey(trialId), 30, async () => {
     const rows = await getDb()
@@ -191,6 +218,17 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   // (followUpAppointmentId) -- the same FK-ordering discipline applied one level deeper.
   await db.delete(insuranceEligibilityChecks).where(eq(insuranceEligibilityChecks.patientId, anonId))
   await db.delete(encounterNotes).where(eq(encounterNotes.patientId, anonId))
+  // documents.admission_id is a nullable FK to admissions(id) with no ON
+  // DELETE action -- the same ordering hazard already documented above for
+  // medicationAdministrations and doctorAssignments. Documents filed to this
+  // patient go first; the update then catches the pathological case of a
+  // document filed to someone else (or Unfiled) that still references one of
+  // this patient's admissions, which the DB permits even though the routes
+  // never create it.
+  await db.delete(documents).where(eq(documents.patientId, anonId))
+  if (patientAdmissionIds.length > 0) {
+    await db.update(documents).set({ admissionId: null }).where(inArray(documents.admissionId, patientAdmissionIds))
+  }
   if (patientAdmissionIds.length > 0) {
     await db.delete(admissionTransfers).where(inArray(admissionTransfers.admissionId, patientAdmissionIds))
   }
@@ -202,7 +240,6 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(mockPayments).where(eq(mockPayments.patientId, anonId))
   await db.delete(patientStatements).where(eq(patientStatements.patientId, anonId))
   await db.delete(charges).where(eq(charges.patientId, anonId))
-  await db.delete(documents).where(eq(documents.patientId, anonId))
   await db.delete(faxes).where(eq(faxes.patientId, anonId))
   await db.update(rooms).set({ status: 'available', occupiedByPatientId: null }).where(eq(rooms.occupiedByPatientId, anonId))
 

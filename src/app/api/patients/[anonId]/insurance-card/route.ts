@@ -7,6 +7,18 @@ import { patients } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
 
+// Scope Decision 2 (docs/superpowers/sdd .../document-insurance-assignment plan):
+// this list stays image-only on purpose, and it is an intended divergence
+// from POST /api/documents' ALLOWED_TYPES, not a gap to "harmonize" away.
+// primaryCardFrontUrl/primaryCardBackUrl are rendered as a bare <img src>
+// on the Medical Record page -- a PDF there is a broken image, so this
+// route rejects one at the door. POST /api/documents has no such
+// constraint: its fileUrl is only ever reached through a redirecting
+// download link, which serves any type correctly, so it also accepts
+// application/pdf. Both halves are pinned by tests: this route's own
+// "rejects a non-image content type" case (uses exactly an application/pdf
+// file) and tests/api/documents-receive.test.ts's "accepts an
+// application/pdf" case.
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_BYTES = 8 * 1024 * 1024
 
