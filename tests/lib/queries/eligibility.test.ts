@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { eq, inArray } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import { patientTrialScreenings, messages, trials } from '@/db/schema'
 import { confirmScreeningSelection, regenerateScreeningCriteria, SYSTEM_SENDER_NAME } from '@/lib/queries/eligibility'
@@ -144,16 +144,30 @@ describe('confirmScreeningSelection', () => {
     await setScreening({ overallStatus: 'green', selectionConfirmedAt: null, selectionConfirmedByName: null, selectionNotifiedAt: null })
     const before = await listMessagesForPatient(PATIENT)
 
-    // patient_trial_screenings.trial_id is FK-constrained to trials.id, so a
-    // dangling trialId can't be written through a normal UPDATE -- this
-    // state can only arise (defensively) from a race, not from data anyone
-    // can insert. Drop the constraint just long enough to create that state
-    // for the duration of this one call, then restore both the row and the
-    // constraint before anything else runs.
+    // trial_missing defends against a trialId that doesn't resolve to a real
+    // trial. patient_trial_screenings.trial_id is FK-constrained, so that
+    // state can never actually be written -- this repo's shared dev DB is
+    // additive-only/non-destructive by convention (a prior incident is why),
+    // so rather than dropping the live FK constraint, stub just the trial
+    // lookup (`db.select().from(trials)...`, the exact call site in
+    // confirmScreeningSelection) to return no rows for this one call. Every
+    // other query on the shared `db` singleton -- including the ones this
+    // very test makes via setScreening/getScreening -- passes through to the
+    // real database untouched.
     const db = getDb()
-    await db.execute(sql`ALTER TABLE patient_trial_screenings DROP CONSTRAINT patient_trial_screenings_trial_id_trials_id_fk`)
+    const originalSelect = db.select.bind(db)
+    const selectSpy = vi.spyOn(db, 'select').mockImplementation((...args: unknown[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matching drizzle's own overloaded, hard-to-narrow select() signature
+      const builder = (originalSelect as any)(...args)
+      const originalFrom = builder.from.bind(builder)
+      builder.from = (table: unknown) => {
+        if (table === trials) return { where: () => Promise.resolve([]) }
+        return originalFrom(table)
+      }
+      return builder
+    })
+
     try {
-      await setScreening({ trialId: 'nct-nonexistent-trial' })
       const result = await confirmScreeningSelection(PATIENT, 'Dr. Rajiv Kunam')
       expect(result).toEqual({ ok: false, reason: 'trial_missing' })
 
@@ -162,8 +176,7 @@ describe('confirmScreeningSelection', () => {
       expect(updated.selectionConfirmedByName).toBeNull()
       expect(updated.selectionNotifiedAt).toBeNull()
     } finally {
-      await setScreening({ trialId: original.trialId })
-      await db.execute(sql`ALTER TABLE patient_trial_screenings ADD CONSTRAINT patient_trial_screenings_trial_id_trials_id_fk FOREIGN KEY (trial_id) REFERENCES trials(id)`)
+      selectSpy.mockRestore()
     }
 
     const after = await listMessagesForPatient(PATIENT)
