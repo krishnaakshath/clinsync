@@ -40,6 +40,14 @@ export default function LoginPage() {
       return
     }
     const body = await res.json()
+    // DISABLE_STAFF_MFA completes the login outright (real session cookie
+    // already set server-side) and returns { ok: true } with no `mode` --
+    // go straight to the app, same as a successful MFA verify.
+    if (body.ok) {
+      router.push('/')
+      router.refresh()
+      return
+    }
     if (body.mode === 'enroll') {
       setStep({ kind: 'enroll', qrDataUrl: body.qrDataUrl, manualKey: body.manualKey })
     } else {
