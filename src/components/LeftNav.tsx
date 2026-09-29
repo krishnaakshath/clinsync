@@ -7,7 +7,7 @@ import {
   Calendar, FileText, FileSignature, MessageSquare, Wallet, Receipt, ShieldCheck, HandCoins,
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
-  ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard,
+  ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard, CalendarClock,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
@@ -42,6 +42,7 @@ const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/pharmacy', label: 'Pharmacy', icon: Pill },
   { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
   { href: '/staff', label: 'Staff', icon: IdCard },
+  { href: '/booking-requests', label: 'Booking Requests', icon: CalendarClock, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
   { href: '/messages', label: 'Messages', icon: MessageSquare },
 ]
 

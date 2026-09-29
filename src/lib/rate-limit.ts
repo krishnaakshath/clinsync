@@ -297,3 +297,73 @@ export async function checkQueueDisplayPinRateLimit(ip: string): Promise<{ allow
   const { success } = await getQueueDisplayPinLimiter().limit(ip)
   return { allowed: success }
 }
+
+// The public booking-request route has no session and no credential to
+// guess -- an anonymous submitter has no persistent identity before they
+// submit, so unlike every other dual-bucket limiter in this file, there's
+// nothing to key a global bucket on except a single fixed string. That makes
+// this global bucket a genuinely flat, shared cap on total booking
+// submissions across the whole app regardless of source IP, defending
+// against a botnet rotating (or spoofing) addresses to dodge the per-IP
+// bucket. Tighter than login's 5-per-60s: this gates a lower-frequency
+// legitimate action (nobody submits multiple real booking requests per
+// minute), so the per-IP window is 3-per-300s.
+//
+// The global backstop itself was originally 20-per-600s, but -- unlike
+// every other bucket in this file -- it isn't keyed on any identity, so
+// that cap is shared by every legitimate patient across the whole practice
+// at once. A single trivial actor (no botnet needed, just one script making
+// 20 requests) could burn the entire bucket in seconds and then 429 every
+// real patient for the practice for the next 10 minutes. Raised to
+// 200-per-600s: still a real hard backstop against a genuine bot/DDoS burst
+// (200 submissions in 10 minutes is far outside plausible organic volume
+// for one practice's public booking widget), but no longer trivially
+// exhausted by ordinary legitimate traffic or a single bad actor.
+let _bookingRequestLimiter: Ratelimit | null = null
+function getBookingRequestLimiter() {
+  if (!_bookingRequestLimiter) {
+    _bookingRequestLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(3, '300 s'),
+      prefix: 'ratelimit:booking-request',
+    })
+  }
+  return _bookingRequestLimiter
+}
+
+let _bookingRequestGlobalLimiter: Ratelimit | null = null
+function getBookingRequestGlobalLimiter() {
+  if (!_bookingRequestGlobalLimiter) {
+    _bookingRequestGlobalLimiter = new Ratelimit({
+      redis: getRedis(),
+      limiter: Ratelimit.slidingWindow(200, '600 s'),
+      prefix: 'ratelimit:booking-request-global',
+    })
+  }
+  return _bookingRequestGlobalLimiter
+}
+
+export async function checkBookingRequestRateLimit(ip: string): Promise<{ allowed: boolean }> {
+  const [perIp, global] = await Promise.all([
+    getBookingRequestLimiter().limit(ip),
+    getBookingRequestGlobalLimiter().limit('global'),
+  ])
+  return { allowed: perIp.success && global.success }
+}
+
+// Test-only escape hatch. Every other bucket in this file is keyed on a
+// per-test-random identity, so exhausting one only ever affects that one
+// test. This global bucket is the one exception -- its key is the literal
+// string 'global', shared by every caller including production traffic and
+// every test file -- so a test that deliberately saturates it (proving the
+// flat cap works) would otherwise leak a ~600s-long false 429 into any other
+// suite that hits checkBookingRequestRateLimit afterward, with the ordering
+// entirely up to file discovery order rather than anything meaningful. Call
+// this from an afterAll in the test that saturates the bucket so it can
+// never do that regardless of run order.
+export async function __resetBookingRequestGlobalBucketForTests(): Promise<void> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('__resetBookingRequestGlobalBucketForTests must never be called in production')
+  }
+  await getBookingRequestGlobalLimiter().resetUsedTokens('global')
+}

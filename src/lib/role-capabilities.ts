@@ -19,6 +19,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'View and manage the live bed/ward status board, including marking rooms clean',
       'View the Lab worklist across all patients',
       'View the Staff Directory and credential expiry status',
+      'Confirm or decline public booking requests into real appointments',
     ],
   },
   pi: {
@@ -34,6 +35,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Dispense medications from the Pharmacy dashboard',
       'Order lab tests and manage the Lab worklist: mark samples collected, enter results, and cancel orders',
       'View the Staff Directory and credential expiry status',
+      'View the public booking requests queue (read-only -- confirming/declining is a registration-staff action)',
     ],
   },
   admin: {
@@ -49,6 +51,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Dispense medications from the Pharmacy dashboard',
       'Order lab tests and manage the Lab worklist: mark samples collected, enter results, and cancel orders',
       'Add and edit staff members and credentials in the Staff Directory',
+      'Confirm or decline public booking requests into real appointments',
     ],
   },
   frontdesk: {
@@ -62,6 +65,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'View and manage the live bed/ward status board',
       'View the Lab worklist and mark samples collected',
       'View the Staff Directory and credential expiry status',
+      'Confirm or decline public booking requests into real appointments',
     ],
   },
 }

@@ -42,4 +42,13 @@ export async function proxy(request: NextRequest) {
 // this exclusion can never over-match a future unrelated `/display-*`
 // route -- there is exactly one route under /display today and none other
 // planned, so this costs nothing to tighten now.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|telemedicine/join|display/queue).*)'] }
+// book is excluded the same way: /book (src/app/book/page.tsx) is the public
+// booking-request widget -- a cold, unauthenticated visitor from the
+// practice's public website, with no account and no staff-sent token.
+// Placing it outside the (dashboard) route group only avoids that layout's
+// own getSession() check; without this exclusion too, this proxy's
+// codebase-wide session gate would still redirect every /book request to
+// /login before the page ever rendered. Anchored to book(?:/|$) (not a bare
+// `book` prefix) so it can never over-match /booking-requests, the STAFF
+// confirm/decline queue, which must keep requiring a session.
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|telemedicine/join|display/queue|book(?:/|$)).*)'] }
