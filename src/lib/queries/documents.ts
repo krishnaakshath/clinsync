@@ -73,3 +73,31 @@ export async function isAdmissionForPatient(admissionId: number, patientId: stri
     .where(and(eq(admissions.id, admissionId), eq(admissions.patientId, patientId)))
   return rows.length > 0
 }
+
+export interface UpdateDocumentInput {
+  status?: 'new' | 'processed'
+  patientId?: string | null
+  admissionId?: number | null
+  documentType?: DocumentType
+  filedByName?: string | null
+  filedAt?: Date | null
+}
+
+// Applies exactly the fields it's given and makes no policy decisions --
+// the route (which knows session identity and the filing/unfiling rules)
+// computes what belongs in `input`, including what to clear.
+export async function updateDocument(id: number, input: UpdateDocumentInput): Promise<DocumentRow | null> {
+  const [row] = await getDb().update(documents).set(input).where(eq(documents.id, id)).returning()
+  return row ?? null
+}
+
+// Reads the row before deleting it so the route can still read
+// fileUrl/name/patientId afterward for Blob cleanup and the audit entry --
+// a DELETE's `returning()` would work too, but this mirrors getDocument's
+// existing read path instead of introducing a second way to shape the row.
+export async function deleteDocument(id: number): Promise<DocumentRow | null> {
+  const existing = await getDocument(id)
+  if (!existing) return null
+  await getDb().delete(documents).where(eq(documents.id, id))
+  return existing
+}
