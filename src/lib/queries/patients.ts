@@ -153,7 +153,21 @@ export async function getPatientDetail(anonId: string) {
 
     const discrepancies = await listDiscrepanciesForPatient(anonId)
 
-    return { ...withoutMfaSecret(patient), mfaEnabled: patient.mfaEnabled, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null, portalConfigured: !!patient.portalPasswordHash, discrepancies }
+    return {
+      ...withoutMfaSecret(patient),
+      mfaEnabled: patient.mfaEnabled,
+      overallStatus: screening?.overallStatus,
+      selectionConfirmedAt: screening?.selectionConfirmedAt ?? null,
+      selectionConfirmedByName: screening?.selectionConfirmedByName ?? null,
+      selectionNotifiedAt: screening?.selectionNotifiedAt ?? null,
+      criteria,
+      diagnoses: dx,
+      medications: meds,
+      allergies: patientAllergies,
+      identityVerification: identity ?? null,
+      portalConfigured: !!patient.portalPasswordHash,
+      discrepancies,
+    }
   })
 }
 

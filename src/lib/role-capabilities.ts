@@ -19,6 +19,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'View the Lab worklist across all patients',
       'View the Staff Directory and credential expiry status',
       'Confirm or decline public booking requests into real appointments',
+      'Confirm a green trial-eligibility verdict, which automatically notifies the patient',
     ],
   },
   pi: {
@@ -36,6 +37,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Order lab tests and manage the Lab worklist: mark samples collected, enter results, and cancel orders',
       'View the Staff Directory and credential expiry status',
       'View the public booking requests queue (read-only -- confirming/declining is a registration-staff action)',
+      'Confirm a green trial-eligibility verdict, which automatically notifies the patient',
     ],
   },
   admin: {
@@ -54,6 +56,7 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'Confirm or decline public booking requests into real appointments',
       'Permanently delete a received document',
       'Look up a patient at the pharmacy counter, dispense, and log a dispense bill.',
+      'Confirm a green trial-eligibility verdict, which automatically notifies the patient',
     ],
   },
   frontdesk: {

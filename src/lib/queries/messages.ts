@@ -2,7 +2,7 @@ import { getDb } from '@/db/client'
 import { messages, patients } from '@/db/schema'
 import { eq, and, isNull, asc, desc, inArray, sql } from 'drizzle-orm'
 
-export type SenderRole = 'provider' | 'patient'
+export type SenderRole = 'provider' | 'patient' | 'system'
 
 /**
  * A single patient's message thread, oldest first (chat reading order).
@@ -27,12 +27,17 @@ export async function markReadByProvider(patientId: string): Promise<void> {
     .where(and(eq(messages.patientId, patientId), eq(messages.senderRole, 'patient'), isNull(messages.readByProviderAt)))
 }
 
-/** Marks every provider-authored message in this thread as read by the patient. */
+/**
+ * Marks every provider- or system-authored message in this thread as read by
+ * the patient. From the patient's side an automated notice is a message from
+ * the practice they need to see, so it counts toward their badge and is
+ * marked read the same way as a provider message (spec §5).
+ */
 export async function markReadByPatient(patientId: string): Promise<void> {
   await getDb()
     .update(messages)
     .set({ readByPatientAt: new Date() })
-    .where(and(eq(messages.patientId, patientId), eq(messages.senderRole, 'provider'), isNull(messages.readByPatientAt)))
+    .where(and(eq(messages.patientId, patientId), inArray(messages.senderRole, ['provider', 'system']), isNull(messages.readByPatientAt)))
 }
 
 /** Total unread (by staff) patient-authored messages across every thread -- for a nav badge. */
@@ -44,12 +49,17 @@ export async function getUnreadCountForProvider(): Promise<number> {
   return row?.count ?? 0
 }
 
-/** Unread (by the patient) provider-authored messages in this patient's own thread. */
+/**
+ * Unread (by the patient) provider- or system-authored messages in this
+ * patient's own thread. From the patient's side an automated notice is a
+ * message from the practice they need to see, so it counts toward their
+ * badge the same way a provider message does (spec §5).
+ */
 export async function getUnreadCountForPatient(patientId: string): Promise<number> {
   const [row] = await getDb()
     .select({ count: sql<number>`count(*)::int` })
     .from(messages)
-    .where(and(eq(messages.patientId, patientId), eq(messages.senderRole, 'provider'), isNull(messages.readByPatientAt)))
+    .where(and(eq(messages.patientId, patientId), inArray(messages.senderRole, ['provider', 'system']), isNull(messages.readByPatientAt)))
   return row?.count ?? 0
 }
 

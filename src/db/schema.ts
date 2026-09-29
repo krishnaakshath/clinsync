@@ -132,6 +132,18 @@ export const patientTrialScreenings = pgTable('patient_trial_screenings', {
   patientId: text('patient_id').notNull().references(() => patients.id),
   trialId: text('trial_id').notNull().references(() => trials.id),
   overallStatus: verdictEnum('overall_status').notNull(),
+  // One-to-one with this screening's outcome (a patient is selected for at
+  // most one trial at a time), same shape as identityVerifications.verified/
+  // verifiedBy/verifiedAt above. selectionConfirmedAt/selectionConfirmedByName
+  // live here rather than a side table because there is exactly one
+  // confirmation per screening, not a history of them.
+  // selectionNotifiedAt is the one field of the three that is never cleared
+  // once set: it marks that the patient-facing notification for this
+  // selection has already gone out, so a later status re-check does not
+  // re-send it even if selectionConfirmedAt/selectionConfirmedByName change.
+  selectionConfirmedAt: timestamp('selection_confirmed_at'),
+  selectionConfirmedByName: text('selection_confirmed_by_name'),
+  selectionNotifiedAt: timestamp('selection_notified_at'),
 })
 
 export const screeningCriteriaResults = pgTable('screening_criteria_results', {
@@ -733,7 +745,7 @@ export const faxes = pgTable('faxes', {
 export const messages = pgTable('messages', {
   id: serial('id').primaryKey(),
   patientId: text('patient_id').notNull().references(() => patients.id),
-  senderRole: text('sender_role', { enum: ['provider', 'patient'] }).notNull(),
+  senderRole: text('sender_role', { enum: ['provider', 'patient', 'system'] }).notNull(),
   senderName: text('sender_name').notNull(),
   body: text('body').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
