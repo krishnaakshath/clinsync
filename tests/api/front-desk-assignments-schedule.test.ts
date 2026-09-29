@@ -49,7 +49,7 @@ describe('POST /api/front-desk/assignments/[id]/schedule', () => {
 
   it('returns 403 for a frontdesk session (only the assigned doctor schedules)', async () => {
     const auth = await import('@/lib/auth')
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'frontdesk', name: 'Taylor Nguyen' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'frontdesk', name: 'Taylor Nguyen', userId: null })
     const providerId = await kunamProviderId()
     const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
     createdAssignmentIds.push(assignment.id)

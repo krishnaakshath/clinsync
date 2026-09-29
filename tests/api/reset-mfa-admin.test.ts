@@ -65,7 +65,7 @@ afterAll(async () => {
 })
 
 async function cookieFor(role: 'admin' | 'pi' | 'crc', name: string) {
-  return `${SESSION_COOKIE_NAME}=${await buildSessionCookieValue(role, name)}`
+  return `${SESSION_COOKIE_NAME}=${await buildSessionCookieValue(role, name, null)}`
 }
 
 async function callResetUserMfa(req: NextRequest, params: { id: string }) {

@@ -25,7 +25,7 @@ describe('POST /api/front-desk/eligibility-check', () => {
   it('returns 403 for a pi session', async () => {
     const [payer] = await getDb().select().from(payers).limit(1)
     const auth = await import('@/lib/auth')
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Dr. Kunam' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Dr. Kunam', userId: null })
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', payerId: payer.id }) })
     const res = await POST(req as never)
     expect(res.status).toBe(403)

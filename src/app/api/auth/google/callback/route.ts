@@ -61,8 +61,8 @@ export async function GET(request: NextRequest) {
   // -- a deployment that never set up the password-based admin account
   // shouldn't be reachable as admin via SSO alone.
   if (adminEmail && adminPasswordHash && identity.email.toLowerCase() === adminEmail.toLowerCase()) {
-    await setSessionCookie('admin', process.env.ADMIN_NAME ?? 'Admin')
-    await logAudit({ role: 'admin', name: process.env.ADMIN_NAME ?? 'Admin' }, 'logged in via Google SSO', null)
+    await setSessionCookie('admin', process.env.ADMIN_NAME ?? 'Admin', null)
+    await logAudit({ role: 'admin', name: process.env.ADMIN_NAME ?? 'Admin', userId: null }, 'logged in via Google SSO', null)
     return NextResponse.redirect(`${appUrl}/`)
   }
 
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  await setSessionCookie(user.role, user.name)
-  await logAudit({ role: user.role, name: user.name }, 'logged in via Google SSO', null)
+  await setSessionCookie(user.role, user.name, user.id)
+  await logAudit({ role: user.role, name: user.name, userId: user.id }, 'logged in via Google SSO', null)
   return NextResponse.redirect(`${appUrl}/`)
 }

@@ -57,7 +57,7 @@ afterEach(async () => {
 })
 
 async function reqAs(role: 'crc', name: string, body: unknown) {
-  const cookie = await buildSessionCookieValue(role, name)
+  const cookie = await buildSessionCookieValue(role, name, null)
   return new NextRequest('http://localhost/api/account/mfa-method', {
     method: 'PUT',
     body: JSON.stringify(body),

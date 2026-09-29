@@ -719,6 +719,8 @@ async function seedProvidersAndAppointments() {
     { patientId: 'RD-0011', providerId: farr.id, startsAt: new Date('2026-09-29T13:30:00'), endsAt: new Date('2026-09-29T14:00:00'), visitReason: 'Follow-up visit', status: 'scheduled' },
     { patientId: 'RD-0012', providerId: kunam.id, startsAt: new Date('2026-09-30T11:00:00'), endsAt: new Date('2026-09-30T11:30:00'), visitReason: 'Randomization visit', status: 'scheduled' },
   ])
+
+  return insertedProviders
 }
 
 // Spreads a few appointments across the expanded filler roster (RD-0020+)
@@ -954,11 +956,53 @@ export async function seed() {
   }
 
   await seedFillerPatients()
-  await seedProvidersAndAppointments()
+  const insertedProviders = await seedProvidersAndAppointments()
   await seedStaff()
   await seedRooms()
   await seedBilling()
   await seedDocumentsAndFaxes()
+
+  // Demo-only prescribed episodes (prescribedAt IS NOT NULL) for the first
+  // hero patient only, added after providers exist so prescribedByProviderId
+  // can point at a real row -- gives the print view and prescriber
+  // attribution real data to render without hand-writing one. This same
+  // patient's imported-history episode inserted above (in the HERO_PATIENTS
+  // loop) is left exactly as it is, with prescribedAt still null: a
+  // null-prescriber row still rendering correctly alongside these is itself
+  // the regression check (see schema.ts comment on medicationEpisodes for
+  // why that discriminator must never be backfilled).
+  const heroPrescriber = insertedProviders.find((provider) => provider.name === 'Dr. Rajiv Kunam')
+  const heroPatientId = HERO_PATIENTS[0].id
+  await db.insert(medicationEpisodes).values([
+    {
+      patientId: heroPatientId,
+      name: 'Fluoxetine',
+      medicationClass: 'SSRI/SNRI antidepressant',
+      dose: '20mg daily',
+      startDate: '2026-08-01',
+      status: 'active',
+      frequencyPerDay: 2,
+      durationDays: 30,
+      instructions: 'Take with food.',
+      prescribedByProviderId: heroPrescriber?.id,
+      enteredByName: 'Dr. Rajiv Kunam',
+      prescribedAt: new Date(),
+    },
+    {
+      patientId: heroPatientId,
+      name: 'Buspirone',
+      medicationClass: 'Anxiolytic',
+      dose: '15mg daily',
+      startDate: '2026-08-01',
+      status: 'active',
+      frequencyPerDay: 1,
+      durationDays: 90,
+      instructions: null,
+      prescribedByProviderId: heroPrescriber?.id,
+      enteredByName: 'Dr. Rajiv Kunam',
+      prescribedAt: new Date(),
+    },
+  ])
 
   await db.insert(identityMatches).values([
     { intakeqClientIdRef: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdRef: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },

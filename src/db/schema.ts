@@ -127,6 +127,20 @@ export const medicationEpisodes = pgTable('medication_episodes', {
   startDate: date('start_date').notNull(),
   stopDate: date('stop_date'),
   status: text('status', { enum: ['active', 'inactive'] }).notNull(),
+  // This table now holds two kinds of row: imported history (Tebra/IntakeQ
+  // medication data with no prescriber of record) and prescriptions written
+  // here in-app. `prescribedAt IS NOT NULL` is the discriminator between
+  // them -- every column below is null on imported-history rows and no
+  // backfill ever populates them retroactively (see migrate-prescriptions
+  // migration note: fabricating a retroactive prescriber is the exact
+  // failure this feature exists to prevent).
+  medicationId: integer('medication_id').references(() => medications.id),
+  frequencyPerDay: integer('frequency_per_day'),
+  durationDays: integer('duration_days'),
+  instructions: text('instructions'),
+  prescribedByProviderId: integer('prescribed_by_provider_id').references(() => providers.id),
+  enteredByName: text('entered_by_name'),
+  prescribedAt: timestamp('prescribed_at'),
 })
 
 export const patientTrialScreenings = pgTable('patient_trial_screenings', {

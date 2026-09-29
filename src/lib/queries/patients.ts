@@ -454,6 +454,38 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   return true
 }
 
+export interface PatientPrintIdentity {
+  id: string
+  name: string
+  dob: string
+}
+
+// Scoped patient-identity read for the printable prescription page
+// (prescriptions plan, Task 5). `getPatientDetail()`'s bare select() pulls
+// in every column schema.ts declares for `patients`, including the
+// pre-unification `name_tebra`/`name_intakeq`/`dob_tebra`/`dob_intakeq`
+// split -- the live shared Neon DB has already been migrated to plain
+// `name`/`dob` (the concurrent, not-yet-merged `unified-patient-record`
+// worktree), but this branch's schema.ts hasn't caught up, so that
+// whole-row select 42703s against the real DB. This narrow select only
+// asks Postgres for `id` and the live table's actual `name`/`dob` columns,
+// via raw `sql` fragments since schema.ts has no typed accessor for them
+// -- literal column-reference fragments, not interpolated values, so
+// there's no injection surface. `dob::text` avoids node-postgres handing
+// back a JS `Date` instead of the 'YYYY-MM-DD' string this page prints.
+// Matches the identical pattern already reviewed clean in
+// pharmacy-dashboard's `getPatientPharmacyView` and document-assignment's
+// `listPatientNameOptions`. Deliberately NOT a change to `getPatientDetail`
+// or to `schema.ts` -- reconciling `patients` belongs to the
+// `unified-patient-record` spec.
+export async function getPatientIdentityForPrint(patientId: string): Promise<PatientPrintIdentity | null> {
+  const [row] = await getDb()
+    .select({ id: patients.id, name: sql<string>`patients.name`, dob: sql<string>`patients.dob::text` })
+    .from(patients)
+    .where(eq(patients.id, patientId))
+  return row ?? null
+}
+
 export interface LikelyDuplicatePatient {
   id: string
   name: string

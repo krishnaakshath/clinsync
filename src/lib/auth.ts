@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { SignJWT, jwtVerify } from 'jose'
 
 export type Role = 'crc' | 'pi' | 'admin' | 'frontdesk' | 'pharmacy'
-export interface Session { role: Role; name: string }
+export interface Session { role: Role; name: string; userId: number | null }
 
 const VALID_ROLES: readonly Role[] = ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy']
 const COOKIE_NAME = 'clinsync_demo_session'
@@ -34,8 +34,13 @@ function getSessionSecret(): Uint8Array {
 // completing a fully authenticated staff login without ever passing the
 // TOTP check. Found by task review during the MFA rollout; see
 // docs/superpowers/plans/2026-09-23-patient-portal-security-mfa.md.
-export async function buildSessionCookieValue(role: Role, name: string): Promise<string> {
-  return new SignJWT({ kind: 'staff', role, name })
+// `userId` links this session to its real `users` row so callers (see
+// resolveSessionProvider in provider-identity.ts) can look up the actual
+// `providers` row this staff member is, instead of fuzzy-matching on
+// `name`. `null` is the honest value for the env-based admin account,
+// which authenticates from environment variables and has no `users` row.
+export async function buildSessionCookieValue(role: Role, name: string, userId: number | null): Promise<string> {
+  return new SignJWT({ kind: 'staff', role, name, userId })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
@@ -50,7 +55,17 @@ export async function parseSessionCookie(value: string): Promise<Session | null>
     // crashed with a Postgres enum-constraint violation on every subsequent
     // audited request for that session.
     if (payload.kind === 'staff' && typeof payload.name === 'string' && payload.name.length > 0 && VALID_ROLES.includes(payload.role as Role)) {
-      return { role: payload.role as Role, name: payload.name }
+      // `userId` is a LATER ADDITION to this claim set. A cookie minted
+      // before it existed is still a valid staff session for up to
+      // SESSION_MAX_AGE_SECONDS (8h) after this deploys, and returning null
+      // here would log every one of those users out -- getSession(),
+      // requireSession() and proxy.ts all read null as "no session".
+      // So: claim ABSENT (or explicitly null) => userId: null, valid
+      // session. Claim PRESENT but not a number => reject, because that is
+      // a malformed or tampered token rather than an old one.
+      const rawUserId = payload.userId
+      if (rawUserId !== undefined && rawUserId !== null && typeof rawUserId !== 'number') return null
+      return { role: payload.role as Role, name: payload.name, userId: typeof rawUserId === 'number' ? rawUserId : null }
     }
     return null
   } catch {
@@ -67,9 +82,9 @@ export async function getSession(): Promise<Session | null> {
   return raw ? parseSessionCookie(raw) : null
 }
 
-export async function setSessionCookie(role: Role, name: string) {
+export async function setSessionCookie(role: Role, name: string, userId: number | null) {
   const store = await cookies()
-  const value = await buildSessionCookieValue(role, name)
+  const value = await buildSessionCookieValue(role, name, userId)
   store.set(COOKIE_NAME, value, {
     httpOnly: true,
     sameSite: 'lax',

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (!allowed) return NextResponse.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 })
 
     if (!(await verifyOtp(identity, pending.method, parsed.data.code))) {
-      await logAudit({ role: pending.role, name: pending.name }, `failed ${pending.method} OTP entry`, null)
+      await logAudit({ role: pending.role, name: pending.name, userId: pending.userId }, `failed ${pending.method} OTP entry`, null)
       return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
     }
   } else {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     const secretBase32 = decryptSensitive(mfaState.mfaSecretEncrypted)
     if (!(await verifyMfaCode(secretBase32, parsed.data.code, identity))) {
-      await logAudit({ role: pending.role, name: pending.name }, 'failed MFA code entry', null)
+      await logAudit({ role: pending.role, name: pending.name, userId: pending.userId }, 'failed MFA code entry', null)
       return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
     }
 
@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
   }
 
   await clearPendingStaffMfaCookie()
-  await setSessionCookie(pending.role, pending.name)
-  await logAudit({ role: pending.role, name: pending.name }, pending.mode === 'enroll' ? 'enrolled in MFA and completed login' : 'completed MFA login', null)
+  await setSessionCookie(pending.role, pending.name, pending.userId)
+  await logAudit({ role: pending.role, name: pending.name, userId: pending.userId }, pending.mode === 'enroll' ? 'enrolled in MFA and completed login' : 'completed MFA login', null)
 
   return NextResponse.json({ ok: true })
 }

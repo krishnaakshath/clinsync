@@ -41,7 +41,7 @@ describe('PUT /api/providers/[id]', () => {
   })
 
   it('rejects a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC', userId: null })
     const res = await updateProvider(req('Dr. Test'), { params: Promise.resolve({ id: String(testProviderId) }) })
     expect(res.status).toBe(403)
   })

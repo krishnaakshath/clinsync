@@ -41,7 +41,7 @@ describe('GET /api/users', () => {
   })
 
   it('rejects a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC', userId: null })
     const res = await listUsers()
     expect(res.status).toBe(403)
   })
@@ -76,7 +76,7 @@ describe('POST /api/users', () => {
   })
 
   it('rejects a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI', userId: null })
     const res = await createUser(postReq({ name: 'Test User', email: 'newstaff.test@example.com', role: 'crc' }))
     expect(res.status).toBe(403)
   })

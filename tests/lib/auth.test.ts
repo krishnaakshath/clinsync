@@ -13,10 +13,43 @@ import { describe, it, expect } from 'vitest'
 import { parseSessionCookie, buildSessionCookieValue } from '@/lib/auth'
 
 describe('auth session cookie', () => {
-  it('round-trips role and name through the cookie value', async () => {
-    const value = await buildSessionCookieValue('pi', 'Dr. R. Kunam')
-    const parsed = await parseSessionCookie(value)
-    expect(parsed).toEqual({ role: 'pi', name: 'Dr. R. Kunam' })
+  it('round-trips role, name and userId through the cookie value', async () => {
+    const value = await buildSessionCookieValue('pi', 'Dr. R. Kunam', 42)
+    expect(await parseSessionCookie(value)).toEqual({ role: 'pi', name: 'Dr. R. Kunam', userId: 42 })
+  })
+
+  it('round-trips a null userId for the env-admin account, which has no users row', async () => {
+    const value = await buildSessionCookieValue('admin', 'Sam Patel', null)
+    expect(await parseSessionCookie(value)).toEqual({ role: 'admin', name: 'Sam Patel', userId: null })
+  })
+
+  // DEPLOY-COMPATIBILITY REGRESSION. Staff cookies live up to 8 hours, so
+  // cookies minted before the userId claim existed are still presented
+  // after this ships. parseSessionCookie returning null for them would not
+  // merely drop the claim -- getSession(), requireSession() and proxy.ts
+  // all read null as "no session", so every signed-in staff member would
+  // be logged out at deploy. An ABSENT claim is a valid old cookie.
+  it('parses a pre-existing cookie that carries no userId claim as a valid session with userId: null', async () => {
+    const { SignJWT } = await import('jose')
+    const secret = new TextEncoder().encode(process.env.SESSION_SECRET)
+    const oldCookie = await new SignJWT({ kind: 'staff', role: 'pi', name: 'Dr. R. Kunam' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('8h')
+      .sign(secret)
+    expect(await parseSessionCookie(oldCookie)).toEqual({ role: 'pi', name: 'Dr. R. Kunam', userId: null })
+  })
+
+  // A claim that is PRESENT but not a number is a malformed or tampered
+  // token, not an old one -- that case still rejects.
+  it('rejects a validly-signed token whose userId claim is present but not a number', async () => {
+    const { SignJWT } = await import('jose')
+    const secret = new TextEncoder().encode(process.env.SESSION_SECRET)
+    const bad = await new SignJWT({ kind: 'staff', role: 'admin', name: 'x', userId: 'not-a-number' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('1h')
+      .sign(secret)
+    expect(await parseSessionCookie(bad)).toBeNull()
   })
 
   it('returns null for a malformed cookie value', async () => {
