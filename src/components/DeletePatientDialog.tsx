@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 export interface DeleteTarget {
   id: string
@@ -12,7 +14,7 @@ export interface DeleteTarget {
  * shared by the Workbook's right-click menu and the Patient Detail page's
  * delete button so both go through the identical confirm step and DELETE
  * call. Deletes only Clinsync's own mirrored copy (see api/patients/[anonId]
- * DELETE): the underlying Tebra/IntakeQ record, if any, is untouched.
+ * DELETE): the underlying EHR/intake-system record, if any, is untouched.
  */
 export function DeletePatientDialog({ target, onClose, onDeleted }: { target: DeleteTarget | null; onClose: () => void; onDeleted: () => void }) {
   const [deleting, setDeleting] = useState(false)
@@ -35,31 +37,29 @@ export function DeletePatientDialog({ target, onClose, onDeleted }: { target: De
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-sm rounded-lg bg-card p-6 shadow-lg">
-        <div className="mb-3 flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive" aria-hidden="true">
-            <Trash2 className="h-4.5 w-4.5" />
-          </span>
-          <h2 className="text-lg font-semibold text-foreground">Delete patient record?</h2>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive" aria-hidden="true">
+              <Trash2 className="h-4.5 w-4.5" />
+            </span>
+            <DialogTitle className="text-lg font-semibold text-foreground">Delete patient record?</DialogTitle>
+          </div>
+        </DialogHeader>
         <p className="text-sm text-muted-foreground">
           This permanently removes <span className="font-medium text-foreground">{target.name}</span> ({target.id}) and every record tied to
           them -- diagnoses, medications, forms, appointments, messages, billing -- from Clinsync. It disappears from the Patients tab, the
-          Workbook, and everywhere else in the app immediately. This does not affect their chart in Tebra or IntakeQ, and cannot be undone.
+          Workbook, and everywhere else in the app immediately. This does not affect their chart in your practice&apos;s EHR or intake system, and cannot be undone.
         </p>
-        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-        <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} disabled={deleting} className="rounded-md border border-border px-4 py-1.5 text-sm font-medium text-foreground hover:bg-secondary disabled:opacity-50">Cancel</button>
-          <button
-            onClick={confirmDelete}
-            disabled={deleting}
-            className="rounded-md bg-destructive px-4 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancel</Button>
+          <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Delete permanently'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

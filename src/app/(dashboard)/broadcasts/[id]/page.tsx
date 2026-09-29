@@ -1,11 +1,14 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getBroadcast } from '@/lib/queries/broadcasts'
 
 export default async function BroadcastDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }. Must
+  // precede notFound() below, not follow it.
+  if (!['admin', 'crc'].includes(session.role)) redirect('/')
   const { id } = await params
   const broadcast = await getBroadcast(Number(id))
   if (!broadcast) notFound()

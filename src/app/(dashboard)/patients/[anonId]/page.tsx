@@ -1,19 +1,23 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { FileText, Stethoscope, ShieldAlert } from 'lucide-react'
+import { FileText, Stethoscope, ShieldAlert, BedDouble } from 'lucide-react'
 import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
 import { EvidenceCard } from '@/components/EvidenceCard'
 import { RefreshEligibilityButton } from '@/components/RefreshEligibilityButton'
+import { ConfirmEligibilityButton } from '@/components/ConfirmEligibilityButton'
 import { PatientPortalAccessPanel } from '@/components/PatientPortalAccessPanel'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { PatientQuickGlance } from '@/components/PatientQuickGlance'
 import { DiscrepancyList } from '@/components/DiscrepancyList'
 import { Tabs } from '@/components/Tabs'
 import { DeletePatientButton } from '@/components/DeletePatientButton'
+import { InpatientHistoryPanel } from '@/components/InpatientHistoryPanel'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
+import { listAdmissionsForPatient } from '@/lib/queries/admissions'
+import { listAvailableRooms } from '@/lib/queries/rooms'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -41,7 +45,9 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   if (!patient) notFound()
   await logAudit(session, 'viewed patient detail', anonId)
 
-  const name = patient.nameTebra ?? patient.nameIntakeq
+  const [admissionHistory, availableRooms] = await Promise.all([listAdmissionsForPatient(anonId), listAvailableRooms()])
+
+  const name = patient.name
 
   const overviewTab = (
     <section className={SECTION}>
@@ -72,14 +78,14 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       ) : (
         <div className="space-y-5">
           <div>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-700">Inclusion criteria</h3>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-success">Inclusion criteria</h3>
             <div className="space-y-3">
               {patient.criteria.filter((c) => c.criterionType !== 'exclusion').map((c) => <EvidenceCard key={c.id} criterion={c} />)}
             </div>
           </div>
           {patient.criteria.some((c) => c.criterionType === 'exclusion') && (
             <div>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-red-700">Exclusion criteria</h3>
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-destructive">Exclusion criteria</h3>
               <div className="space-y-3">
                 {patient.criteria.filter((c) => c.criterionType === 'exclusion').map((c) => <EvidenceCard key={c.id} criterion={c} />)}
               </div>
@@ -128,6 +134,29 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     </div>
   )
 
+  const inpatientTab = (
+    <InpatientHistoryPanel
+      admissions={admissionHistory.map((a) => ({
+        id: a.id,
+        status: a.status,
+        admissionType: a.admissionType,
+        admittedAt: a.admittedAt.toString(),
+        dischargedAt: a.dischargedAt?.toString() ?? null,
+        dischargeDiagnosis: a.dischargeDiagnosis,
+        dischargeDrugs: a.dischargeDrugs,
+        dischargeDevices: a.dischargeDevices,
+        dischargeDiet: a.dischargeDiet,
+        dischargeSummaryNotes: a.dischargeSummaryNotes,
+        transfers: a.transfers.map((t) => ({ id: t.id, fromRoomId: t.fromRoomId, toRoomId: t.toRoomId, reason: t.reason, transferredByName: t.transferredByName, transferredAt: t.transferredAt.toString() })),
+        dischargeSignature: a.dischargeSignature ? { signerTypedName: a.dischargeSignature.signerTypedName, signedAt: a.dischargeSignature.signedAt.toString() } : null,
+      }))}
+      availableRooms={availableRooms}
+      canTransfer={['frontdesk', 'admin', 'crc', 'pi'].includes(session.role)}
+      canDischarge={['pi', 'admin'].includes(session.role)}
+      canManageMedications={['pi', 'admin'].includes(session.role)}
+    />
+  )
+
   return (
     <div className="max-w-4xl space-y-6">
       <BackLink href="/patients" label="Back to Patients" />
@@ -136,12 +165,22 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
           <PatientAvatar name={name} size="lg" />
           <div>
             <h1 className="text-xl font-bold text-foreground">{name}</h1>
-            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dobTebra ?? patient.dobIntakeq}</p>
+            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dob}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {session.role === 'admin' && <DeletePatientButton patientId={patient.id} patientName={name} />}
           {patient.overallStatus && <RefreshEligibilityButton anonId={patient.id} />}
+          {patient.selectionConfirmedAt ? (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+              <span>
+                Eligibility confirmed by {patient.selectionConfirmedByName} on {new Date(patient.selectionConfirmedAt).toLocaleDateString()} — patient notified {new Date(patient.selectionNotifiedAt!).toLocaleDateString()}.
+              </span>
+            </p>
+          ) : patient.overallStatus === 'green' && ['admin', 'pi', 'crc'].includes(session.role) ? (
+            <ConfirmEligibilityButton anonId={patient.id} />
+          ) : null}
           <StatusChip status={patient.overallStatus ?? 'yellow'} />
         </div>
       </div>
@@ -160,6 +199,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         { id: 'overview', label: 'Overview', content: overviewTab },
         { id: 'screening', label: 'Screening', content: screeningTab },
         { id: 'identity', label: 'Verification', content: identityAndPortalTab },
+        ...(admissionHistory.length > 0 ? [{ id: 'inpatient', label: <span className="inline-flex items-center gap-1.5"><BedDouble className="h-3.5 w-3.5" aria-hidden="true" />Inpatient History</span>, content: inpatientTab }] : []),
       ]} />
     </div>
   )

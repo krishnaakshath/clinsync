@@ -67,14 +67,9 @@ export default function PatientPortalLoginPage() {
         aria-hidden="true"
       />
       <div className="relative w-full max-w-md">
-        <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-            <ClinsyncLogo className="h-8 w-auto" />
-          </div>
-          <div>
-            <p className="text-lg font-semibold tracking-tight text-foreground">Clinsync Patient Portal</p>
-            <p className="text-sm text-muted-foreground">Inland Psychiatric Medical Group</p>
-          </div>
+        <div className="mb-6 flex flex-col items-center gap-2 text-center">
+          <ClinsyncLogo className="text-xl font-semibold tracking-tight text-foreground" />
+          <p className="text-sm text-muted-foreground">Patient Portal</p>
         </div>
 
         <div className="rounded-2xl border border-primary/10 bg-card p-7 shadow-md">

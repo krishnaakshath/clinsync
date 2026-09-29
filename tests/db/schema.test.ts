@@ -9,7 +9,6 @@ describe('schema', () => {
     expect(schema.medicationEpisodes).toBeDefined()
     expect(schema.patientTrialScreenings).toBeDefined()
     expect(schema.screeningCriteriaResults).toBeDefined()
-    expect(schema.identityMatches).toBeDefined()
     expect(schema.auditLog).toBeDefined()
     expect(schema.users).toBeDefined()
     expect(schema.providers).toBeDefined()

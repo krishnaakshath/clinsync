@@ -25,9 +25,14 @@ const TEST_DB_USER_PASSWORD = 'pi-test-pass-123'
 // Mocked here so re-running this file within the same sliding window can't
 // make an unrelated later test fail with 429; rate-limit.ts is unit-tested
 // separately with a throwaway key.
-vi.mock('@/lib/rate-limit', () => ({
-  checkLoginRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
-}))
+vi.mock('@/lib/rate-limit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/rate-limit')>()
+  return {
+    ...actual,
+    checkLoginRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+    checkOtpSendRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  }
+})
 
 // A correct admin password now always starts the mandatory MFA challenge,
 // which reads -- and, if the admin isn't enrolled yet, WRITES a fresh secret
@@ -131,5 +136,33 @@ describe('POST /api/login', () => {
       const res = await login(req({ email: 'nobody-at-all@example.com', password: 'anything' }))
       expect(res.status).toBe(401)
     })
+  })
+})
+
+describe('POST /api/login with mfaMethod sms/email', () => {
+  it('sends an SMS OTP and does not return a QR code when the account mfaMethod is sms', async () => {
+    vi.doMock('@/lib/otp-delivery', () => ({ generateAndSendOtp: vi.fn(async () => undefined), verifyOtp: vi.fn(async () => false) }))
+    vi.resetModules()
+    const [{ POST: loginPost }, { getDb }, { users }] = await Promise.all([
+      import('@/app/api/login/route'),
+      import('@/db/client'),
+      import('@/db/schema'),
+    ])
+    const { hashPassword } = await import('@/lib/password')
+    const [created] = await getDb().insert(users).values({
+      name: 'SMS Test User', email: 'sms-test-user@example.com', role: 'crc',
+      passwordHash: hashPassword('SmsTestPass123!'), mfaMethod: 'sms', phone: '+15551234567',
+    }).returning()
+
+    const req = new Request('http://localhost/api/login', { method: 'POST', body: JSON.stringify({ email: 'sms-test-user@example.com', password: 'SmsTestPass123!' }) })
+    const res = await loginPost(req as never)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.mfaRequired).toBe(true)
+    expect(body.mode).toBe('sms')
+    expect(body.qrDataUrl).toBeUndefined()
+
+    const { eq } = await import('drizzle-orm')
+    await getDb().delete(users).where(eq(users.id, created.id))
   })
 })

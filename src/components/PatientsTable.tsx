@@ -15,47 +15,68 @@ export interface CriteriaSummaryLike {
 export interface PatientRow {
   id: string
   overallStatus?: 'green' | 'yellow' | 'red' | null
-  nameTebra: string | null
-  nameIntakeq: string
-  dobTebra: string | null
-  dobIntakeq: string
+  name: string
+  dob: string
   currentProvider: string | null
   referralType: string | null
   lastCommunication: string | null
   criteriaSummary?: CriteriaSummaryLike
 }
 
-function CriteriaReadout({ summary }: { summary?: CriteriaSummaryLike }) {
+const STATUS_ACCENT: Record<'green' | 'yellow' | 'red', string> = {
+  green: 'border-l-success',
+  yellow: 'border-l-warning',
+  red: 'border-l-destructive',
+}
+
+const STATUS_TRACK: Record<'green' | 'yellow' | 'red', string> = {
+  green: 'bg-success',
+  yellow: 'bg-warning',
+  red: 'bg-destructive',
+}
+
+function CriteriaReadout({ summary, status }: { summary?: CriteriaSummaryLike; status: 'green' | 'yellow' | 'red' }) {
   if (!summary || (summary.inclusionTotal === 0 && summary.exclusionTotal === 0)) {
-    return <span>No screening evidence yet</span>
+    return <p className="text-xs text-muted-foreground">No screening evidence yet</p>
   }
+  const total = summary.inclusionTotal + summary.exclusionTotal
+  const met = summary.inclusionMet + summary.exclusionMet
+  const pct = total > 0 ? Math.round((met / total) * 100) : 0
   return (
-    <span>
-      <span className="font-medium text-foreground">{summary.inclusionMet}/{summary.inclusionTotal}</span> inclusion
-      {summary.exclusionTotal > 0 && (
-        <>
-          {' · '}
-          <span className="font-medium text-foreground">{summary.exclusionMet}/{summary.exclusionTotal}</span> exclusion
-        </>
-      )}
-    </span>
+    <div>
+      <div className="mb-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+        <div className={`h-full rounded-full ${STATUS_TRACK[status]}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{summary.inclusionMet}/{summary.inclusionTotal}</span> inclusion
+        {summary.exclusionTotal > 0 && (
+          <>
+            {' · '}
+            <span className="font-medium text-foreground">{summary.exclusionMet}/{summary.exclusionTotal}</span> exclusion
+          </>
+        )}
+      </p>
+    </div>
   )
 }
 
-// Minimal by design: name + status dominate, everything else is a single
-// muted line so the card reads as one clear hierarchy rather than a grid of
-// competing icons/labels. The card body navigates to the patient detail page
-// via a "stretched link" (an absolutely-positioned Link filling the card) so
-// the whole surface is clickable; "Medical Record" is a separate, real
-// sibling Link stacked above it (never nested inside another anchor) that
-// opens a dedicated page for that one action.
+// Name + status dominate, everything else stays a single supporting line so
+// the card reads as one clear hierarchy. A left accent stripe keyed to the
+// overall verdict makes scanning a full grid for red/yellow cases fast
+// without relying on the status chip's color alone (the chip's text label
+// still carries the accessible meaning). The card body navigates to the
+// patient detail page via a "stretched link" (an absolutely-positioned Link
+// filling the card) so the whole surface is clickable; "Medical Record" is a
+// separate, real sibling Link stacked above it (never nested inside another
+// anchor) that opens a dedicated page for that one action.
 function PatientCard({ patient }: { patient: PatientRow }) {
-  const name = patient.nameTebra ?? patient.nameIntakeq
-  const dob = patient.dobTebra ?? patient.dobIntakeq
+  const name = patient.name
+  const dob = patient.dob
+  const status = patient.overallStatus ?? 'yellow'
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/30">
-      <Link href={`/patients/${patient.id}`} className="absolute inset-0" aria-label={`View ${name}`}>
+    <div className={`group relative flex flex-col gap-3 rounded-xl border border-l-4 border-border bg-card p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md ${STATUS_ACCENT[status]}`}>
+      <Link href={`/patients/${patient.id}`} className="absolute inset-0 rounded-xl" aria-label={`View ${name}`}>
         <span className="sr-only">View {name}</span>
       </Link>
 
@@ -67,12 +88,12 @@ function PatientCard({ patient }: { patient: PatientRow }) {
             <p className="truncate text-xs text-muted-foreground">{patient.id} · {dob}</p>
           </div>
         </div>
-        <StatusChip status={patient.overallStatus ?? 'yellow'} />
+        <StatusChip status={status} />
       </div>
 
-      <p className="relative text-xs text-muted-foreground">
-        <CriteriaReadout summary={patient.criteriaSummary} />
-      </p>
+      <div className="relative">
+        <CriteriaReadout summary={patient.criteriaSummary} status={status} />
+      </div>
 
       <div className="relative flex items-center justify-between gap-2 border-t border-border pt-3">
         <p className="truncate text-xs text-muted-foreground">{patient.currentProvider ?? 'Unassigned'}</p>
@@ -95,7 +116,7 @@ export function PatientsTable({ patients }: { patients: PatientRow[] }) {
     const q = search.trim().toLowerCase()
     if (!q) return patients
     return patients.filter((p) => {
-      const name = (p.nameTebra ?? p.nameIntakeq).toLowerCase()
+      const name = p.name.toLowerCase()
       return name.includes(q) || p.id.toLowerCase().includes(q)
     })
   }, [search, patients])

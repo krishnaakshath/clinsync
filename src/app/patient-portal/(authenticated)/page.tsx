@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Pill, Stethoscope, CalendarCheck, FileText, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'
+import { Pill, Stethoscope, CalendarCheck, FileText, MessageSquare, ArrowRight, Megaphone, Users, Stamp } from 'lucide-react'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { listBroadcastsForPatient } from '@/lib/queries/broadcasts'
@@ -11,10 +11,9 @@ const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold 
 
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
-  sky: 'bg-sky-500/10 text-sky-700',
   accent: 'bg-accent/10 text-accent',
-  amber: 'bg-amber-500/10 text-amber-700',
-  violet: 'bg-violet-500/10 text-violet-700',
+  warning: 'bg-warning/10 text-warning',
+  success: 'bg-success/10 text-success',
 }
 
 // Each tile links to the page it summarizes -- a real, functional
@@ -46,22 +45,14 @@ export default async function PatientPortalOverviewPage() {
 
   const nextAppointment = data.upcomingAppointments[0]
   const formsToComplete = data.forms.filter((f) => f.status !== 'completed')
+  const hasActionItems = Boolean(nextAppointment) || formsToComplete.length > 0
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-foreground">Overview</h1>
+      <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
-        <SummaryTile icon={Stethoscope} value={data.currentProvider ?? 'Unassigned'} label="Care team" color="primary" />
-        <SummaryTile icon={Pill} value={data.activeMedications.length} label="Current meds" color="sky" href="/patient-portal/medications" />
-        <SummaryTile icon={FileText} value={formsToComplete.length} label="Forms to complete" color="amber" href="/patient-portal/forms" />
-        <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="accent" href="/patient-portal/appointments" />
-        <SummaryTile icon={MessageSquare} value={data.unreadMessageCount} label="New messages" color="violet" href="/patient-portal/messages" />
-        <SummaryTile icon={Megaphone} value={broadcasts.length} label="Announcements" color="sky" href="/patient-portal/broadcasts" />
-      </div>
-
-      {(nextAppointment || formsToComplete.length > 0) && (
-        <div className="grid gap-4 sm:grid-cols-2">
+      {hasActionItems && (
+        <div data-testid="patient-action-items" className="grid gap-4 sm:grid-cols-2">
           {nextAppointment && (
             <Link href="/patient-portal/appointments" className={`${SECTION} group flex items-center justify-between transition-all duration-200 hover:border-primary/25 hover:shadow-md`}>
               <div>
@@ -85,20 +76,45 @@ export default async function PatientPortalOverviewPage() {
         </div>
       )}
 
-      <section className={SECTION}>
-        <h2 className={HEADING}>Your care team</h2>
-        <p className="text-sm text-foreground">{data.currentProvider ?? 'Not yet assigned'}</p>
-      </section>
-      <section className={SECTION}>
-        <h2 className={HEADING}>Diagnoses on file</h2>
-        {data.diagnoses.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No diagnoses on file.</p>
-        ) : (
-          <ul className="space-y-1.5 text-sm text-foreground">
-            {data.diagnoses.map((d, i) => <li key={i}>{d.code} — {d.description}</li>)}
-          </ul>
-        )}
-      </section>
+      <div data-testid="patient-summary-tiles" className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+        <SummaryTile icon={Stethoscope} value={data.currentProvider ?? 'Unassigned'} label="Care team" color="primary" />
+        <SummaryTile icon={Pill} value={data.activeMedications.length} label="Current meds" color="accent" href="/patient-portal/medications" />
+        <SummaryTile icon={FileText} value={formsToComplete.length} label="Forms to complete" color="warning" href="/patient-portal/forms" />
+        <SummaryTile icon={CalendarCheck} value={data.upcomingAppointments.length} label="Upcoming visits" color="accent" href="/patient-portal/appointments" />
+        <SummaryTile icon={MessageSquare} value={data.unreadMessageCount} label="New messages" color="success" href="/patient-portal/messages" />
+        <SummaryTile icon={Megaphone} value={broadcasts.length} label="Announcements" color="accent" href="/patient-portal/broadcasts" />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <section className={SECTION}>
+          <h2 className={HEADING}>Your care team</h2>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+              <Users className="h-5 w-5" />
+            </span>
+            <p className="text-sm font-medium text-foreground">{data.currentProvider ?? 'Not yet assigned'}</p>
+          </div>
+        </section>
+        <section className={SECTION}>
+          <h2 className={HEADING}>Diagnoses on file</h2>
+          {data.diagnoses.length === 0 ? (
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true">
+                <Stamp className="h-5 w-5" />
+              </span>
+              <p className="text-sm text-muted-foreground">No diagnoses on file.</p>
+            </div>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {data.diagnoses.map((d, i) => (
+                <li key={i} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-foreground">
+                  <span className="text-primary">{d.code}</span> — {d.description}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

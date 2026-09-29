@@ -12,6 +12,8 @@ const sendSurveySchema = z.object({ formSubmissionId: z.number().int().positive(
 export async function GET(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  // LeftNav.tsx:63 — { href: '/experience-surveys', roles: ['admin', 'crc'] }
+  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const url = new URL(request.url)
   const statusParam = url.searchParams.get('status')
@@ -26,12 +28,16 @@ export async function GET(request: NextRequest) {
     sortBy: url.searchParams.get('sortBy') === 'ratingOverall' ? ('ratingOverall' as const) : ('sentAt' as const),
     sortDir: url.searchParams.get('sortDir') === 'asc' ? ('asc' as const) : ('desc' as const),
   }
+  await logAudit(session, 'viewed experience surveys list', null)
   return NextResponse.json(await listReviews(filters))
 }
 
+// Sends a (simulated) survey invite to a patient — LeftNav.tsx:63 —
+// { href: '/experience-surveys', roles: ['admin', 'crc'] }
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = sendSurveySchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid send-survey payload', details: parsed.error.flatten() }, { status: 400 })

@@ -1,0 +1,23 @@
+import { NextResponse } from 'next/server'
+import { requireSession } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
+import { gatherPatientFhirData } from '@/lib/fhir/gather'
+import { patientToFhir } from '@/lib/fhir/patient'
+
+export async function GET(_request: Request, { params }: { params: Promise<{ anonId: string }> }) {
+  const session = await requireSession()
+  if (session instanceof NextResponse) return session
+  if (!['admin', 'pi', 'crc', 'frontdesk'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { anonId } = await params
+  const data = await gatherPatientFhirData(anonId)
+  if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  await logAudit(session, 'exported FHIR Patient resource', anonId)
+  return new NextResponse(JSON.stringify(patientToFhir(data.patient)), {
+    headers: {
+      'Content-Type': 'application/fhir+json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${anonId}-fhir-patient.json"`,
+    },
+  })
+}

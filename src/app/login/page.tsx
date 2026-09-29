@@ -15,7 +15,7 @@ const HIGHLIGHTS = [
 type Step =
   | { kind: 'password' }
   | { kind: 'enroll'; qrDataUrl: string; manualKey: string }
-  | { kind: 'verify' }
+  | { kind: 'verify'; method: 'totp' | 'sms' | 'email' }
 
 export default function LoginPage() {
   const router = useRouter()
@@ -40,7 +40,19 @@ export default function LoginPage() {
       return
     }
     const body = await res.json()
-    setStep(body.mode === 'enroll' ? { kind: 'enroll', qrDataUrl: body.qrDataUrl, manualKey: body.manualKey } : { kind: 'verify' })
+    // DISABLE_STAFF_MFA completes the login outright (real session cookie
+    // already set server-side) and returns { ok: true } with no `mode` --
+    // go straight to the app, same as a successful MFA verify.
+    if (body.ok) {
+      router.push('/')
+      router.refresh()
+      return
+    }
+    if (body.mode === 'enroll') {
+      setStep({ kind: 'enroll', qrDataUrl: body.qrDataUrl, manualKey: body.manualKey })
+    } else {
+      setStep({ kind: 'verify', method: body.mode as 'totp' | 'sms' | 'email' })
+    }
   }
 
   async function submitMfaCode(code: string): Promise<string | null> {
@@ -69,11 +81,8 @@ export default function LoginPage() {
           style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '28px 28px' }}
           aria-hidden="true"
         />
-        <div className="relative flex items-center gap-3">
-          <div className="rounded-lg bg-white/95 px-3 py-2">
-            <ClinsyncLogo className="h-6 w-auto" />
-          </div>
-          <span className="text-lg font-semibold tracking-tight">Clinsync</span>
+        <div className="relative">
+          <ClinsyncLogo className="text-lg font-semibold tracking-tight" />
         </div>
         <div className="relative space-y-8">
           <h2 className="max-w-sm text-3xl font-bold leading-tight">Pre-screening, reconciled across every system, in one place.</h2>
@@ -94,9 +103,8 @@ export default function LoginPage() {
       <div className="flex w-full flex-1 flex-col items-center justify-center px-4 lg:w-1/2">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col gap-1 lg:hidden">
-            <div className="mb-3 flex items-center gap-2.5 text-foreground">
-              <ClinsyncLogo className="h-6 w-auto" />
-              <span className="text-lg font-semibold tracking-tight">Clinsync</span>
+            <div className="mb-3 text-foreground">
+              <ClinsyncLogo className="text-lg font-semibold tracking-tight" />
             </div>
           </div>
           <div className="rounded-2xl border border-primary/10 bg-card p-7 shadow-md">
@@ -147,8 +155,12 @@ export default function LoginPage() {
             )}
             {step.kind === 'verify' && (
               <MfaCodeStep
-                title="Enter your code"
-                description="Open your authenticator app and enter the current 6-digit code."
+                title={step.method === 'sms' ? 'Check your phone' : step.method === 'email' ? 'Check your email' : 'Enter your code'}
+                description={
+                  step.method === 'sms' ? 'We texted a 6-digit code to your phone. Enter it below.'
+                  : step.method === 'email' ? 'We emailed a 6-digit code to you. Enter it below.'
+                  : 'Open your authenticator app and enter the current 6-digit code.'
+                }
                 onSubmit={submitMfaCode}
                 onBack={() => setStep({ kind: 'password' })}
               />

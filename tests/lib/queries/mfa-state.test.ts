@@ -33,7 +33,7 @@ beforeAll(async () => {
   const [row] = await getDb().insert(users).values({ name: 'MFA Test User', email: TEST_USER_EMAIL, role: 'crc', passwordHash: hashPassword('irrelevant') }).returning()
   testUserId = row.id
   await getDb().insert(patients).values({
-    id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'MFA Test Patient', dobIntakeq: '1990-01-01',
+    id: TEST_PATIENT_ID, name: 'MFA Test Patient', dob: '1990-01-01',
   })
 })
 
@@ -84,13 +84,16 @@ describe('patient MFA state', () => {
 
 describe('admin MFA state (appSettings singleton)', () => {
   it('starts unenrolled, then provisions, enables, and resets', async () => {
+    // getAdminMfaState() also returns mfaMethod/phone since the
+    // authentication-hardening plan widened appSettings for SMS/email OTP --
+    // this test predates that and needs both fields in its expected shape.
     await resetAdminMfa()
-    expect(await getAdminMfaState()).toEqual({ mfaSecretEncrypted: null, mfaEnabled: false })
+    expect(await getAdminMfaState()).toEqual({ mfaSecretEncrypted: null, mfaEnabled: false, mfaMethod: 'totp', phone: null })
     await setAdminMfaSecret('encrypted-admin-secret')
     expect((await getAdminMfaState()).mfaEnabled).toBe(false)
     await enableAdminMfa()
     expect((await getAdminMfaState()).mfaEnabled).toBe(true)
     await resetAdminMfa()
-    expect(await getAdminMfaState()).toEqual({ mfaSecretEncrypted: null, mfaEnabled: false })
+    expect(await getAdminMfaState()).toEqual({ mfaSecretEncrypted: null, mfaEnabled: false, mfaMethod: 'totp', phone: null })
   })
 })

@@ -4,9 +4,11 @@ export const size = { width: 32, height: 32 }
 export const contentType = 'image/png'
 
 // Replaces the default Next.js favicon with something that matches this
-// app's actual identity -- a stethoscope glyph on the same deep green used
-// for the primary brand color throughout the UI (ClinsyncLogo, TopBanner),
-// rather than the generic Next.js "N" mark or Vercel's triangle.
+// app's actual identity -- a stethoscope glyph on the same professional
+// blue used for the primary brand color throughout the UI (--primary in
+// globals.css, oklch(0.42 0.1 250) ~= #194f81), rather than the generic
+// Next.js "N" mark or Vercel's triangle. Deliberately not black/near-black
+// anywhere in this app, including here.
 export default function Icon() {
   return new ImageResponse(
     (
@@ -17,7 +19,7 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#1E6F5C',
+          background: '#194f81',
           borderRadius: 7,
         }}
       >

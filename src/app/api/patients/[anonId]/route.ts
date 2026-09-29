@@ -21,8 +21,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // Admin-only: permanently removes a patient chart (and everything that
 // references it) from Clinsync -- for correcting a real mistake, e.g. a
 // duplicate created by a mis-confirmed identity match, or a chart added
-// with wrong details. Never touches Tebra/IntakeQ; this only un-mirrors the
-// chart from Clinsync's own copy.
+// with wrong details. This is Clinsync's own single-sourced copy of the
+// chart; there's no separate upstream record left to reconcile against.
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ anonId: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session

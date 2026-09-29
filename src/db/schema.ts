@@ -1,8 +1,11 @@
 import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial } from 'drizzle-orm/pg-core'
 
 export const verdictEnum = pgEnum('verdict', ['green', 'yellow', 'red'])
-export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin'])
-export const matchStatusEnum = pgEnum('match_status', ['pending', 'confirmed', 'rejected'])
+export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'])
+export const mfaMethodEnum = pgEnum('mfa_method', ['totp', 'sms', 'email'])
+export const payerTypeEnum = pgEnum('payer_type', ['commercial', 'medicare', 'medicaid', 'tricare', 'other'])
+export const insuranceRelationshipEnum = pgEnum('insurance_relationship', ['self', 'spouse', 'child', 'other'])
+export const insurancePlanTypeEnum = pgEnum('insurance_plan_type', ['ppo', 'hmo', 'epo', 'pos', 'medicare', 'medicaid'])
 
 export const trials = pgTable('trials', {
   id: text('id').primaryKey(),                 // e.g. "nct06911112"
@@ -40,25 +43,12 @@ export const trials = pgTable('trials', {
 export const patients = pgTable('patients', {
   id: text('id').primaryKey(),                  // anonymous id "RD-0001"
   dateAdded: timestamp('date_added').defaultNow().notNull(),
-  // Pseudonymous cross-system linkage IDs, wrapped with the `ENC[...]`
-  // string convention -- NOT ciphertext (see the comment in lib/crypto.ts
-  // for why real encryption isn't warranted here). Named `...Ref`, not
-  // `...Encrypted`, so the property name doesn't assert a guarantee this
-  // column doesn't actually provide.
-  intakeqClientIdRef: text('intakeq_client_id_encrypted').notNull(),
-  tebraPatientIdRef: text('tebra_patient_id_encrypted'),
-  nameIntakeq: text('name_intakeq').notNull(),
-  nameTebra: text('name_tebra'),
-  dobIntakeq: date('dob_intakeq').notNull(),
-  dobTebra: date('dob_tebra'),
-  cityIntakeq: text('city_intakeq'),
-  cityTebra: text('city_tebra'),
-  zipIntakeq: text('zip_intakeq'),
-  zipTebra: text('zip_tebra'),
-  phoneIntakeq: text('phone_intakeq'),
-  phoneTebra: text('phone_tebra'),
-  emailIntakeq: text('email_intakeq'),
-  emailTebra: text('email_tebra'),
+  name: text('name').notNull(),
+  dob: date('dob').notNull(),
+  city: text('city'),
+  zip: text('zip'),
+  phone: text('phone'),
+  email: text('email'),
   currentProvider: text('current_provider'),
   ratingScales: jsonb('rating_scales').$type<{ name: string; score: number; date: string }[]>().default([]),
   referralType: text('referral_type'),
@@ -69,7 +59,6 @@ export const patients = pgTable('patients', {
   commConsentPref: text('comm_consent_pref'),
   templateDocUrl: text('template_doc_url'),
   prescreeningSentDate: date('prescreening_sent_date'),
-  tebraChartUrl: text('tebra_chart_url'),
   // Staff-owned fields (2, 12, 17-20, 23, 24, 28 in the 30-column map) — never overwritten by refresh
   // Hospital-issued patient portal credential -- distinct from any staff
   // account, scrypt-hashed the same way as lib/password.ts. Null means the
@@ -89,6 +78,20 @@ export const patients = pgTable('patients', {
   chartDataAsOf: timestamp('chart_data_as_of').defaultNow().notNull(),
   mfaSecretEncrypted: text('mfa_secret_encrypted'),
   mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
+  primaryPayerId: integer('primary_payer_id').references(() => payers.id),
+  primaryMemberId: text('primary_member_id'),
+  primaryGroupNumber: text('primary_group_number'),
+  primaryPlanType: insurancePlanTypeEnum('primary_plan_type'),
+  primarySubscriberName: text('primary_subscriber_name'),
+  primarySubscriberRelationship: insuranceRelationshipEnum('primary_subscriber_relationship'),
+  primaryCardFrontUrl: text('primary_card_front_url'),
+  primaryCardBackUrl: text('primary_card_back_url'),
+  secondaryPayerId: integer('secondary_payer_id').references(() => payers.id),
+  secondaryMemberId: text('secondary_member_id'),
+  secondaryGroupNumber: text('secondary_group_number'),
+  secondaryPlanType: insurancePlanTypeEnum('secondary_plan_type'),
+  secondarySubscriberName: text('secondary_subscriber_name'),
+  secondarySubscriberRelationship: insuranceRelationshipEnum('secondary_subscriber_relationship'),
 })
 
 export const diagnoses = pgTable('diagnoses', {
@@ -96,7 +99,6 @@ export const diagnoses = pgTable('diagnoses', {
   patientId: text('patient_id').notNull().references(() => patients.id),
   code: text('code').notNull(),
   description: text('description').notNull(),
-  source: text('source', { enum: ['tebra', 'intakeq'] }).notNull(),
   date: date('date'),
 })
 
@@ -109,6 +111,20 @@ export const medicationEpisodes = pgTable('medication_episodes', {
   startDate: date('start_date').notNull(),
   stopDate: date('stop_date'),
   status: text('status', { enum: ['active', 'inactive'] }).notNull(),
+  // This table now holds two kinds of row: imported history (Tebra/IntakeQ
+  // medication data with no prescriber of record) and prescriptions written
+  // here in-app. `prescribedAt IS NOT NULL` is the discriminator between
+  // them -- every column below is null on imported-history rows and no
+  // backfill ever populates them retroactively (see migrate-prescriptions
+  // migration note: fabricating a retroactive prescriber is the exact
+  // failure this feature exists to prevent).
+  medicationId: integer('medication_id').references(() => medications.id),
+  frequencyPerDay: integer('frequency_per_day'),
+  durationDays: integer('duration_days'),
+  instructions: text('instructions'),
+  prescribedByProviderId: integer('prescribed_by_provider_id').references(() => providers.id),
+  enteredByName: text('entered_by_name'),
+  prescribedAt: timestamp('prescribed_at'),
 })
 
 export const patientTrialScreenings = pgTable('patient_trial_screenings', {
@@ -116,6 +132,18 @@ export const patientTrialScreenings = pgTable('patient_trial_screenings', {
   patientId: text('patient_id').notNull().references(() => patients.id),
   trialId: text('trial_id').notNull().references(() => trials.id),
   overallStatus: verdictEnum('overall_status').notNull(),
+  // One-to-one with this screening's outcome (a patient is selected for at
+  // most one trial at a time), same shape as identityVerifications.verified/
+  // verifiedBy/verifiedAt above. selectionConfirmedAt/selectionConfirmedByName
+  // live here rather than a side table because there is exactly one
+  // confirmation per screening, not a history of them.
+  // selectionNotifiedAt is the one field of the three that is never cleared
+  // once set: it marks that the patient-facing notification for this
+  // selection has already gone out, so a later status re-check does not
+  // re-send it even if selectionConfirmedAt/selectionConfirmedByName change.
+  selectionConfirmedAt: timestamp('selection_confirmed_at'),
+  selectionConfirmedByName: text('selection_confirmed_by_name'),
+  selectionNotifiedAt: timestamp('selection_notified_at'),
 })
 
 export const screeningCriteriaResults = pgTable('screening_criteria_results', {
@@ -131,18 +159,6 @@ export const screeningCriteriaResults = pgTable('screening_criteria_results', {
   evidenceQuote: text('evidence_quote'),
   evidenceSourceDoc: text('evidence_source_doc'),
   evidenceSourceDate: date('evidence_source_date'),
-})
-
-export const identityMatches = pgTable('identity_matches', {
-  id: serial('id').primaryKey(),
-  intakeqClientIdRef: text('intakeq_client_id_encrypted').notNull(),
-  referralName: text('referral_name').notNull(),
-  referralDob: date('referral_dob').notNull(),
-  candidateTebraPatientIdRef: text('candidate_tebra_patient_id_encrypted').notNull(),
-  candidateName: text('candidate_name').notNull(),
-  candidateDob: date('candidate_dob').notNull(),
-  confidence: integer('confidence').notNull(), // 0-100
-  status: matchStatusEnum('status').default('pending').notNull(),
 })
 
 export const auditLog = pgTable('audit_log', {
@@ -167,6 +183,9 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash'),
   mfaSecretEncrypted: text('mfa_secret_encrypted'),
   mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
+  mfaMethod: mfaMethodEnum('mfa_method').default('totp').notNull(),
+  phone: text('phone'),
+  googleSub: text('google_sub'),
 })
 
 export const chargeStatusEnum = pgEnum('charge_status', ['draft', 'pending_approval', 'approved', 'submitted'])
@@ -197,11 +216,19 @@ export const charges = pgTable('charges', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+export const payers = pgTable('payers', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  payerId: text('payer_id').notNull(),
+  payerType: payerTypeEnum('payer_type').default('commercial').notNull(),
+})
+
 export const insuranceClaims = pgTable('insurance_claims', {
   id: serial('id').primaryKey(),
   chargeId: integer('charge_id').notNull().references(() => charges.id),
   patientId: text('patient_id').notNull().references(() => patients.id),
   payerName: text('payer_name').notNull(),
+  payerId: integer('payer_id').references(() => payers.id),
   billedAmountCents: integer('billed_amount_cents').notNull(),
   paidAmountCents: integer('paid_amount_cents'),
   status: insuranceClaimStatusEnum('status').notNull(),
@@ -238,7 +265,7 @@ export const mockPayments = pgTable('mock_payments', {
 })
 
 export const formSubmissionStatusEnum = pgEnum('form_submission_status', ['sent', 'partial', 'completed'])
-export const idTypeEnum = pgEnum('id_type', ['drivers_license', 'state_id', 'passport'])
+export const idTypeEnum = pgEnum('id_type', ['drivers_license', 'state_id', 'passport', 'military_id', 'green_card'])
 export const severityEnum = pgEnum('severity', ['mild', 'moderate', 'severe'])
 
 export const formTemplates = pgTable('form_templates', {
@@ -251,6 +278,7 @@ export const formTemplates = pgTable('form_templates', {
     label: string
     type: 'text' | 'textarea' | 'date' | 'select' | 'checkbox'
     options?: string[]
+    optionScores?: (number | null)[] // NEW -- same length/order as options when present; a select question with no optionScores is simply unscored
     hipaaSensitive: boolean
     required: boolean
     autofillField?: 'name' | 'dob' | 'email' | 'phone' | null
@@ -261,6 +289,10 @@ export const formTemplates = pgTable('form_templates', {
     // against and simply omit this.
     compareToChart?: { type: 'medication_active'; medicationClass: string } | null
   }[]>().notNull(),
+  scoringRule: jsonb('scoring_rule').$type<{
+    questionIds: string[]
+    bands: { min: number; max: number; label: string }[]
+  } | null>(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
@@ -295,6 +327,18 @@ export const formChartDiscrepancies = pgTable('form_chart_discrepancies', {
   resolved: boolean('resolved').default(false).notNull(),
   resolvedBy: text('resolved_by'),
   resolvedAt: timestamp('resolved_at'),
+})
+
+// One row per completed, scoreable submission. A side table, not columns on
+// formSubmissions -- a score is computed once at completion and never
+// edited, a different write pattern from `answers`, which is written
+// incrementally as the patient progresses. See lib/queries/form-submission-scoring.ts.
+export const formSubmissionScores = pgTable('form_submission_scores', {
+  id: serial('id').primaryKey(),
+  formSubmissionId: integer('form_submission_id').notNull().references(() => formSubmissions.id).unique(),
+  totalScore: integer('total_score').notNull(),
+  bandLabel: text('band_label').notNull(),
+  computedAt: timestamp('computed_at').defaultNow().notNull(),
 })
 
 export const broadcastChannelEnum = pgEnum('broadcast_channel', ['sms', 'email', 'both'])
@@ -361,21 +405,17 @@ export const appSettings = pgTable('app_settings', {
   practiceName: text('practice_name'),
   practiceSite: text('practice_site'),
   practiceTimezone: text('practice_timezone').default('America/Los_Angeles'),
-  // Credentials for the real Tebra/IntakeQ APIs, stored so an admin can
-  // provision them here once the vendor issues real access -- this pilot
-  // has a signed BAA but no API access yet, so nothing reads these fields
-  // to make an outbound call today. AES-256-GCM encrypted at rest via
-  // lib/crypto.ts, same as identityVerifications.idNumberEncrypted; never
-  // decrypted for display, only for a future real sync job to consume.
-  intakeqApiKeyEncrypted: text('intakeq_api_key_encrypted'),
-  tebraCustomerKeyEncrypted: text('tebra_customer_key_encrypted'),
-  tebraUserEncrypted: text('tebra_user_encrypted'),
-  tebraPasswordEncrypted: text('tebra_password_encrypted'),
   // The admin account authenticates via ADMIN_EMAIL/ADMIN_PASSWORD_HASH env
   // vars (api/login/route.ts), not a users row -- its MFA state has nowhere
   // else to live, so it goes on this pilot-wide singleton instead.
   adminMfaSecretEncrypted: text('admin_mfa_secret_encrypted'),
   adminMfaEnabled: boolean('admin_mfa_enabled').default(false).notNull(),
+  adminMfaMethod: mfaMethodEnum('admin_mfa_method').default('totp').notNull(),
+  adminPhone: text('admin_phone'),
+  // Plaintext by design, not AES-encrypted like the *Encrypted credential
+  // columns above -- this is a shared lobby-device PIN, not a third-party
+  // credential or PHI. See this plan's "Scope decisions" #4.
+  queueDisplayPin: text('queue_display_pin'),
 })
 
 export const appointmentStatusEnum = pgEnum('appointment_status', ['scheduled', 'completed', 'cancelled', 'no_show'])
@@ -412,8 +452,248 @@ export const appointments = pgTable('appointments', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+export const telemedicineSessionStatusEnum = pgEnum('telemedicine_session_status', [
+  'scheduled', 'waiting', 'in_progress', 'completed', 'failed',
+])
+
+export const telemedicineSessions = pgTable('telemedicine_sessions', {
+  id: serial('id').primaryKey(),
+  appointmentId: integer('appointment_id').notNull().references(() => appointments.id).unique(),
+  patientJoinToken: text('patient_join_token').notNull().unique(),
+  status: telemedicineSessionStatusEnum('status').default('scheduled').notNull(),
+  providerJoinedAt: timestamp('provider_joined_at'),
+  patientJoinedAt: timestamp('patient_joined_at'),
+  endedAt: timestamp('ended_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const telemedicineSignalTypeEnum = pgEnum('telemedicine_signal_type', ['offer', 'answer', 'ice_candidate'])
+export const telemedicineSignalSenderEnum = pgEnum('telemedicine_signal_sender', ['provider', 'patient'])
+
+export const telemedicineSignals = pgTable('telemedicine_signals', {
+  id: serial('id').primaryKey(),
+  sessionId: integer('session_id').notNull().references(() => telemedicineSessions.id),
+  sender: telemedicineSignalSenderEnum('sender').notNull(),
+  signalType: telemedicineSignalTypeEnum('signal_type').notNull(),
+  payload: jsonb('payload').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const bookingRequestStatusEnum = pgEnum('booking_request_status', ['pending', 'confirmed', 'declined'])
+
+export const bookingRequests = pgTable('booking_requests', {
+  id: serial('id').primaryKey(),
+  requesterName: text('requester_name').notNull(),
+  requesterDob: date('requester_dob').notNull(),
+  requesterEmail: text('requester_email'),
+  requesterPhone: text('requester_phone'),
+  preferredProviderId: integer('preferred_provider_id').references(() => providers.id),
+  preferredDateRangeStart: date('preferred_date_range_start').notNull(),
+  preferredDateRangeEnd: date('preferred_date_range_end').notNull(),
+  reason: text('reason').notNull(),
+  status: bookingRequestStatusEnum('status').default('pending').notNull(),
+  submittedAt: timestamp('submitted_at').defaultNow().notNull(),
+  reviewedByName: text('reviewed_by_name'),
+  reviewedAt: timestamp('reviewed_at'),
+  declineReason: text('decline_reason'),
+  resultingAppointmentId: integer('resulting_appointment_id').references(() => appointments.id),
+})
+
+export const roomStatusEnum = pgEnum('room_status', ['available', 'occupied', 'dirty', 'blocked'])
+
+export const rooms = pgTable('rooms', {
+  id: serial('id').primaryKey(),
+  ward: text('ward').notNull(),
+  roomNumber: text('room_number').notNull(),
+  bedNumber: text('bed_number').notNull(),
+  status: roomStatusEnum('status').default('available').notNull(),
+  blockedReason: text('blocked_reason'),
+  occupiedByPatientId: text('occupied_by_patient_id').references(() => patients.id),
+})
+
+export const doctorAssignmentVisitTypeEnum = pgEnum('doctor_assignment_visit_type', ['inpatient', 'outpatient'])
+export const doctorAssignmentUrgencyEnum = pgEnum('doctor_assignment_urgency', ['routine', 'urgent', 'emergency'])
+export const doctorAssignmentStatusEnum = pgEnum('doctor_assignment_status', ['pending', 'scheduled', 'declined'])
+
+export const doctorAssignments = pgTable('doctor_assignments', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  providerId: integer('provider_id').notNull().references(() => providers.id),
+  visitType: doctorAssignmentVisitTypeEnum('visit_type').notNull(),
+  urgency: doctorAssignmentUrgencyEnum('urgency').default('routine').notNull(),
+  reason: text('reason').notNull(),
+  status: doctorAssignmentStatusEnum('status').default('pending').notNull(),
+  roomId: integer('room_id').references(() => rooms.id),
+  assignedByName: text('assigned_by_name').notNull(),
+  appointmentId: integer('appointment_id').references(() => appointments.id),
+  declineReason: text('decline_reason'),
+  // DEFAULT 0 is a safety net, not a real ticket number -- this is a single
+  // shared Neon DB used by every branch/worktree in this repo, and other
+  // branches' code (unaware of this column) inserts doctorAssignments rows
+  // without setting it. Real assignments always get a real sequential
+  // number explicitly from the ticket-generation code (see Task 2), which
+  // never relies on this default.
+  queueTicketNumber: integer('queue_ticket_number').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const admissionTypeEnum = pgEnum('admission_type', ['elective', 'emergency', 'transfer_in'])
+export const admissionStatusEnum = pgEnum('admission_status', ['admitted', 'discharged'])
+
+export const admissions = pgTable('admissions', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  currentRoomId: integer('current_room_id').references(() => rooms.id),
+  attendingProviderId: integer('attending_provider_id').notNull().references(() => providers.id),
+  admissionType: admissionTypeEnum('admission_type').default('elective').notNull(),
+  status: admissionStatusEnum('status').default('admitted').notNull(),
+  admittedAt: timestamp('admitted_at').defaultNow().notNull(),
+  dischargedAt: timestamp('discharged_at'),
+  dischargeDiagnosis: text('discharge_diagnosis'),
+  dischargeDrugs: text('discharge_drugs'),
+  dischargeDevices: text('discharge_devices'),
+  dischargeDiet: text('discharge_diet'),
+  dischargeSummaryNotes: text('discharge_summary_notes'),
+  followUpAppointmentId: integer('follow_up_appointment_id').references(() => appointments.id),
+  createdFromAssignmentId: integer('created_from_assignment_id').references(() => doctorAssignments.id),
+})
+
+export const admissionTransfers = pgTable('admission_transfers', {
+  id: serial('id').primaryKey(),
+  admissionId: integer('admission_id').notNull().references(() => admissions.id),
+  fromRoomId: integer('from_room_id').references(() => rooms.id),
+  toRoomId: integer('to_room_id').notNull().references(() => rooms.id),
+  reason: text('reason').notNull(),
+  transferredByName: text('transferred_by_name').notNull(),
+  transferredAt: timestamp('transferred_at').defaultNow().notNull(),
+})
+
+export const noteTypeEnum = pgEnum('note_type', ['progress', 'nursing', 'intake'])
+export const noteStatusEnum = pgEnum('note_status', ['draft', 'signed'])
+
+export const encounterNotes = pgTable('encounter_notes', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  appointmentId: integer('appointment_id').references(() => appointments.id),
+  admissionId: integer('admission_id').references(() => admissions.id),
+  noteType: noteTypeEnum('note_type').default('progress').notNull(),
+  authorName: text('author_name').notNull(),
+  authorRole: roleEnum('author_role').notNull(),
+  subjective: text('subjective'),
+  objective: text('objective'),
+  assessment: text('assessment'),
+  plan: text('plan'),
+  status: noteStatusEnum('status').default('draft').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  signedAt: timestamp('signed_at'),
+})
+
+export const signableTypeEnum = pgEnum('signable_type', ['form_submission', 'admission_discharge'])
+
+// A generic, append-only signature event, keyed by (signableType, signableId)
+// rather than a formSubmissionId/admissionId pair of nullable FKs -- same
+// one-table-many-parents shape auditLog already uses in this codebase.
+// signableId deliberately has NO FK: it means formSubmissions.id or
+// admissions.id depending on signableType, and a single FK column can't
+// target two different tables. This does NOT touch encounterNotes'
+// existing status/signedAt signing mechanism -- that one stays as-is; see
+// docs/superpowers/specs/2026-09-28-e-signatures.md §2.
+export const signatures = pgTable('signatures', {
+  id: serial('id').primaryKey(),
+  signableType: signableTypeEnum('signable_type').notNull(),
+  signableId: integer('signable_id').notNull(),
+  signerTypedName: text('signer_typed_name').notNull(),
+  signerRole: text('signer_role').notNull(), // free text: staff roles (admin/pi/crc/frontdesk) or 'patient' -- form-submission signatures are patient-portal-initiated, not staff
+  attestationText: text('attestation_text').notNull(), // the exact attestation sentence shown at signing time, stored verbatim
+  signedAt: timestamp('signed_at').defaultNow().notNull(),
+})
+
+export const medicationFormEnum = pgEnum('medication_form', ['tablet', 'capsule', 'liquid', 'injection', 'other'])
+
+export const medications = pgTable('medications', {
+  id: serial('id').primaryKey(),
+  // UNIQUE (live-DB migration: medications_name_unique) -- added post-launch
+  // by the final whole-branch review after a rename-without-cleanup bug
+  // (seed matched by name before inserting, so renaming brand names to
+  // generic names left the old brand-named rows in place instead of
+  // updating them) produced 13 duplicate catalog rows with independently
+  // split inventory. This constraint makes that failure mode impossible
+  // going forward: a future rename-without-cleanup throws instead of
+  // silently duplicating.
+  name: text('name').notNull().unique(),
+  genericName: text('generic_name'),
+  medicationClass: text('medication_class').notNull(),
+  commonDose: text('common_dose'),
+  form: medicationFormEnum('form').default('tablet').notNull(),
+})
+
+export const medicationInventory = pgTable('medication_inventory', {
+  id: serial('id').primaryKey(),
+  medicationId: integer('medication_id').notNull().references(() => medications.id).unique(),
+  quantityOnHand: integer('quantity_on_hand').default(0).notNull(),
+  reorderThreshold: integer('reorder_threshold').default(10).notNull(),
+  unit: text('unit').default('units').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const medicationDispenses = pgTable('medication_dispenses', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  medicationId: integer('medication_id').notNull().references(() => medications.id),
+  medicationEpisodeId: integer('medication_episode_id').references(() => medicationEpisodes.id),
+  quantity: integer('quantity').notNull(),
+  dispensedByName: text('dispensed_by_name').notNull(),
+  dispensedAt: timestamp('dispensed_at').defaultNow().notNull(),
+  notes: text('notes'),
+  // The dispense->bill link lives on this table, not as a
+  // medicationDispenseId column on `charges`: charges is the general billing
+  // table every service line shares, and "is this dispense billed yet" is a
+  // property of the dispense. The .unique() is the real work -- it makes
+  // double-billing one dispense a database-level impossibility rather than a
+  // check the route has to remember, while still permitting unlimited NULLs
+  // (Postgres does not treat NULLs as equal) for the many dispenses that are
+  // samples or in-office doses and are never billed.
+  chargeId: integer('charge_id').references(() => charges.id).unique(),
+})
+
+export const marStatusEnum = pgEnum('mar_status', ['scheduled', 'given', 'held', 'refused'])
+
+export const medicationAdministrations = pgTable('medication_administrations', {
+  id: serial('id').primaryKey(),
+  admissionId: integer('admission_id').notNull().references(() => admissions.id),
+  medicationEpisodeId: integer('medication_episode_id').references(() => medicationEpisodes.id),
+  medicationName: text('medication_name').notNull(),
+  dose: text('dose').notNull(),
+  scheduledFor: timestamp('scheduled_for').notNull(),
+  status: marStatusEnum('status').default('scheduled').notNull(),
+  administeredAt: timestamp('administered_at'),
+  administeredByName: text('administered_by_name'),
+  notes: text('notes'),
+})
+
+export const eligibilityStatusEnum = pgEnum('eligibility_status', ['verified', 'inactive', 'needs_follow_up'])
+
+export const insuranceEligibilityChecks = pgTable('insurance_eligibility_checks', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  payerName: text('payer_name').notNull(),
+  payerId: integer('payer_id').references(() => payers.id),
+  status: eligibilityStatusEnum('status').notNull(),
+  copayCents: integer('copay_cents'),
+  deductibleRemainingCents: integer('deductible_remaining_cents'),
+  planType: insurancePlanTypeEnum('plan_type'),
+  coverageStartDate: date('coverage_start_date'),
+  checkedByName: text('checked_by_name').notNull(),
+  checkedAt: timestamp('checked_at').defaultNow().notNull(),
+})
+
 export const documentStatusEnum = pgEnum('document_status', ['new', 'processed'])
-export const documentLabelEnum = pgEnum('document_label', ['other', 'drivers_license', 'legal_document'])
+export const documentTypeEnum = pgEnum('document_type', [
+  'other', 'drivers_license', 'legal_document',
+  'insurance_card_primary_front', 'insurance_card_primary_back',
+  'insurance_card_secondary_front', 'insurance_card_secondary_back',
+  'insurance_eob', 'insurance_authorization', 'imaging_result',
+])
 export const faxDeliveryStatusEnum = pgEnum('fax_delivery_status', ['delivered', 'failed'])
 
 export const documents = pgTable('documents', {
@@ -422,9 +702,24 @@ export const documents = pgTable('documents', {
   documentDate: date('document_date').notNull(),
   status: documentStatusEnum('status').default('new').notNull(),
   receivedFrom: text('received_from').notNull(),
-  label: documentLabelEnum('label').default('other').notNull(),
+  documentType: documentTypeEnum('document_type').default('other').notNull(),
   patientId: text('patient_id').references(() => patients.id),
-  fileType: text('file_type').notNull(), // metadata only, e.g. "PDF" / "JPG" -- no file is ever stored
+  // Set only when staff explicitly associate the document with a stay -- never
+  // derived from "whatever admission is active now." Cleared whenever
+  // patientId changes or is cleared (see deletePatient's FK-ordering fix).
+  admissionId: integer('admission_id').references(() => admissions.id),
+  // Set only by the order-scoped upload route (which derives patientId from
+  // the order itself), never by the generic documents routes -- so the two
+  // can never disagree. labOrders is declared further below in this file;
+  // the thunk here makes the forward reference legal.
+  labOrderId: integer('lab_order_id').references(() => labOrders.id),
+  // fileType is display metadata derived from the uploaded file's MIME type
+  // (e.g. "PDF" / "JPG"). fileUrl is null only for pre-2026-09-29
+  // metadata-only rows that predate real file storage.
+  fileType: text('file_type').notNull(),
+  fileUrl: text('file_url'),
+  filedByName: text('filed_by_name'),
+  filedAt: timestamp('filed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -455,10 +750,99 @@ export const faxes = pgTable('faxes', {
 export const messages = pgTable('messages', {
   id: serial('id').primaryKey(),
   patientId: text('patient_id').notNull().references(() => patients.id),
-  senderRole: text('sender_role', { enum: ['provider', 'patient'] }).notNull(),
+  senderRole: text('sender_role', { enum: ['provider', 'patient', 'system'] }).notNull(),
   senderName: text('sender_name').notNull(),
   body: text('body').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   readByPatientAt: timestamp('read_by_patient_at'),
   readByProviderAt: timestamp('read_by_provider_at'),
+})
+
+export const labOrderStatusEnum = pgEnum('lab_order_status', ['ordered', 'collected', 'resulted', 'cancelled'])
+export const labResultFlagEnum = pgEnum('lab_result_flag', ['normal', 'abnormal', 'critical'])
+export const labTestCategoryEnum = pgEnum('lab_test_category', ['lab', 'imaging'])
+
+export const labTests = pgTable('lab_tests', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  code: text('code').notNull(), // a real, recognizable test code (LOINC-style), reference data only -- not verified against the real LOINC database
+  // A catalog-level property: whether a study produces an image belongs to
+  // the test itself, not to one patient's order for it.
+  category: labTestCategoryEnum('category').default('lab').notNull(),
+  defaultUnit: text('default_unit'),
+  referenceRange: text('reference_range'),
+})
+
+export const labOrders = pgTable('lab_orders', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  labTestId: integer('lab_test_id').notNull().references(() => labTests.id),
+  orderedByProviderId: integer('ordered_by_provider_id').notNull().references(() => providers.id),
+  status: labOrderStatusEnum('status').default('ordered').notNull(),
+  orderedAt: timestamp('ordered_at').defaultNow().notNull(),
+  collectedAt: timestamp('collected_at'),
+})
+
+export const labResults = pgTable('lab_results', {
+  id: serial('id').primaryKey(),
+  labOrderId: integer('lab_order_id').notNull().references(() => labOrders.id).unique(),
+  value: text('value').notNull(),
+  unit: text('unit'),
+  referenceRange: text('reference_range'),
+  flag: labResultFlagEnum('flag').default('normal').notNull(),
+  resultedByName: text('resulted_by_name').notNull(),
+  resultedAt: timestamp('resulted_at').defaultNow().notNull(),
+  notes: text('notes'),
+})
+
+export const employmentStatusEnum = pgEnum('employment_status', ['active', 'on_leave', 'terminated'])
+
+// A staff directory that deliberately mixes three linkage shapes: some rows
+// are both a system `users` login AND a clinical `providers` row (e.g. a
+// prescribing psychiatrist who also logs into the app), some are only one
+// or the other, and some (front-desk/facilities roles) are neither -- see
+// the seed data below and spec §1. Both FKs are therefore nullable, not
+// `.notNull()`, matching users.id/providers.id's own serial/integer shape.
+export const staffMembers = pgTable('staff_members', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  providerId: integer('provider_id').references(() => providers.id),
+  name: text('name').notNull(),
+  department: text('department').notNull(),
+  title: text('title').notNull(),
+  employmentStatus: employmentStatusEnum('employment_status').default('active').notNull(),
+  hireDate: date('hire_date').notNull(),
+  terminationDate: date('termination_date'),
+})
+
+export const staffCredentials = pgTable('staff_credentials', {
+  id: serial('id').primaryKey(),
+  staffMemberId: integer('staff_member_id').notNull().references(() => staffMembers.id),
+  credentialType: text('credential_type').notNull(),
+  credentialNumber: text('credential_number'),
+  expiresOn: date('expires_on'),
+})
+
+export const carePlanStatusEnum = pgEnum('care_plan_status', ['active', 'superseded'])
+export const carePlanGoalStatusEnum = pgEnum('care_plan_goal_status', ['active', 'met', 'not_met', 'discontinued'])
+
+export const carePlans = pgTable('care_plans', {
+  id: serial('id').primaryKey(),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  title: text('title').notNull(),
+  authorName: text('author_name').notNull(),
+  status: carePlanStatusEnum('status').default('active').notNull(),
+  startedAt: timestamp('started_at').defaultNow().notNull(),
+  nextReviewDate: date('next_review_date'),
+  supersededAt: timestamp('superseded_at'),
+})
+
+export const carePlanGoals = pgTable('care_plan_goals', {
+  id: serial('id').primaryKey(),
+  carePlanId: integer('care_plan_id').notNull().references(() => carePlans.id),
+  description: text('description').notNull(),
+  targetDate: date('target_date'),
+  status: carePlanGoalStatusEnum('status').default('active').notNull(),
+  statusUpdatedAt: timestamp('status_updated_at'),
+  statusUpdatedByName: text('status_updated_by_name'),
 })

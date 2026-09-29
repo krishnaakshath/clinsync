@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
-import { trials } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { trials, auditLog } from '@/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -13,6 +13,13 @@ import { PUT as updateCriteria } from '@/app/api/trials/[trialId]/criteria/route
 vi.mock('@/lib/auth', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth')>('@/lib/auth')
   return { ...actual, requireSession: vi.fn(async () => ({ role: 'crc' as const, name: 'Test CRC' })) }
+})
+
+// The "logs an audit entry..." test below inserts a real auditLog row via
+// the real GET handler against the shared dev DB -- clean it up, or it
+// accumulates in the compliance log forever.
+afterAll(async () => {
+  await getDb().delete(auditLog).where(eq(auditLog.action, 'viewed trials list'))
 })
 
 // The PUT test below overwrites nct-adhd-demo-01's medicationClasses with a
@@ -45,6 +52,15 @@ describe('GET /api/trials', () => {
     const body = await response.json()
     expect(body.trials.length).toBe(2)
     expect(body.trials[0].diagnosisCodes).toBeDefined()
+  })
+
+  it('logs an audit entry when the trial list is viewed', async () => {
+    await listTrials(new NextRequest('http://localhost/api/trials'))
+    // Scoped to this test's own action string, not "the globally latest row"
+    // -- the shared dev DB has concurrent writers (other branches/worktrees),
+    // so an unscoped "latest row" read is racy.
+    const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, 'viewed trials list')).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest?.action).toBe('viewed trials list')
   })
 })
 

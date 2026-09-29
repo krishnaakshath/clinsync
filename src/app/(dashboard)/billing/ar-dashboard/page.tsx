@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getArDashboardData } from '@/lib/queries/ar-dashboard'
@@ -15,6 +16,8 @@ function KpiCard({ label, value }: { label: string; value: string }) {
 
 export default async function ArDashboardPage() {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk only.
+  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) redirect('/')
   const data = await getArDashboardData()
   await logAudit(session, 'viewed A/R dashboard', null)
 

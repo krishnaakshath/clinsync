@@ -25,7 +25,14 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
         <h1 className="text-2xl font-bold text-foreground">Patients</h1>
         <div className="flex items-center gap-3">
           <AddPatientButton />
-          <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Download Verification Workbook</a>
+          {/* The export link is scoped to the same allowlist as the route it
+              points at (LeftNav.tsx:33 / workbook/export/route.ts) -- /patients
+              itself stays open to every role (spec §6.1, §10), but leaving
+              this visible to a role the route now 403s would just be a dead
+              button. */}
+          {['admin', 'crc'].includes(session.role) && (
+            <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Download Verification Workbook</a>
+          )}
         </div>
       </div>
 
@@ -38,16 +45,14 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
 
       {/* Project down to only what PatientsTable renders before crossing
           the Server->Client Component boundary -- the full row includes
-          clinician notes, both encrypted-ID columns, and every contact
-          field from both source systems, none of which this table shows,
-          but all of which would otherwise ship into the client bundle. */}
+          clinician notes and every other contact field, none of which this
+          table shows, but all of which would otherwise ship into the
+          client bundle. */}
       <PatientsTable patients={patients.map((p) => ({
         id: p.id,
         overallStatus: p.overallStatus,
-        nameTebra: p.nameTebra,
-        nameIntakeq: p.nameIntakeq,
-        dobTebra: p.dobTebra,
-        dobIntakeq: p.dobIntakeq,
+        name: p.name,
+        dob: p.dob,
         currentProvider: p.currentProvider,
         referralType: p.referralType,
         lastCommunication: p.lastCommunication,

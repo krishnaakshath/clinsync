@@ -29,10 +29,9 @@ export function PatientPortalSideNav() {
 
   return (
     <nav className="w-60 shrink-0 overflow-y-auto bg-sidebar p-3">
-      <div className="mb-1 flex items-center rounded-lg bg-white/95 px-2.5 py-2">
-        <ClinsyncLogo className="h-5 w-auto" />
+      <div className="mb-4 px-2.5 py-2">
+        <ClinsyncLogo className="text-lg font-semibold tracking-tight text-sidebar-foreground" />
       </div>
-      <p className="mb-4 px-2.5 text-[11px] font-medium text-sidebar-foreground/50">Clinsync</p>
       <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">Patient Portal</p>
       <ul className="space-y-0.5">
         {ITEMS.map((item) => {
@@ -42,10 +41,10 @@ export function PatientPortalSideNav() {
               <Link
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`flex items-center gap-2.5 rounded-md border-l-2 py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? 'border-sidebar-ring bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground'
                 }`}
               >
                 <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />

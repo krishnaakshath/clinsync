@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Search, Trash2 } from 'lucide-react'
@@ -10,12 +10,16 @@ import { DeletePatientDialog, type DeleteTarget } from '@/components/DeletePatie
 // data surfaces already use.
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 
-// Columns match the source 30-heading workbook verbatim and in order (see
-// src/lib/queries/workbook.ts). This is an internal, staff-only operational
-// grid meant to replicate a document coordinators already use day to day --
-// unlike the rest of the app's generic column labels, these headings
-// (including "IntakeQ Email" / "Link Tebra") are the client's own literal
-// field names, kept as given rather than genericized.
+// Columns match the source workbook in order (see src/lib/queries/workbook.ts;
+// originally 30 headings, now 29 -- 'Link Tebra'/tebraChartUrl was dropped
+// entirely since Task 1 of the unified-patient-record plan removed that
+// column with no single-sourced replacement). This is an internal,
+// staff-only operational grid meant to replicate a document coordinators
+// already use day to day. The underlying field keys (intakeqEmail,
+// patientEmail, etc.) still name the real external systems Clinsync
+// integrates with -- accurate internal naming, never rendered -- but every
+// column LABEL below is genericized: Clinsync's own UI never names a
+// competing product.
 const COLUMNS: { key: keyof WorkbookRow | 'name'; label: string }[] = [
   { key: 'id', label: 'Anonymous Number' },
   { key: 'dateAdded', label: 'Date Added to Tab' },
@@ -32,7 +36,7 @@ const COLUMNS: { key: keyof WorkbookRow | 'name'; label: string }[] = [
   { key: 'referralType', label: 'Referral Type' },
   { key: 'availability', label: 'Availability' },
   { key: 'apptDates', label: 'Past & Future Appt Date' },
-  { key: 'commConsent', label: 'Comm Consent Signed/Pref/IntakeQ' },
+  { key: 'commConsent', label: 'Comm Consent Signed/Pref/Intake' },
   { key: 'formNotes', label: 'Form Notes' },
   { key: 'reviewerNotes', label: 'Reviewer Notes' },
   { key: 'clinicianReviewerNotes', label: 'Clinician Reviewer Notes' },
@@ -41,8 +45,7 @@ const COLUMNS: { key: keyof WorkbookRow | 'name'; label: string }[] = [
   { key: 'inactiveMeds', label: 'Inactive Meds' },
   { key: 'oldNotes', label: 'Old Notes' },
   { key: 'oldRecs', label: 'Old Recs' },
-  { key: 'tebraChartUrl', label: 'Link Tebra' },
-  { key: 'intakeqEmail', label: 'IntakeQ Email' },
+  { key: 'intakeqEmail', label: 'Intake Email' },
   { key: 'patientEmail', label: 'Patient Email' },
   { key: 'outsideMedsConfirmation', label: 'Meds List from Pharmacy (Outside Confirmation)' },
   { key: 'templateDocUrl', label: 'Template Word Doc in SharePoint' },
@@ -60,19 +63,7 @@ export function WorkbookTable({ rows, isAdmin }: { rows: WorkbookRow[]; isAdmin:
   const [search, setSearch] = useState('')
   const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMNS.map((c) => c.key as string))
   const [columnsPanelOpen, setColumnsPanelOpen] = useState(false)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: WorkbookRow } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
-
-  useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
-    window.addEventListener('click', close)
-    window.addEventListener('scroll', close, true)
-    return () => {
-      window.removeEventListener('click', close)
-      window.removeEventListener('scroll', close, true)
-    }
-  }, [contextMenu])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -147,11 +138,27 @@ export function WorkbookTable({ rows, isAdmin }: { rows: WorkbookRow[]; isAdmin:
                 <tr
                   key={r.id}
                   className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''} transition-colors hover:bg-secondary`}
-                  onContextMenu={isAdmin ? (e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: r }) } : undefined}
                 >
                   {COLUMNS.filter((c) => show(c.key as string)).map((c) =>
                     c.key === 'id' ? (
                       <td key={c.key} className="whitespace-nowrap p-3"><Link href={`/patients/${r.id}`} className="font-medium text-primary hover:underline">{r.id}</Link></td>
+                    ) : c.key === 'patientName' ? (
+                      <td key={c.key} className="min-w-[10rem] max-w-xs p-3 text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate">{cellValue(r, c.key as string)}</span>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget({ id: r.id, name: r.patientName })}
+                              aria-label={`Delete ${r.patientName}`}
+                              title="Delete patient"
+                              className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     ) : (
                       <td key={c.key} className="min-w-[10rem] max-w-xs p-3 text-foreground">{cellValue(r, c.key as string)}</td>
                     )
@@ -163,25 +170,6 @@ export function WorkbookTable({ rows, isAdmin }: { rows: WorkbookRow[]; isAdmin:
         </div>
       )}
       <p className="mt-3 text-xs text-muted-foreground">{filtered.length} of {rows.length} patient{rows.length === 1 ? '' : 's'}</p>
-
-      {contextMenu && (
-        <div
-          className="fixed z-50 w-48 rounded-md border border-border bg-card py-1 shadow-lg"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setDeleteTarget({ id: contextMenu.row.id, name: contextMenu.row.patientName })
-              setContextMenu(null)
-            }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-            Delete Patient
-          </button>
-        </div>
-      )}
 
       <DeletePatientDialog
         target={deleteTarget}

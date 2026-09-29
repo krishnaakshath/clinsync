@@ -32,7 +32,7 @@ export async function listReviews(filters: ReviewFilters) {
 
     return rows.map((r) => ({
       ...r.review,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.name,
       templateName: r.template.name,
       diagnosisTag: r.template.diagnosisTag,
     }))
@@ -50,7 +50,7 @@ export async function getReview(id: number) {
   if (!row) return null
   return {
     ...row.review,
-    patientName: row.patient.nameTebra ?? row.patient.nameIntakeq,
+    patientName: row.patient.name,
     templateName: row.template.name,
     diagnosisTag: row.template.diagnosisTag,
   }
@@ -76,7 +76,7 @@ export async function listSurveyableSubmissions() {
     .map((r) => ({
       formSubmissionId: r.submission.id,
       patientId: r.patient.id,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.name,
       templateName: r.template.name,
       completedDate: r.submission.completedDate,
     }))

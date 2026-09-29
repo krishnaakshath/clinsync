@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
@@ -10,6 +11,8 @@ export default async function VirtualCardPaymentPage({
   searchParams: Promise<{ patientId?: string; amountCents?: string }>
 }) {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk only.
+  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) redirect('/')
   const { patientId, amountCents } = await searchParams
   const [patients, charges] = await Promise.all([listPatientsWithStatus(null), listCharges()])
   await logAudit(session, 'viewed virtual card payment form (demo)', patientId ?? null)
@@ -27,7 +30,7 @@ export default async function VirtualCardPaymentPage({
     <div className="max-w-xl">
       <h1 className="mb-6 text-2xl font-bold text-foreground">Virtual Card Payment</h1>
       <VirtualCardPaymentForm
-        patients={billablePatients.map((p) => ({ id: p.id, name: p.nameTebra ?? p.nameIntakeq }))}
+        patients={billablePatients.map((p) => ({ id: p.id, name: p.name }))}
         initialPatientId={patientId}
         initialAmountCents={amountCents ? Number(amountCents) : undefined}
       />

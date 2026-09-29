@@ -50,7 +50,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   await logAudit(session, 'viewed calendar', null)
 
-  const patientOptions = allPatients.map((p) => ({ id: p.id, name: p.nameTebra ?? p.nameIntakeq }))
+  const patientOptions = allPatients.map((p) => ({ id: p.id, name: p.name }))
   const providerOptions = allProviders.map((p) => ({ id: p.id, name: p.name, colorTag: p.colorTag }))
 
   const today = new Date()

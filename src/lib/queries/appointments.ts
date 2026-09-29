@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { appointments, patients, providers } from '@/db/schema'
-import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, asc, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm'
 
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show'
 
@@ -22,7 +22,7 @@ function mapAppointmentRow(r: { appointment: typeof appointments.$inferSelect; p
   return {
     id: r.appointment.id,
     patientId: r.appointment.patientId,
-    patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+    patientName: r.patient.name,
     providerId: r.appointment.providerId,
     providerName: r.provider.name,
     providerColorTag: r.provider.colorTag,
@@ -79,4 +79,23 @@ export async function getAppointment(id: number): Promise<AppointmentWithDetails
     .innerJoin(providers, eq(appointments.providerId, providers.id))
     .where(eq(appointments.id, id))
   return row ? mapAppointmentRow(row) : null
+}
+
+export async function hasSchedulingConflict(providerId: number, startsAt: Date, endsAt: Date, excludeAppointmentId?: number): Promise<boolean> {
+  const conditions = [
+    eq(appointments.providerId, providerId),
+    ne(appointments.status, 'cancelled'),
+    lt(appointments.startsAt, endsAt),
+    gt(appointments.endsAt, startsAt),
+  ]
+  // Excludes the appointment being rescheduled from its own conflict check --
+  // without this, PUT /api/appointments/[id] would always see itself and
+  // reject every reschedule as a "conflict" with the pre-change row.
+  if (excludeAppointmentId !== undefined) conditions.push(ne(appointments.id, excludeAppointmentId))
+
+  const rows = await getDb()
+    .select({ id: appointments.id })
+    .from(appointments)
+    .where(and(...conditions))
+  return rows.length > 0
 }

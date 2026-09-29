@@ -59,7 +59,7 @@ describe('POST /api/patients/[anonId]/portal-password', () => {
   })
 
   it('rejects a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC', userId: null })
     const res = await generatePortalPassword(new NextRequest('http://localhost', { method: 'POST' }), { params: Promise.resolve({ anonId: TEST_PATIENT_ID }) })
     expect(res.status).toBe(403)
   })

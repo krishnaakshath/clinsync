@@ -31,16 +31,14 @@ export async function listBroadcastRecipientCandidates(filters: BroadcastRecipie
     .from(patients)
     .leftJoin(patientTrialScreenings, eq(patientTrialScreenings.patientId, patients.id))
     .where(filters.trialId ? eq(patientTrialScreenings.trialId, filters.trialId) : undefined)
+    .orderBy(desc(patientTrialScreenings.id))
 
   // A patient can have multiple screening rows across trials; when no
   // trialId filter narrows the join, keep exactly one row per patient.
-  // KNOWN LIMITATION: the query has no ORDER BY, so "first row per patient"
-  // is whatever order Postgres happens to return -- for a hypothetical
-  // multi-trial patient, filtering by overallStatus alone (no trialId) could
-  // arbitrarily resolve to either trial's status. Not exploitable with
-  // today's seed data (every patient has exactly one screening row); needs
-  // a real product decision (which trial "wins") before this filter is used
-  // against data where multi-trial patients actually exist.
+  // Rows are ordered by screening id descending above, so the first one
+  // seen per patient below is deterministically that patient's most
+  // recently created screening -- "most recent screening wins" is a real
+  // product decision now, not an accident of Postgres's row order.
   const byPatient = new Map<string, { patient: typeof patients.$inferSelect; overallStatus?: Verdict }>()
   for (const r of rows) {
     if (!byPatient.has(r.patient.id)) {
@@ -70,18 +68,17 @@ export async function listBroadcastRecipientCandidates(filters: BroadcastRecipie
 
   return candidates.map((c) => ({
     id: c.patient.id,
-    name: c.patient.nameTebra ?? c.patient.nameIntakeq,
-    phone: c.patient.phoneTebra ?? c.patient.phoneIntakeq ?? null,
-    email: c.patient.emailTebra ?? c.patient.emailIntakeq ?? null,
+    name: c.patient.name,
+    phone: c.patient.phone ?? null,
+    email: c.patient.email ?? null,
   }))
 }
 
 /**
- * Simulated delivery, mirroring the project-wide mock-connector pattern
- * (`src/connectors/*.mock.ts`): no real SMS/email provider is ever called.
- * The rule is deterministic and explainable for a demo: delivery "succeeds"
- * only when the patient actually has the contact method the channel needs
- * on file, rather than a random outcome.
+ * Simulated delivery: no real SMS/email provider is ever called. The rule
+ * is deterministic and explainable for a demo: delivery "succeeds" only
+ * when the patient actually has the contact method the channel needs on
+ * file, rather than a random outcome.
  */
 export function simulateBroadcastDelivery(channel: 'sms' | 'email' | 'both', phone: string | null, email: string | null): 'delivered' | 'failed' {
   if (channel === 'sms') return phone ? 'delivered' : 'failed'

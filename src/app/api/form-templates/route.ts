@@ -11,8 +11,12 @@ const questionSchema = z.object({
   label: z.string(),
   type: z.enum(['text', 'textarea', 'date', 'select', 'checkbox']),
   options: z.array(z.string()).optional(),
+  optionScores: z.array(z.number().nullable()).optional(),
   hipaaSensitive: z.boolean(),
   required: z.boolean(),
+}).refine((q) => !q.optionScores || q.optionScores.length === (q.options ?? []).length, {
+  message: 'optionScores must have the same length as options',
+  path: ['optionScores'],
 })
 
 const createTemplateSchema = z.object({
@@ -20,11 +24,16 @@ const createTemplateSchema = z.object({
   category: z.string().min(1),
   diagnosisTag: z.string().min(1),
   questions: z.array(questionSchema),
+  scoringRule: z.object({
+    questionIds: z.array(z.string()),
+    bands: z.array(z.object({ min: z.number(), max: z.number(), label: z.string() })),
+  }).nullable().optional(),
 }).strict()
 
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  await logAudit(session, 'viewed form templates list', null)
   return NextResponse.json(await listFormTemplates())
 }
 

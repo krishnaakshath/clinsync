@@ -14,12 +14,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const charge = await getCharge(Number(id))
   if (!charge) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  await logAudit(session, `viewed charge ${id}`, charge.patientId)
   return NextResponse.json(charge)
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+
+  // Advancing a charge draft -> pending_approval -> approved -> submitted is
+  // the billing team's approval authority. Pharmacy records that a billable
+  // thing happened (via the dispense-billing path) without deciding what to
+  // do about it, so it does not get to move a charge through this workflow.
+  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const { id } = await params
 
   const parsed = statusUpdateSchema.safeParse(await request.json())

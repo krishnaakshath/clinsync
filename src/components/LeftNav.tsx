@@ -3,10 +3,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import {
-  LayoutDashboard, Stethoscope, Users, ClipboardList, Fingerprint, FlaskConical,
+  LayoutDashboard, Stethoscope, Users, ClipboardList, FlaskConical,
   Calendar, FileText, FileSignature, MessageSquare, Wallet, Receipt, ShieldCheck, HandCoins,
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
-  Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight,
+  Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
+  ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard, CalendarClock, Search,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
@@ -17,28 +18,40 @@ type Icon = React.ComponentType<{ className?: string }>
 // clinical eligibility calls, not running practice operations, so they get
 // a trimmed, clinical-only nav (Home/My Patients/Patients/Trials/Calendar/
 // Client Forms/Messages, plus their own Account tab in Settings) -- no
-// Workbook, Identity Matching, Form Templates (building/editing form
-// structures is a coordinator/admin task), Billing, or the Operations
-// group (Reports/Documents/Broadcasts/Experience Surveys/Pipeline
-// Dashboard), which are the coordinator's and admin's tools. Client Forms
-// stays visible to PI -- reviewing a patient's actual submitted answers is
-// clinical review, not practice administration. Admin and CRC both keep
+// Workbook, Form Templates (building/editing form structures is a
+// coordinator/admin task), Billing, or the Operations group (Reports/
+// Documents/Broadcasts/Experience Surveys/Pipeline Dashboard), which are
+// the coordinator's and admin's tools. Client Forms stays visible to PI --
+// reviewing a patient's actual submitted answers is clinical review, not
+// practice administration. Admin and CRC both keep
 // full operational access -- see src/lib/role-capabilities.ts, which this
 // must stay consistent with.
-const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
-  { href: '/', label: 'Home', icon: LayoutDashboard },
+//
+// NAV_ITEMS, NAV_BILLING_ITEMS and NAV_TRAILING_ITEMS are exported as the
+// source of truth that tests/pages/nav-role-enforcement.test.tsx derives
+// its server-side gate assertions from, so a `roles`-restricted entry
+// added here without a matching PAGE_GATES row fails that suite.
+export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
+  { href: '/', label: 'Home', icon: LayoutDashboard, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/doctor', label: 'My Patients', icon: Stethoscope, roles: ['pi'] as Role[] },
-  { href: '/patients', label: 'Patients', icon: Users },
+  { href: '/patients', label: 'Patients', icon: Users, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: ['admin', 'crc'] as Role[] },
-  { href: '/identity-matching', label: 'Identity Matching', icon: Fingerprint, roles: ['admin', 'crc'] as Role[] },
-  { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical },
-  { href: '/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+  { href: '/calendar', label: 'Calendar', icon: Calendar, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
   { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc'] as Role[] },
-  { href: '/client-forms', label: 'Client Forms', icon: FileSignature },
-  { href: '/messages', label: 'Messages', icon: MessageSquare },
+  { href: '/client-forms', label: 'Client Forms', icon: FileSignature, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+  { href: '/front-desk/check-in', label: 'Check-In', icon: ClipboardCheck, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
+  { href: '/front-desk/assignments', label: 'Assignments', icon: ListChecks, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
+  { href: '/inpatient/beds', label: 'Beds', icon: BedDouble, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
+  { href: '/pharmacy', label: 'Pharmacy', icon: Pill, roles: ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'] as Role[] },
+  { href: '/pharmacy/patient-lookup', label: 'Patient Lookup', icon: Search, roles: ['pharmacy', 'admin'] as Role[] },
+  { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
+  { href: '/staff', label: 'Staff', icon: IdCard, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+  { href: '/booking-requests', label: 'Booking Requests', icon: CalendarClock, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
+  { href: '/messages', label: 'Messages', icon: MessageSquare, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
 ]
 
-const BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
+export const NAV_BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
   { href: '/billing/charges', label: 'Charges', icon: Receipt },
   { href: '/billing/insurance-collections', label: 'Insurance Collections', icon: ShieldCheck },
   { href: '/billing/patient-collections', label: 'Patient Collections', icon: HandCoins },
@@ -48,12 +61,13 @@ const BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
   { href: '/billing/pay', label: 'Virtual Card Payment (Demo)', icon: CreditCard },
 ]
 
-const TRAILING_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
+export const NAV_TRAILING_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
   { href: '/reports', label: 'Reports', icon: FileBarChart2, roles: ['admin', 'crc'] as Role[] },
   { href: '/documents', label: 'Documents', icon: FolderOpen, roles: ['admin', 'crc'] as Role[] },
   { href: '/broadcasts', label: 'Broadcasts', icon: Megaphone, roles: ['admin', 'crc'] as Role[] },
   { href: '/experience-surveys', label: 'Experience Surveys', icon: Star, roles: ['admin', 'crc'] as Role[] },
   { href: '/pipeline-dashboard', label: 'Pipeline Dashboard', icon: Activity, roles: ['admin', 'crc'] as Role[] },
+  { href: '/audit-log', label: 'Audit Log', icon: History, roles: ['admin'] as Role[] },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
@@ -70,10 +84,10 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex items-center gap-2.5 rounded-md border-l-2 py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
         active
-          ? 'border-sidebar-ring bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-          : 'border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+          ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
+          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground'
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -82,20 +96,21 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
   )
 }
 
+export const BILLING_ROLES: Role[] = ['admin', 'crc', 'frontdesk']
+
 export function LeftNav({ role }: { role: Role }) {
   const pathname = usePathname()
-  const items = ITEMS.filter((item) => !item.roles || item.roles.includes(role))
-  const trailingItems = TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
-  const showBilling = role === 'admin' || role === 'crc'
+  const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
+  const trailingItems = NAV_TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
+  const showBilling = BILLING_ROLES.includes(role)
   const billingActive = pathname?.startsWith('/billing') ?? false
   const [billingOpen, setBillingOpen] = useState(billingActive)
 
   return (
     <nav className="w-60 shrink-0 overflow-y-auto bg-sidebar p-3">
-      <div className="mb-1 flex items-center rounded-lg bg-white/95 px-2.5 py-2">
-        <ClinsyncLogo className="h-5 w-auto" />
+      <div className="mb-4 px-2.5 py-2">
+        <ClinsyncLogo className="text-lg font-semibold tracking-tight text-sidebar-foreground" />
       </div>
-      <p className="mb-4 px-2.5 text-[11px] font-medium text-sidebar-foreground/50">Clinsync</p>
       <GroupLabel>Workspace</GroupLabel>
       <ul className="space-y-0.5">
         {items.map((item) => (
@@ -112,10 +127,10 @@ export function LeftNav({ role }: { role: Role }) {
             type="button"
             onClick={() => setBillingOpen((v) => !v)}
             aria-expanded={billingOpen}
-            className={`flex w-full items-center gap-2.5 rounded-md border-l-2 py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
+            className={`flex w-full items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
               billingActive
-                ? 'border-sidebar-ring bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-                : 'border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
+                : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground'
             }`}
           >
             <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -124,7 +139,7 @@ export function LeftNav({ role }: { role: Role }) {
           </button>
           {billingOpen && (
             <ul className="mt-0.5 space-y-0.5 ps-3">
-              {BILLING_ITEMS.map((item) => (
+              {NAV_BILLING_ITEMS.map((item) => (
                 <li key={item.href}>
                   <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
                 </li>

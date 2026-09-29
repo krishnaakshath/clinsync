@@ -18,12 +18,23 @@ const createChargeSchema = z.object({
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  await logAudit(session, 'viewed charges list', null)
   return NextResponse.json(await listCharges())
 }
 
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+
+  // Creating a charge is billing/registration staff's authority. This gate
+  // was missing entirely until the `pharmacy` role was added: without it,
+  // pharmacy would have been able to create an arbitrary charge for any
+  // patient with any code and amount, outside the one narrow, server-derived
+  // dispense-billing path it is actually given (POST
+  // /api/pharmacy/dispenses/[dispenseId]/charge). Same tier as /billing's own
+  // nav visibility (LeftNav.tsx:98). This also, correctly, closes the route
+  // to `pi`, which had incidental access via the missing gate.
+  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = createChargeSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid charge payload', details: parsed.error.flatten() }, { status: 400 })

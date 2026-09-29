@@ -68,7 +68,9 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
                         )}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {t.lastMessagePreview ? `${t.lastMessagePreview.senderRole === 'provider' ? 'You: ' : ''}${t.lastMessagePreview.body}` : ''}
+                        {t.lastMessagePreview
+                          ? `${t.lastMessagePreview.senderRole === 'provider' ? 'You: ' : t.lastMessagePreview.senderRole === 'system' ? 'Automated: ' : ''}${t.lastMessagePreview.body}`
+                          : ''}
                       </span>
                     </span>
                   </Link>

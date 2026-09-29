@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
@@ -6,6 +7,9 @@ import { PatientsReportTable } from '@/components/PatientsReportTable'
 
 export default async function PatientsReportPage() {
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:60 — the Reports section is rendered for admin/crc only.
+  // Same list, same redirect target as workbook/page.tsx:12.
+  if (!['admin', 'crc'].includes(session.role)) redirect('/')
   const [patients, trials] = await Promise.all([listPatientsWithStatus(null), listAllTrials()])
   await logAudit(session, 'viewed report: all patients', null)
 
@@ -13,8 +17,8 @@ export default async function PatientsReportPage() {
 
   const rows = patients.map((p) => ({
     id: p.id,
-    displayName: p.nameTebra ?? p.nameIntakeq,
-    dob: p.dobTebra ?? p.dobIntakeq,
+    displayName: p.name,
+    dob: p.dob,
     currentProvider: p.currentProvider,
     overallStatus: p.overallStatus,
     trialName: p.trialId ? (trialNameById.get(p.trialId) ?? p.trialId) : null,

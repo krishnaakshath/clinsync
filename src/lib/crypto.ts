@@ -1,11 +1,13 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 
-// AES-256-GCM for genuinely sensitive fields (government ID numbers, etc.) --
-// never the `ENC[...]` string-wrapping convention used elsewhere in this
-// codebase for internal system identifiers (intakeqClientIdRef,
-// tebraPatientIdRef), which are pseudonymous IDs, not PII on the same
-// level as a driver's license/passport number and don't warrant the same
-// treatment. IDENTITY_ENCRYPTION_KEY must be a 32-byte key, base64-encoded.
+// AES-256-GCM for genuinely sensitive fields (government ID numbers, etc.).
+// (This codebase previously also had a lighter-weight `ENC[...]`
+// string-wrapping convention for pseudonymous cross-system identifiers
+// that weren't PII on the same level as a driver's license/passport
+// number -- those identifiers and the fields that held them were removed
+// outright by the unified-patient-record migration, so that convention no
+// longer has a live use in this codebase.) IDENTITY_ENCRYPTION_KEY must be
+// a 32-byte key, base64-encoded.
 function getKey(): Buffer {
   const raw = process.env.IDENTITY_ENCRYPTION_KEY
   if (!raw) throw new Error('IDENTITY_ENCRYPTION_KEY is not set')

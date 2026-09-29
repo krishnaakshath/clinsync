@@ -31,7 +31,7 @@ export function PracticeInfoForm({ initial, isAdmin }: {
     <div className="space-y-3">
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">Practice name</label>
-        <input value={practiceName} onChange={(e) => setPracticeName(e.target.value)} disabled={!isAdmin} placeholder="Inland Psychiatric Medical Group" className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60" />
+        <input value={practiceName} onChange={(e) => setPracticeName(e.target.value)} disabled={!isAdmin} placeholder="Your practice name" className="w-full rounded-md border border-border px-3 py-2 text-sm disabled:opacity-60" />
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">Site / location</label>

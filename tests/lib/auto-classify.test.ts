@@ -4,7 +4,7 @@ import { getDb } from '@/db/client'
 import { appSettings, patients, diagnoses, medicationEpisodes, patientTrialScreenings, screeningCriteriaResults, auditLog } from '@/db/schema'
 import { eq, and, gt } from 'drizzle-orm'
 
-const TEST_SESSION = { role: 'crc' as const, name: 'Test Runner' }
+const TEST_SESSION = { role: 'crc' as const, name: 'Test Runner', userId: null }
 const TEST_PATIENT_ID = 'RD-9001'
 
 // appSettings is a single-row table, but its row's serial id is whatever the
@@ -53,10 +53,10 @@ describe('maybeAutoClassify', () => {
     // proving maybeAutoClassify now recomputes from real data rather than
     // just re-aggregating whatever criteria rows already existed.
     await getDb().insert(patients).values({
-      id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01',
+      id: TEST_PATIENT_ID, name: 'Test Patient', dob: '1990-01-01',
       ratingScales: [{ name: 'PHQ-9', score: 15, date: '2026-08-01' }],
     })
-    await getDb().insert(diagnoses).values({ patientId: TEST_PATIENT_ID, code: 'F33.1', description: 'Test diagnosis', source: 'tebra' })
+    await getDb().insert(diagnoses).values({ patientId: TEST_PATIENT_ID, code: 'F33.1', description: 'Test diagnosis' })
     await getDb().insert(medicationEpisodes).values({ patientId: TEST_PATIENT_ID, name: 'Sertraline', medicationClass: 'SSRI/SNRI antidepressant', dose: '100mg daily', startDate: '2026-01-01', status: 'active' })
     const [screening] = await getDb().insert(patientTrialScreenings).values({ patientId: TEST_PATIENT_ID, trialId: 'nct06911112', overallStatus: 'yellow' }).returning()
 

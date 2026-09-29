@@ -45,7 +45,7 @@ export async function getPatientPortalData(patientId: string) {
   // lost or never received that link had no way to find or fill a form
   // they'd been sent. Surface every submission by access token instead.
   const forms = await getDb()
-    .select({ id: formSubmissions.id, status: formSubmissions.status, sentDate: formSubmissions.sentDate, accessToken: formSubmissions.accessToken, templateName: formTemplates.name })
+    .select({ id: formSubmissions.id, status: formSubmissions.status, sentDate: formSubmissions.sentDate, accessToken: formSubmissions.accessToken, templateName: formTemplates.name, category: formTemplates.category })
     .from(formSubmissions)
     .innerJoin(formTemplates, eq(formSubmissions.templateId, formTemplates.id))
     .where(eq(formSubmissions.patientId, patientId))
@@ -55,8 +55,8 @@ export async function getPatientPortalData(patientId: string) {
 
   return {
     id: patient.id,
-    name: patient.nameTebra ?? patient.nameIntakeq,
-    dob: patient.dobTebra ?? patient.dobIntakeq,
+    name: patient.name,
+    dob: patient.dob,
     currentProvider: patient.currentProvider,
     portalConfigured: !!patient.portalPasswordHash,
     diagnoses: dx,
@@ -76,12 +76,12 @@ export async function getPatientPortalData(patientId: string) {
  * getPatientPortalData() fetches for whichever single page is active.
  */
 export async function getPatientPortalIdentity(patientId: string) {
-  const [patient] = await getDb().select({ id: patients.id, nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq, dobTebra: patients.dobTebra, dobIntakeq: patients.dobIntakeq }).from(patients).where(eq(patients.id, patientId))
+  const [patient] = await getDb().select({ id: patients.id, name: patients.name, dob: patients.dob }).from(patients).where(eq(patients.id, patientId))
   if (!patient) return null
   return {
     id: patient.id,
-    name: patient.nameTebra ?? patient.nameIntakeq,
-    dob: patient.dobTebra ?? patient.dobIntakeq,
+    name: patient.name,
+    dob: patient.dob,
   }
 }
 

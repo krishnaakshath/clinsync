@@ -9,23 +9,31 @@ import {
   medicationEpisodes,
   patientTrialScreenings,
   screeningCriteriaResults,
-  identityMatches,
   users,
+  payers,
   charges,
   insuranceClaims,
   patientStatements,
   mockPayments,
   formTemplates,
   formSubmissions,
+  formSubmissionScores,
+  formChartDiscrepancies,
   allergies,
   identityVerifications,
   appSettings,
   providers,
   appointments,
+  rooms,
   documents,
   faxes,
   broadcasts,
   reviews,
+  medications,
+  medicationInventory,
+  labTests,
+  staffMembers,
+  staffCredentials,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -87,8 +95,8 @@ const PROVIDER_ROSTER = [
 
 type HeroPatient = {
   id: string; trialId: string; overallStatus: 'green' | 'yellow' | 'red'
-  nameIntakeq: string; nameTebra: string | null; dobIntakeq: string; dobTebra: string | null
-  city: string; zip: string; phone: string; emailIntakeq: string; emailTebra: string | null
+  name: string; dob: string
+  city: string; zip: string; phone: string; email: string
   provider: string; ratingScale: { name: string; score: number; date: string }
   diagnosisCode: { code: string; description: string }
   activeMed: { name: string; medicationClass: string; dose: string; startDate: string }
@@ -98,8 +106,8 @@ type HeroPatient = {
 const HERO_PATIENTS: HeroPatient[] = [
   {
     id: 'RD-0001', trialId: 'nct06911112', overallStatus: 'green',
-    nameIntakeq: 'Maria Alvarez', nameTebra: 'Maria Alvarez', dobIntakeq: '1985-03-12', dobTebra: '1985-03-12',
-    city: 'Redlands', zip: '92373', phone: '909-555-0142', emailIntakeq: 'malvarez.demo@example.com', emailTebra: 'maria.alvarez.demo@example.com',
+    name: 'Maria Alvarez', dob: '1985-03-12',
+    city: 'Redlands', zip: '92373', phone: '909-555-0142', email: 'maria.alvarez.demo@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'PHQ-9', score: 18, date: '2026-09-01' },
     diagnosisCode: { code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' },
     activeMed: { name: 'Sertraline', medicationClass: 'SSRI/SNRI antidepressant', dose: '100mg daily', startDate: '2026-06-01' },
@@ -111,8 +119,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0002', trialId: 'nct06911112', overallStatus: 'red',
-    nameIntakeq: 'James Thornton', nameTebra: 'James Thornton', dobIntakeq: '1990-11-02', dobTebra: '1990-11-02',
-    city: 'Highland', zip: '92346', phone: '909-555-0198', emailIntakeq: 'jthornton.demo@example.com', emailTebra: 'jthornton.demo@example.com',
+    name: 'James Thornton', dob: '1990-11-02',
+    city: 'Highland', zip: '92346', phone: '909-555-0198', email: 'jthornton.demo@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'PHQ-9', score: 9, date: '2026-08-20' },
     diagnosisCode: { code: 'F32.1', description: 'Major depressive disorder, single episode, moderate' },
     activeMed: { name: 'Bupropion', medicationClass: 'NDRI (excluded class)', dose: '150mg daily', startDate: '2026-08-01' },
@@ -123,8 +131,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0003', trialId: 'nct06911112', overallStatus: 'yellow',
-    nameIntakeq: 'Linda Cho', nameTebra: null, dobIntakeq: '1978-06-30', dobTebra: null,
-    city: 'Yucaipa', zip: '92399', phone: '909-555-0177', emailIntakeq: 'lcho.demo@example.com', emailTebra: null,
+    name: 'Linda Cho', dob: '1978-06-30',
+    city: 'Yucaipa', zip: '92399', phone: '909-555-0177', email: 'lcho.demo@example.com',
     provider: 'Unmatched', ratingScale: { name: 'PHQ-9', score: 15, date: '2026-09-05' },
     diagnosisCode: { code: 'F32.1', description: 'Major depressive disorder, single episode, moderate' },
     activeMed: { name: 'Unknown', medicationClass: 'Unknown', dose: 'Unknown', startDate: '2026-01-01' },
@@ -134,8 +142,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0004', trialId: 'nct-adhd-demo-01', overallStatus: 'green',
-    nameIntakeq: 'Priya Natarajan', nameTebra: 'Priya Natarajan', dobIntakeq: '1994-02-18', dobTebra: '1994-02-18',
-    city: 'Redlands', zip: '92374', phone: '909-555-0133', emailIntakeq: 'pnatarajan.demo@example.com', emailTebra: 'pnatarajan.demo@example.com',
+    name: 'Priya Natarajan', dob: '1994-02-18',
+    city: 'Redlands', zip: '92374', phone: '909-555-0133', email: 'pnatarajan.demo@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'ASRS-v1.1', score: 21, date: '2026-09-02' },
     diagnosisCode: { code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' },
     activeMed: { name: 'None', medicationClass: 'None', dose: 'N/A', startDate: '2026-01-01' },
@@ -146,8 +154,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0005', trialId: 'nct-adhd-demo-01', overallStatus: 'red',
-    nameIntakeq: 'Marcus Webb', nameTebra: 'Marcus Webb', dobIntakeq: '1988-09-09', dobTebra: '1988-09-09',
-    city: 'Loma Linda', zip: '92354', phone: '909-555-0161', emailIntakeq: 'mwebb.demo@example.com', emailTebra: 'mwebb.demo@example.com',
+    name: 'Marcus Webb', dob: '1988-09-09',
+    city: 'Loma Linda', zip: '92354', phone: '909-555-0161', email: 'mwebb.demo@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'ASRS-v1.1', score: 19, date: '2026-08-28' },
     diagnosisCode: { code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' },
     activeMed: { name: 'Lisdexamfetamine', medicationClass: 'Stimulant', dose: '30mg daily', startDate: '2026-09-01' },
@@ -157,8 +165,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0006', trialId: 'nct06911112', overallStatus: 'yellow',
-    nameIntakeq: 'Katherine Voss', nameTebra: 'Kathryn Voss', dobIntakeq: '1982-12-05', dobTebra: '1982-12-05',
-    city: 'Redlands', zip: '92373', phone: '909-555-0188', emailIntakeq: 'kvoss.demo@example.com', emailTebra: 'kvoss.old@example.com',
+    name: 'Kathryn Voss', dob: '1982-12-05',
+    city: 'Redlands', zip: '92373', phone: '909-555-0188', email: 'kvoss.old@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'PHQ-9', score: 16, date: '2026-08-15' },
     diagnosisCode: { code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' },
     activeMed: { name: 'Venlafaxine', medicationClass: 'SSRI/SNRI antidepressant', dose: '75mg daily', startDate: '2026-08-10' },
@@ -248,21 +256,17 @@ async function seedFillerPatients() {
 
     await db.insert(patients).values({
       id,
-      intakeqClientIdRef: `enc-iq-${id}`,
-      tebraPatientIdRef: i % 5 === 4 ? null : `enc-tb-${id}`, // a few unmatched-to-Tebra, like the hero roster's Linda Cho
-      nameIntakeq: FILLER_NAMES[i],
-      nameTebra: i % 5 === 4 ? null : FILLER_NAMES[i],
-      dobIntakeq: `${birthYear}-${birthMonth}-${birthDay}`,
-      dobTebra: i % 5 === 4 ? null : `${birthYear}-${birthMonth}-${birthDay}`,
-      cityIntakeq: location.city,
-      zipIntakeq: location.zip,
+      name: FILLER_NAMES[i],
+      dob: `${birthYear}-${birthMonth}-${birthDay}`,
+      city: location.city,
+      zip: location.zip,
       // RD-0007 (i === 0) is deliberately left with no phone number at all --
       // it's the one seeded broadcast recipient (Phase 5) whose SMS delivery
       // is meant to genuinely fail per simulateBroadcastDelivery's own logic,
       // rather than a hand-authored 'failed' status the simulator could
       // never actually produce for a patient with real contact info.
-      phoneIntakeq: i === 0 ? null : `909-555-0${String(300 + i).padStart(3, '0')}`,
-      emailIntakeq: `${first.toLowerCase()}.${last.toLowerCase().replace(/[^a-z]/g, '')}.demo@example.com`,
+      phone: i === 0 ? null : `909-555-0${String(300 + i).padStart(3, '0')}`,
+      email: `${first.toLowerCase()}.${last.toLowerCase().replace(/[^a-z]/g, '')}.demo@example.com`,
       currentProvider: PROVIDER_ROSTER[i % PROVIDER_ROSTER.length].name,
       ratingScales: inTrial ? [{ name: trial.ratingScales[0].name, score: 8 + (i % 16), date: '2026-09-01' }] : [],
       referralType: REFERRAL_TYPES[i % REFERRAL_TYPES.length],
@@ -272,7 +276,7 @@ async function seedFillerPatients() {
     })
 
     if (inTrial) {
-      await db.insert(diagnoses).values({ patientId: id, code: trial.diagnosisCodes[0].code, description: trial.diagnosisCodes[0].description, source: 'tebra', date: '2026-08-01' })
+      await db.insert(diagnoses).values({ patientId: id, code: trial.diagnosisCodes[0].code, description: trial.diagnosisCodes[0].description, date: '2026-08-01' })
       const screening = await db.insert(patientTrialScreenings).values({ patientId: id, trialId: trial.id, overallStatus: status }).returning()
       await db.insert(screeningCriteriaResults).values({
         screeningId: screening[0].id,
@@ -289,7 +293,7 @@ async function seedFillerPatients() {
       // still a real chart with its own diagnosis, so the panel doesn't
       // read as "trial candidates only."
       const dx = GENERAL_DIAGNOSES[i % GENERAL_DIAGNOSES.length]
-      await db.insert(diagnoses).values({ patientId: id, code: dx.code, description: dx.description, source: 'tebra', date: '2026-07-15' })
+      await db.insert(diagnoses).values({ patientId: id, code: dx.code, description: dx.description, date: '2026-07-15' })
     }
 
     // Roughly half the panel has an active medication on file, drawn from a
@@ -314,16 +318,16 @@ async function seedDocumentsAndFaxes() {
   // Documents: metadata-only rows demonstrating the New/Processed status split,
   // a mix of labels, and both patient-linked and unlinked documents.
   await db.insert(documents).values([
-    { name: 'Drivers License - Front.jpg', documentDate: '2026-08-10', status: 'processed', receivedFrom: 'Patient Portal Upload', label: 'drivers_license', patientId: 'RD-0001', fileType: 'JPG' },
-    { name: 'Signed Consent Form.pdf', documentDate: '2026-08-12', status: 'processed', receivedFrom: 'Jamie Ruiz (CRC)', label: 'legal_document', patientId: 'RD-0001', fileType: 'PDF' },
-    { name: 'Outside Lab Results.pdf', documentDate: '2026-08-14', status: 'new', receivedFrom: 'Fax', label: 'other', patientId: 'RD-0002', fileType: 'PDF' },
-    { name: 'Referral Letter.pdf', documentDate: '2026-08-15', status: 'new', receivedFrom: 'Referring Provider Office', label: 'other', patientId: 'RD-0003', fileType: 'PDF' },
-    { name: 'State ID Card.png', documentDate: '2026-08-16', status: 'processed', receivedFrom: 'Patient Portal Upload', label: 'drivers_license', patientId: 'RD-0002', fileType: 'PNG' },
-    { name: 'Power of Attorney.pdf', documentDate: '2026-08-18', status: 'new', receivedFrom: 'Mail', label: 'legal_document', patientId: 'RD-0004', fileType: 'PDF' },
-    { name: 'Prior Medication List.pdf', documentDate: '2026-08-19', status: 'processed', receivedFrom: 'Priya Natarajan (CRC)', label: 'other', patientId: 'RD-0004', fileType: 'PDF' },
-    { name: 'Insurance Card - Back.jpg', documentDate: '2026-08-20', status: 'new', receivedFrom: 'Patient Portal Upload', label: 'other', patientId: 'RD-0005', fileType: 'JPG' },
-    { name: 'Telehealth Consent.pdf', documentDate: '2026-08-21', status: 'processed', receivedFrom: 'Jamie Ruiz (CRC)', label: 'legal_document', patientId: 'RD-0006', fileType: 'PDF' },
-    { name: 'Passport Copy.pdf', documentDate: '2026-08-22', status: 'new', receivedFrom: 'Fax', label: 'drivers_license', patientId: 'RD-0003', fileType: 'PDF' },
+    { name: 'Drivers License - Front.jpg', documentDate: '2026-08-10', status: 'processed', receivedFrom: 'Patient Portal Upload', documentType: 'drivers_license', patientId: 'RD-0001', fileType: 'JPG' },
+    { name: 'Signed Consent Form.pdf', documentDate: '2026-08-12', status: 'processed', receivedFrom: 'Jamie Ruiz (CRC)', documentType: 'legal_document', patientId: 'RD-0001', fileType: 'PDF' },
+    { name: 'Outside Lab Results.pdf', documentDate: '2026-08-14', status: 'new', receivedFrom: 'Fax', documentType: 'other', patientId: 'RD-0002', fileType: 'PDF' },
+    { name: 'Referral Letter.pdf', documentDate: '2026-08-15', status: 'new', receivedFrom: 'Referring Provider Office', documentType: 'other', patientId: 'RD-0003', fileType: 'PDF' },
+    { name: 'State ID Card.png', documentDate: '2026-08-16', status: 'processed', receivedFrom: 'Patient Portal Upload', documentType: 'drivers_license', patientId: 'RD-0002', fileType: 'PNG' },
+    { name: 'Power of Attorney.pdf', documentDate: '2026-08-18', status: 'new', receivedFrom: 'Mail', documentType: 'legal_document', patientId: 'RD-0004', fileType: 'PDF' },
+    { name: 'Prior Medication List.pdf', documentDate: '2026-08-19', status: 'processed', receivedFrom: 'Priya Natarajan (CRC)', documentType: 'other', patientId: 'RD-0004', fileType: 'PDF' },
+    { name: 'Insurance Card - Back.jpg', documentDate: '2026-08-20', status: 'new', receivedFrom: 'Patient Portal Upload', documentType: 'other', patientId: 'RD-0005', fileType: 'JPG' },
+    { name: 'Telehealth Consent.pdf', documentDate: '2026-08-21', status: 'processed', receivedFrom: 'Jamie Ruiz (CRC)', documentType: 'legal_document', patientId: 'RD-0006', fileType: 'PDF' },
+    { name: 'Passport Copy.pdf', documentDate: '2026-08-22', status: 'new', receivedFrom: 'Fax', documentType: 'drivers_license', patientId: 'RD-0003', fileType: 'PDF' },
   ])
 
   // Faxes: a mix of delivered/failed SIMULATED statuses across several patients
@@ -341,8 +345,251 @@ async function seedDocumentsAndFaxes() {
   ])
 }
 
+// Payer reference directory -- 14 major US health plans covering the
+// commercial/medicare/medicaid/tricare payerType split. This used to exist
+// only as live database state from a since-deleted scratch migration
+// script, which meant a fresh/reset DB had an empty payer dropdown
+// everywhere and tests/lib/queries/payers.test.ts failed outright. Names,
+// payerIds, and types below match what that script actually inserted
+// (reconstructed from the live shared dev DB and the payer directory test's
+// assertions), so re-seeding a fresh database reproduces the same directory
+// the rest of this branch was built and reviewed against.
+const PAYERS_SEED: { name: string; payerId: string; payerType: 'commercial' | 'medicare' | 'medicaid' | 'tricare' | 'other' }[] = [
+  { name: 'Aetna', payerId: '60054', payerType: 'commercial' },
+  { name: 'UnitedHealthcare', payerId: '87726', payerType: 'commercial' },
+  { name: 'Cigna', payerId: '62308', payerType: 'commercial' },
+  { name: 'Humana', payerId: '61101', payerType: 'commercial' },
+  { name: 'Anthem Blue Cross of California', payerId: '47198', payerType: 'commercial' },
+  { name: 'Blue Shield of California', payerId: '47163', payerType: 'commercial' },
+  { name: 'Kaiser Permanente', payerId: '94134', payerType: 'commercial' },
+  { name: 'Molina Healthcare', payerId: '38333', payerType: 'commercial' },
+  { name: 'Ambetter (Centene)', payerId: '68069', payerType: 'commercial' },
+  { name: 'Oscar Health', payerId: '72187', payerType: 'commercial' },
+  { name: 'Health Net', payerId: '95567', payerType: 'commercial' },
+  { name: 'Medicare (Noridian, CA)', payerId: '00590', payerType: 'medicare' },
+  { name: 'Medi-Cal', payerId: '12X0', payerType: 'medicaid' },
+  { name: 'TRICARE', payerId: '99726', payerType: 'tricare' },
+]
+
+async function seedPayers() {
+  const db = getDb()
+  // Idempotent per-row (not just a top-level count guard): insert only the
+  // names that aren't already present, so this is also safe to call from
+  // the "already seeded" top-up path without duplicating rows if it's ever
+  // called more than once or a caller partially seeded the directory by hand.
+  const existing = await db.select({ name: payers.name }).from(payers)
+  const existingNames = new Set(existing.map((p) => p.name))
+  const toInsert = PAYERS_SEED.filter((p) => !existingNames.has(p.name))
+  if (toInsert.length > 0) await db.insert(payers).values(toInsert)
+}
+
+// Lab test catalog -- standalone reference data (like the payer directory
+// above), independent of whether the rest of the DB has been seeded.
+const LAB_TESTS_SEED: { name: string; code: string; category: 'lab' | 'imaging'; defaultUnit: string | null; referenceRange: string | null }[] = [
+  { name: 'CBC with differential', code: 'CBC-DIFF', category: 'lab', defaultUnit: 'cells/mcL', referenceRange: '4.5-11.0 x10^3/mcL' },
+  { name: 'Comprehensive Metabolic Panel', code: 'CMP', category: 'lab', defaultUnit: null, referenceRange: 'See individual analytes' },
+  { name: 'TSH', code: 'TSH', category: 'lab', defaultUnit: 'mIU/L', referenceRange: '0.4-4.0' },
+  { name: 'Lipid Panel', code: 'LIPID', category: 'lab', defaultUnit: 'mg/dL', referenceRange: 'Total chol <200' },
+  { name: 'HbA1c', code: 'HBA1C', category: 'lab', defaultUnit: '%', referenceRange: '4.0-5.6' },
+  { name: 'Lithium level', code: 'LITH', category: 'lab', defaultUnit: 'mEq/L', referenceRange: '0.6-1.2' },
+  { name: 'Valproic acid level', code: 'VPA', category: 'lab', defaultUnit: 'mcg/mL', referenceRange: '50-100' },
+  { name: 'Urine drug screen', code: 'UDS', category: 'lab', defaultUnit: null, referenceRange: 'Negative' },
+  { name: 'Prolactin', code: 'PRL', category: 'lab', defaultUnit: 'ng/mL', referenceRange: '4-15.2' },
+  { name: 'Vitamin D, 25-OH', code: 'VITD', category: 'lab', defaultUnit: 'ng/mL', referenceRange: '30-100' },
+  { name: 'X-Ray, chest, 2 view', code: 'XR-CHEST-2V', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'X-Ray, chest, 1 view', code: 'XR-CHEST-1V', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'X-Ray, wrist', code: 'XR-WRIST', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'X-Ray, knee', code: 'XR-KNEE', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'CT, head, without contrast', code: 'CT-HEAD-NC', category: 'imaging', defaultUnit: null, referenceRange: null },
+  { name: 'Ultrasound, abdominal', code: 'US-ABD', category: 'imaging', defaultUnit: null, referenceRange: null },
+]
+
+async function seedLabTests() {
+  const db = getDb()
+  // Idempotent per-row by code, same discipline as seedPayers() above --
+  // insert only the codes not already present, so this is safe to call
+  // unconditionally on every seed() run without duplicating rows.
+  const existing = await db.select({ code: labTests.code }).from(labTests)
+  const existingCodes = new Set(existing.map((t) => t.code))
+  const toInsert = LAB_TESTS_SEED.filter((t) => !existingCodes.has(t.code))
+  if (toInsert.length > 0) await db.insert(labTests).values(toInsert)
+}
+
+// Best-effort payerId match for a claim's free-text payerName -- mirrors the
+// "payerName contains payer.name" rule the original (now-deleted) migration
+// script's backfill used: e.g. 'Aetna' and 'Cigna' match exactly, but
+// 'Blue Shield' does NOT match the seeded 'Blue Shield of California' (the
+// claim's shorter free-text name isn't a superstring of the payer's full
+// legal name), and likewise 'United Healthcare' doesn't match
+// 'UnitedHealthcare' (no space) and 'Medicare' doesn't match 'Medicare
+// (Noridian, CA)'. Those three stay payerId: null, same as the original
+// migration's backfill left them -- a real gap, not a bug in the matcher.
+function matchPayerId(allPayers: { id: number; name: string }[], payerName: string): number | null {
+  return allPayers.find((p) => payerName.toLowerCase().includes(p.name.toLowerCase()))?.id ?? null
+}
+
+// Medication catalog seed -- 15 commonly prescribed psychiatric medications
+// spanning the drug classes this clinic's patients are typically on (SSRI/
+// SNRI/atypical antidepressants, atypical antipsychotics, benzodiazepines,
+// stimulants, a mood stabilizer, and Spravato). `name` is the generic/
+// clinical name -- matching this app's existing convention elsewhere in
+// this file (see medicationEpisodes seeding above, which also uses generic
+// names as the primary identifier) and required by this plan's Task 2,
+// which asserts against these exact generic-name values. `genericName` is
+// left null throughout since `name` already holds the generic name; there's
+// no separate brand name to cross-reference here.
+const MEDICATIONS_SEED: {
+  name: string
+  genericName: string | null
+  medicationClass: string
+  commonDose: string
+  form: 'tablet' | 'capsule' | 'liquid' | 'injection' | 'other'
+}[] = [
+  { name: 'Sertraline', genericName: null, medicationClass: 'SSRI', commonDose: '50mg daily', form: 'tablet' },
+  { name: 'Escitalopram', genericName: null, medicationClass: 'SSRI', commonDose: '10mg daily', form: 'tablet' },
+  { name: 'Venlafaxine', genericName: null, medicationClass: 'SNRI', commonDose: '75mg daily', form: 'capsule' },
+  { name: 'Bupropion', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '150mg daily', form: 'tablet' },
+  { name: 'Trazodone', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '50mg at bedtime', form: 'tablet' },
+  { name: 'Mirtazapine', genericName: null, medicationClass: 'Atypical antidepressant', commonDose: '15mg at bedtime', form: 'tablet' },
+  { name: 'Aripiprazole', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '5mg daily', form: 'tablet' },
+  { name: 'Quetiapine', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '100mg at bedtime', form: 'tablet' },
+  { name: 'Risperidone', genericName: null, medicationClass: 'Atypical antipsychotic', commonDose: '2mg daily', form: 'tablet' },
+  { name: 'Lorazepam', genericName: null, medicationClass: 'Benzodiazepine', commonDose: '0.5mg twice daily as needed', form: 'tablet' },
+  { name: 'Clonazepam', genericName: null, medicationClass: 'Benzodiazepine', commonDose: '0.5mg twice daily', form: 'tablet' },
+  { name: 'Methylphenidate ER', genericName: null, medicationClass: 'Stimulant', commonDose: '36mg daily', form: 'tablet' },
+  { name: 'Amphetamine/dextroamphetamine', genericName: null, medicationClass: 'Stimulant', commonDose: '20mg daily', form: 'capsule' },
+  { name: 'Lithium', genericName: null, medicationClass: 'Mood stabilizer', commonDose: '300mg twice daily', form: 'capsule' },
+  { name: 'Esketamine', genericName: 'Spravato', medicationClass: 'NMDA antagonist', commonDose: '56mg per session', form: 'injection' },
+]
+
+// Starting stock levels keyed by medication name -- a plausible starting
+// point, not a clinically precise figure. Controlled substances (the
+// benzodiazepines and stimulants) and the in-office-only Esketamine
+// (Spravato) get smaller on-hand quantities and tighter reorder thresholds
+// than routine oral antidepressants/antipsychotics.
+const MEDICATION_INVENTORY_SEED: Record<string, { quantityOnHand: number; reorderThreshold: number; unit: string }> = {
+  'Sertraline': { quantityOnHand: 150, reorderThreshold: 20, unit: 'tablets' },
+  'Escitalopram': { quantityOnHand: 150, reorderThreshold: 20, unit: 'tablets' },
+  'Venlafaxine': { quantityOnHand: 120, reorderThreshold: 15, unit: 'capsules' },
+  'Bupropion': { quantityOnHand: 120, reorderThreshold: 15, unit: 'tablets' },
+  'Trazodone': { quantityOnHand: 200, reorderThreshold: 20, unit: 'tablets' },
+  'Mirtazapine': { quantityOnHand: 100, reorderThreshold: 15, unit: 'tablets' },
+  'Aripiprazole': { quantityOnHand: 90, reorderThreshold: 15, unit: 'tablets' },
+  'Quetiapine': { quantityOnHand: 100, reorderThreshold: 15, unit: 'tablets' },
+  'Risperidone': { quantityOnHand: 90, reorderThreshold: 15, unit: 'tablets' },
+  'Lorazepam': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Clonazepam': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Methylphenidate ER': { quantityOnHand: 60, reorderThreshold: 10, unit: 'tablets' },
+  'Amphetamine/dextroamphetamine': { quantityOnHand: 60, reorderThreshold: 10, unit: 'capsules' },
+  'Lithium': { quantityOnHand: 100, reorderThreshold: 15, unit: 'capsules' },
+  'Esketamine': { quantityOnHand: 20, reorderThreshold: 10, unit: 'doses' },
+}
+
+async function seedMedications() {
+  const db = getDb()
+  // Idempotent per-row, same convention as seedPayers() above: only insert
+  // medications/inventory rows that aren't already present, so this is safe
+  // to call unconditionally on every seed() run (including a top-up call
+  // against an already-seeded DB) without duplicating catalog rows or
+  // violating medicationInventory's one-row-per-medication unique constraint.
+  const existingMeds = await db.select({ id: medications.id, name: medications.name }).from(medications)
+  const existingNames = new Set(existingMeds.map((m) => m.name))
+  const toInsert = MEDICATIONS_SEED.filter((m) => !existingNames.has(m.name))
+  if (toInsert.length > 0) await db.insert(medications).values(toInsert)
+
+  // Scoped to the intended 15-drug catalog (MEDICATIONS_SEED), not every row
+  // currently in `medications` -- iterating the full table would also grant
+  // inventory (and therefore dashboard visibility/dispensability) to any
+  // stray row, including leaked test rows from a buggy test helper (see
+  // tests/lib/queries/medication-dispenses.test.ts's makeMedWithStock, fixed
+  // separately) or a future rename-without-cleanup duplicate.
+  const seededNames = new Set(MEDICATIONS_SEED.map((m) => m.name))
+  const allMeds = await db.select({ id: medications.id, name: medications.name }).from(medications)
+  const intendedMeds = allMeds.filter((m) => seededNames.has(m.name))
+  const existingInventory = await db.select({ medicationId: medicationInventory.medicationId }).from(medicationInventory)
+  const medsWithInventory = new Set(existingInventory.map((i) => i.medicationId))
+  for (const med of intendedMeds) {
+    if (medsWithInventory.has(med.id)) continue
+    const stock = MEDICATION_INVENTORY_SEED[med.name] ?? { quantityOnHand: 50, reorderThreshold: 10, unit: 'units' }
+    await db.insert(medicationInventory).values({ medicationId: med.id, ...stock })
+  }
+}
+
+// Staff roster -- deliberately mixes three linkage shapes per spec §1: some
+// staff are both a system user AND a clinical provider, some are only one,
+// and some (front-desk/facilities roles) are neither. Matched by name
+// against the demo `users` rows and `PROVIDER_ROSTER` providers already
+// seeded above, rather than hardcoded ids, since insertion order can vary.
+const STAFF_SEED: {
+  name: string
+  linkUserEmail: string | null
+  linkProviderName: string | null
+  department: string
+  title: string
+  employmentStatus: 'active' | 'on_leave' | 'terminated'
+  hireDate: string
+  terminationDate: string | null
+}[] = [
+  { name: 'Dr. Rajiv Kunam', linkUserEmail: 'rkunam.demo@example.com', linkProviderName: 'Dr. Rajiv Kunam', department: 'Clinical', title: 'Psychiatrist', employmentStatus: 'active', hireDate: '2021-03-01', terminationDate: null },
+  { name: 'Dr. Elena Bosch', linkUserEmail: null, linkProviderName: 'Dr. Elena Bosch', department: 'Clinical', title: 'Psychiatrist', employmentStatus: 'active', hireDate: '2022-06-15', terminationDate: null },
+  { name: 'Priya Sundaram', linkUserEmail: null, linkProviderName: 'Priya Sundaram', department: 'Clinical', title: 'Psychiatric Nurse Practitioner', employmentStatus: 'active', hireDate: '2023-01-10', terminationDate: null },
+  { name: 'Jamie Ruiz', linkUserEmail: 'jruiz.demo@example.com', linkProviderName: null, department: 'Research', title: 'Clinical Research Coordinator', employmentStatus: 'active', hireDate: '2022-09-01', terminationDate: null },
+  { name: 'Sam Patel', linkUserEmail: 'spatel.demo@example.com', linkProviderName: null, department: 'Administration', title: 'Practice Administrator', employmentStatus: 'active', hireDate: '2020-11-01', terminationDate: null },
+  { name: 'Taylor Nguyen', linkUserEmail: 'tnguyen.demo@example.com', linkProviderName: null, department: 'Front Desk', title: 'Front Desk Coordinator', employmentStatus: 'active', hireDate: '2023-04-20', terminationDate: null },
+  { name: 'Morgan Reyes', linkUserEmail: null, linkProviderName: null, department: 'Front Desk', title: 'Receptionist', employmentStatus: 'active', hireDate: '2024-02-01', terminationDate: null },
+  { name: 'Casey Boone', linkUserEmail: null, linkProviderName: null, department: 'Facilities', title: 'Housekeeping', employmentStatus: 'on_leave', hireDate: '2021-08-15', terminationDate: null },
+  { name: 'Riley Foster', linkUserEmail: null, linkProviderName: null, department: 'Administration', title: 'Billing Specialist', employmentStatus: 'terminated', hireDate: '2019-05-01', terminationDate: '2026-06-30' },
+]
+
+// Credential dates are computed relative to seed time, not hardcoded, so the
+// 60-day warning window and the "already expired" state always have real
+// demo data to show regardless of when this seed script actually runs.
+function daysFromNow(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+const STAFF_CREDENTIALS_SEED: { staffName: string; credentialType: string; credentialNumber: string | null; expiresOn: string | null }[] = [
+  { staffName: 'Dr. Rajiv Kunam', credentialType: 'State Medical License', credentialNumber: 'CA-MD-48213', expiresOn: daysFromNow(400) },
+  { staffName: 'Dr. Rajiv Kunam', credentialType: 'DEA Registration', credentialNumber: 'BK1234563', expiresOn: daysFromNow(30) }, // inside the 60-day warning window
+  { staffName: 'Dr. Elena Bosch', credentialType: 'State Medical License', credentialNumber: 'CA-MD-51902', expiresOn: daysFromNow(-15) }, // already expired
+  { staffName: 'Dr. Elena Bosch', credentialType: 'Board Certification', credentialNumber: 'ABPN-88213', expiresOn: daysFromNow(500) },
+  { staffName: 'Priya Sundaram', credentialType: 'State NP License', credentialNumber: 'CA-NP-33012', expiresOn: daysFromNow(200) },
+  { staffName: 'Priya Sundaram', credentialType: 'DEA Registration', credentialNumber: 'MS9988771', expiresOn: daysFromNow(55) }, // inside the 60-day warning window
+]
+
+async function seedStaff() {
+  const db = getDb()
+  const existingStaff = await db.select({ name: staffMembers.name }).from(staffMembers)
+  const existingNames = new Set(existingStaff.map((s) => s.name))
+  const toInsert = STAFF_SEED.filter((s) => !existingNames.has(s.name))
+  if (toInsert.length === 0) return
+
+  const allUsers = await db.select({ id: users.id, email: users.email }).from(users)
+  const userByEmail = new Map(allUsers.map((u) => [u.email, u.id]))
+  const allProviders = await db.select({ id: providers.id, name: providers.name }).from(providers)
+  const providerByName = new Map(allProviders.map((p) => [p.name, p.id]))
+
+  const inserted = await db.insert(staffMembers).values(toInsert.map((s) => ({
+    name: s.name,
+    userId: s.linkUserEmail ? (userByEmail.get(s.linkUserEmail) ?? null) : null,
+    providerId: s.linkProviderName ? (providerByName.get(s.linkProviderName) ?? null) : null,
+    department: s.department,
+    title: s.title,
+    employmentStatus: s.employmentStatus,
+    hireDate: s.hireDate,
+    terminationDate: s.terminationDate,
+  }))).returning()
+
+  const staffIdByName = new Map(inserted.map((s) => [s.name, s.id]))
+  const credentialRows = STAFF_CREDENTIALS_SEED
+    .filter((c) => staffIdByName.has(c.staffName))
+    .map((c) => ({ staffMemberId: staffIdByName.get(c.staffName)!, credentialType: c.credentialType, credentialNumber: c.credentialNumber, expiresOn: c.expiresOn }))
+  if (credentialRows.length > 0) await db.insert(staffCredentials).values(credentialRows)
+}
+
 async function seedBilling() {
   const db = getDb()
+  const allPayers = await db.select({ id: payers.id, name: payers.name }).from(payers)
 
   const chargeRows = await db.insert(charges).values([
     // Workflow-state charges (not yet submitted -- excluded from A/R).
@@ -427,11 +674,11 @@ async function seedBilling() {
   const chargeRd5Submitted = byDos('2026-09-01')
 
   await db.insert(insuranceClaims).values([
-    { chargeId: chargeRd1Submitted.id, patientId: 'RD-0001', payerName: 'Blue Shield', billedAmountCents: 15000, paidAmountCents: 15000, status: 'paid', submittedDate: '2026-09-05' },
-    { chargeId: chargeRd2Submitted.id, patientId: 'RD-0002', payerName: 'Aetna', billedAmountCents: 20000, paidAmountCents: null, status: 'waiting_adjudication', submittedDate: '2026-08-10' },
-    { chargeId: chargeRd3Submitted.id, patientId: 'RD-0003', payerName: 'Cigna', billedAmountCents: 12500, paidAmountCents: 0, status: 'denied', submittedDate: '2026-07-05', notes: 'Missing prior authorization on file.' },
-    { chargeId: chargeRd6Submitted.id, patientId: 'RD-0006', payerName: 'United Healthcare', billedAmountCents: 30000, paidAmountCents: null, status: 'needs_investigation', submittedDate: '2026-05-25', notes: 'Payer requesting additional medical records.' },
-    { chargeId: chargeRd4Submitted.id, patientId: 'RD-0004', payerName: 'Medicare', billedAmountCents: 9000, paidAmountCents: 0, status: 'rejected', submittedDate: '2026-03-01', notes: 'Invalid procedure code modifier.' },
+    { chargeId: chargeRd1Submitted.id, patientId: 'RD-0001', payerName: 'Blue Shield', payerId: matchPayerId(allPayers, 'Blue Shield'), billedAmountCents: 15000, paidAmountCents: 15000, status: 'paid', submittedDate: '2026-09-05' },
+    { chargeId: chargeRd2Submitted.id, patientId: 'RD-0002', payerName: 'Aetna', payerId: matchPayerId(allPayers, 'Aetna'), billedAmountCents: 20000, paidAmountCents: null, status: 'waiting_adjudication', submittedDate: '2026-08-10' },
+    { chargeId: chargeRd3Submitted.id, patientId: 'RD-0003', payerName: 'Cigna', payerId: matchPayerId(allPayers, 'Cigna'), billedAmountCents: 12500, paidAmountCents: 0, status: 'denied', submittedDate: '2026-07-05', notes: 'Missing prior authorization on file.' },
+    { chargeId: chargeRd6Submitted.id, patientId: 'RD-0006', payerName: 'United Healthcare', payerId: matchPayerId(allPayers, 'United Healthcare'), billedAmountCents: 30000, paidAmountCents: null, status: 'needs_investigation', submittedDate: '2026-05-25', notes: 'Payer requesting additional medical records.' },
+    { chargeId: chargeRd4Submitted.id, patientId: 'RD-0004', payerName: 'Medicare', payerId: matchPayerId(allPayers, 'Medicare'), billedAmountCents: 9000, paidAmountCents: 0, status: 'rejected', submittedDate: '2026-03-01', notes: 'Invalid procedure code modifier.' },
   ])
 
   // Two mock payments: one Luhn-valid ("success"), one Luhn-invalid
@@ -473,6 +720,8 @@ async function seedProvidersAndAppointments() {
     { patientId: 'RD-0011', providerId: farr.id, startsAt: new Date('2026-09-29T13:30:00'), endsAt: new Date('2026-09-29T14:00:00'), visitReason: 'Follow-up visit', status: 'scheduled' },
     { patientId: 'RD-0012', providerId: kunam.id, startsAt: new Date('2026-09-30T11:00:00'), endsAt: new Date('2026-09-30T11:30:00'), visitReason: 'Randomization visit', status: 'scheduled' },
   ])
+
+  return insertedProviders
 }
 
 // Spreads a few appointments across the expanded filler roster (RD-0020+)
@@ -512,10 +761,31 @@ async function seedAdditionalAppointmentsForExpandedRoster() {
   }
 }
 
+// A handful of inpatient rooms across a few wards, all available -- gives the
+// front desk check-in flow real rooms to pick from instead of an always-empty
+// list. Distinct room/bed numbers per ward so the "Ward — Room X, Bed Y"
+// display in CheckInModal doesn't repeat.
+const ROOM_ROSTER = [
+  { ward: 'Ward A', roomNumber: '101', bedNumber: 'A' },
+  { ward: 'Ward A', roomNumber: '101', bedNumber: 'B' },
+  { ward: 'Ward A', roomNumber: '102', bedNumber: 'A' },
+  { ward: 'Ward B', roomNumber: '201', bedNumber: 'A' },
+  { ward: 'Ward B', roomNumber: '202', bedNumber: 'A' },
+  { ward: 'Ward B', roomNumber: '202', bedNumber: 'B' },
+  { ward: 'ICU', roomNumber: '301', bedNumber: 'A' },
+  { ward: 'ICU', roomNumber: '302', bedNumber: 'A' },
+]
+
+async function seedRooms() {
+  const db = getDb()
+  await db.insert(rooms).values(ROOM_ROSTER.map((r) => ({ ...r, status: 'available' as const })))
+}
+
 async function clearExistingData() {
   const db = getDb()
   // Delete in FK-safe order (children before parents) so seed() is safely re-runnable
   // against the live database without unique-constraint violations.
+  await db.delete(rooms)
   await db.delete(faxes)
   await db.delete(documents)
   await db.delete(mockPayments)
@@ -528,7 +798,8 @@ async function clearExistingData() {
   await db.delete(patientTrialScreenings)
   await db.delete(medicationEpisodes)
   await db.delete(diagnoses)
-  await db.delete(identityMatches)
+  await db.delete(formSubmissionScores)
+  await db.delete(formChartDiscrepancies)
   await db.delete(formSubmissions)
   await db.delete(allergies)
   await db.delete(identityVerifications)
@@ -536,6 +807,12 @@ async function clearExistingData() {
   await db.delete(formTemplates)
   await db.delete(appointments)
   await db.delete(patients)
+  // staffCredentials/staffMembers FK into providers/users, so both must be
+  // deleted before providers/users below -- previously missing here, which
+  // left a half-wipe FK-violation trap on the shared dev DB (final
+  // whole-branch review, Important #1).
+  await db.delete(staffCredentials)
+  await db.delete(staffMembers)
   await db.delete(providers)
   await db.delete(users)
   await db.delete(trials)
@@ -543,6 +820,35 @@ async function clearExistingData() {
 
 export async function seed() {
   const db = getDb()
+
+  // Payer directory is standalone reference data, independent of whether
+  // the rest of the DB has been seeded -- top it up unconditionally (before
+  // either branch below, since seedBilling() in both paths looks payers up
+  // to backfill insurance_claims.payerId) so a fresh DB always has it, and
+  // re-running this script against an already-seeded DB never duplicates it.
+  const [{ payerCount }] = await db.select({ payerCount: sql<number>`count(*)::int` }).from(payers)
+  if (payerCount === 0) {
+    await seedPayers()
+    console.log('Seeded payer directory (14 payers).')
+  }
+
+  // Medication catalog + inventory is likewise standalone reference data,
+  // independent of whether the rest of the DB has been seeded. Unlike
+  // seedPayers() above, this is called truly unconditionally (no outer
+  // count guard) because seedMedications() itself is fully idempotent
+  // per-row for both medications and medicationInventory, so re-running it
+  // on every seed() invocation is cheap and never duplicates rows.
+  await seedMedications()
+
+  // Lab test catalog is likewise standalone reference data -- top it up
+  // unconditionally for the same reason as the payer directory above.
+  // Unlike the payerCount check above, this is NOT gated on a top-level
+  // count: seedLabTests() is idempotent per-code (see its own comment), so
+  // gating it on labTestCount === 0 would mean a single stray lab_tests row
+  // (e.g. left over from an interrupted test run) permanently skips seeding
+  // the other 9 catalog tests, leaving the "Order labs" dropdown nearly empty.
+  await seedLabTests()
+  console.log('Seeded lab test catalog (16 tests).')
 
   // Guard against re-seeding a shared dev database that already has data.
   // Several parallel feature branches now have their own tables with FK
@@ -567,6 +873,19 @@ export async function seed() {
     if (providerCount === 0) {
       await seedProvidersAndAppointments()
       console.log('Seeded providers/appointments (patients table was already populated).')
+    }
+    const [{ roomCount }] = await db.select({ roomCount: sql<number>`count(*)::int` }).from(rooms)
+    if (roomCount === 0) {
+      await seedRooms()
+      console.log('Seeded rooms (patients table was already populated).')
+    }
+    // Staff directory links to both `users` and `providers` by name, so it
+    // must run after the providerCount top-up above -- a shared dev DB
+    // seeded before this branch's schema existed won't have staff rows yet.
+    const [{ staffCount }] = await db.select({ staffCount: sql<number>`count(*)::int` }).from(staffMembers)
+    if (staffCount === 0) {
+      await seedStaff()
+      console.log('Seeded staff directory (patients table was already populated).')
     }
     // seedFillerPatients() skips any id that already exists, so it's safe to
     // call again here to top up the roster with any new FILLER_NAMES entries
@@ -599,22 +918,19 @@ export async function seed() {
     { name: 'Jamie Ruiz', email: 'jruiz.demo@example.com', role: 'crc', passwordHash: hashPassword('CoordinatorDemo123!') },
     { name: 'Dr. R. Kunam', email: 'rkunam.demo@example.com', role: 'pi', passwordHash: hashPassword('DoctorDemo123!') },
     { name: 'Sam Patel', email: 'spatel.demo@example.com', role: 'admin' },
+    { name: 'Taylor Nguyen', email: 'tnguyen.demo@example.com', role: 'frontdesk', passwordHash: hashPassword('FrontDeskDemo123!') },
+    { name: 'Robin Shah', email: 'rshah.demo@example.com', role: 'pharmacy', passwordHash: hashPassword('PharmacyDemo123!') },
   ])
 
   for (const p of HERO_PATIENTS) {
     await db.insert(patients).values({
       id: p.id,
-      intakeqClientIdRef: `enc-iq-${p.id}`,
-      tebraPatientIdRef: p.nameTebra ? `enc-tb-${p.id}` : null,
-      nameIntakeq: p.nameIntakeq,
-      nameTebra: p.nameTebra,
-      dobIntakeq: p.dobIntakeq,
-      dobTebra: p.dobTebra,
-      cityIntakeq: p.city,
-      zipIntakeq: p.zip,
-      phoneIntakeq: p.phone,
-      emailIntakeq: p.emailIntakeq,
-      emailTebra: p.emailTebra,
+      name: p.name,
+      dob: p.dob,
+      city: p.city,
+      zip: p.zip,
+      phone: p.phone,
+      email: p.email,
       currentProvider: p.provider,
       ratingScales: [p.ratingScale],
       referralType: 'Provider referral',
@@ -623,7 +939,7 @@ export async function seed() {
       commConsentPref: 'Phone',
     })
 
-    await db.insert(diagnoses).values({ patientId: p.id, code: p.diagnosisCode.code, description: p.diagnosisCode.description, source: 'tebra', date: '2025-01-15' })
+    await db.insert(diagnoses).values({ patientId: p.id, code: p.diagnosisCode.code, description: p.diagnosisCode.description, date: '2025-01-15' })
     if (p.activeMed.name !== 'Unknown' && p.activeMed.name !== 'None') {
       await db.insert(medicationEpisodes).values({ patientId: p.id, name: p.activeMed.name, medicationClass: p.activeMed.medicationClass, dose: p.activeMed.dose, startDate: p.activeMed.startDate, status: 'active' })
     }
@@ -635,17 +951,52 @@ export async function seed() {
   }
 
   await seedFillerPatients()
-  await seedProvidersAndAppointments()
+  const insertedProviders = await seedProvidersAndAppointments()
+  await seedStaff()
+  await seedRooms()
   await seedBilling()
   await seedDocumentsAndFaxes()
 
-  await db.insert(identityMatches).values([
-    { intakeqClientIdRef: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdRef: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-02', referralName: 'Katherine Voss', referralDob: '1982-12-05', candidateTebraPatientIdRef: 'enc-tb-cand-02', candidateName: 'Kathryn Voss', candidateDob: '1982-12-05', confidence: 88, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-03', referralName: 'Nathaniel Cross', referralDob: '1975-04-18', candidateTebraPatientIdRef: 'enc-tb-cand-03', candidateName: 'Nathaniel R. Cross', candidateDob: '1975-04-18', confidence: 91, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-04', referralName: 'Priyanka Raghavan', referralDob: '1989-09-02', candidateTebraPatientIdRef: 'enc-tb-cand-04', candidateName: 'Priyanka Raghavann', candidateDob: '1989-09-02', confidence: 68, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-05', referralName: 'Samuel Whitfield', referralDob: '1966-11-23', candidateTebraPatientIdRef: 'enc-tb-cand-05', candidateName: 'Sam Whitfield', candidateDob: '1966-11-23', confidence: 76, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-06', referralName: 'Isabella Marchetti', referralDob: '1993-02-14', candidateTebraPatientIdRef: 'enc-tb-cand-06', candidateName: 'Isabela Marchetti', candidateDob: '1993-02-14', confidence: 84, status: 'pending' },
+  // Demo-only prescribed episodes (prescribedAt IS NOT NULL) for the first
+  // hero patient only, added after providers exist so prescribedByProviderId
+  // can point at a real row -- gives the print view and prescriber
+  // attribution real data to render without hand-writing one. This same
+  // patient's imported-history episode inserted above (in the HERO_PATIENTS
+  // loop) is left exactly as it is, with prescribedAt still null: a
+  // null-prescriber row still rendering correctly alongside these is itself
+  // the regression check (see schema.ts comment on medicationEpisodes for
+  // why that discriminator must never be backfilled).
+  const heroPrescriber = insertedProviders.find((provider) => provider.name === 'Dr. Rajiv Kunam')
+  const heroPatientId = HERO_PATIENTS[0].id
+  await db.insert(medicationEpisodes).values([
+    {
+      patientId: heroPatientId,
+      name: 'Fluoxetine',
+      medicationClass: 'SSRI/SNRI antidepressant',
+      dose: '20mg daily',
+      startDate: '2026-08-01',
+      status: 'active',
+      frequencyPerDay: 2,
+      durationDays: 30,
+      instructions: 'Take with food.',
+      prescribedByProviderId: heroPrescriber?.id,
+      enteredByName: 'Dr. Rajiv Kunam',
+      prescribedAt: new Date(),
+    },
+    {
+      patientId: heroPatientId,
+      name: 'Buspirone',
+      medicationClass: 'Anxiolytic',
+      dose: '15mg daily',
+      startDate: '2026-08-01',
+      status: 'active',
+      frequencyPerDay: 1,
+      durationDays: 90,
+      instructions: null,
+      prescribedByProviderId: heroPrescriber?.id,
+      enteredByName: 'Dr. Rajiv Kunam',
+      prescribedAt: new Date(),
+    },
   ])
 
   // Form templates: one per trial condition, each with a handful of
@@ -703,9 +1054,17 @@ export async function seed() {
       category: 'Screening Questionnaires',
       diagnosisTag: 'Major Depressive Disorder',
       questions: [
-        { id: 'q1', label: 'Little interest or pleasure in doing things', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], hipaaSensitive: true, required: true },
-        { id: 'q2', label: 'Feeling down, depressed, or hopeless', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], hipaaSensitive: true, required: true },
+        { id: 'q1', label: 'Little interest or pleasure in doing things', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q2', label: 'Feeling down, depressed, or hopeless', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q3', label: 'Trouble falling or staying asleep, or sleeping too much', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q4', label: 'Feeling tired or having little energy', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q5', label: 'Poor appetite or overeating', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q6', label: 'Feeling bad about yourself — or that you are a failure or have let yourself or your family down', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q7', label: 'Trouble concentrating on things, such as reading or watching television', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q8', label: 'Moving or speaking so slowly that other people could have noticed, or the opposite — being so fidgety or restless that you have been moving around a lot more than usual', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q9', label: 'Thoughts that you would be better off dead, or of hurting yourself in some way', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
       ],
+      scoringRule: { questionIds: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9'], bands: [{ min: 0, max: 4, label: 'Minimal' }, { min: 5, max: 9, label: 'Mild' }, { min: 10, max: 14, label: 'Moderate' }, { min: 15, max: 19, label: 'Moderately Severe' }, { min: 20, max: 27, label: 'Severe' }] },
     },
     {
       name: 'ASRS-v1.1 (ADHD Screening)',
@@ -714,6 +1073,21 @@ export async function seed() {
       questions: [
         { id: 'q1', label: 'How often do you have trouble wrapping up the final details of a project?', type: 'select', options: ['Never', 'Rarely', 'Sometimes', 'Often', 'Very Often'], hipaaSensitive: true, required: true },
       ],
+    },
+    {
+      name: 'GAD-7 (Anxiety Screening)',
+      category: 'Screening Questionnaires',
+      diagnosisTag: 'Generalized Anxiety Disorder',
+      questions: [
+        { id: 'q1', label: 'Feeling nervous, anxious, or on edge', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q2', label: 'Not being able to stop or control worrying', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q3', label: 'Worrying too much about different things', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q4', label: 'Trouble relaxing', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q5', label: "Being so restless that it's hard to sit still", type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q6', label: 'Becoming easily annoyed or irritable', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+        { id: 'q7', label: 'Feeling afraid as if something awful might happen', type: 'select', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], optionScores: [0, 1, 2, 3], hipaaSensitive: true, required: true },
+      ],
+      scoringRule: { questionIds: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'], bands: [{ min: 0, max: 4, label: 'Minimal' }, { min: 5, max: 9, label: 'Mild' }, { min: 10, max: 14, label: 'Moderate' }, { min: 15, max: 21, label: 'Severe' }] },
     },
   ])
 

@@ -1,16 +1,31 @@
 import { notFound } from 'next/navigation'
-import { CalendarClock, CalendarCheck2, Stethoscope, Pill } from 'lucide-react'
+import { CalendarClock, CalendarCheck2, Stethoscope, Pill, ClipboardList } from 'lucide-react'
 import { BackLink } from '@/components/BackLink'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { AllergyBadge } from '@/components/AllergyBadge'
+import { NoteForm, NoteCard } from '@/components/NoteForm'
+import { InsuranceCardUpload } from '@/components/InsuranceCardUpload'
+import { LabResultsSection } from '@/components/LabResultsSection'
+import { CarePlanSection } from '@/components/CarePlanSection'
+import { MedicationHistorySection } from '@/components/MedicationHistorySection'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getPatientDetail } from '@/lib/queries/patients'
+import { listNotesForPatient } from '@/lib/queries/encounter-notes'
+import { getPayerName } from '@/lib/queries/payers'
+import { listDispensesForPatient } from '@/lib/queries/medication-dispenses'
+import { listMedicationsWithInventory } from '@/lib/queries/medications'
+import { listAllProviders } from '@/lib/queries/providers'
+import { listOrdersForPatient } from '@/lib/queries/lab-orders'
+import { listLabTests } from '@/lib/queries/lab-tests'
+import { listFormSubmissions } from '@/lib/queries/form-submissions'
+import { listCarePlansForPatient } from '@/lib/queries/care-plans'
+import { resolveSessionProvider } from '@/lib/provider-identity'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
-function formatDate(value: string | null): string {
+function formatDate(value: string | Date | null): string {
   if (!value) return '—'
   return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
@@ -29,14 +44,19 @@ function VisitStat({ icon: Icon, label, value }: { icon: React.ComponentType<{ c
   )
 }
 
-function ComparisonRow({ label, intakeq, tebra, merged }: { label: string; intakeq: string | null; tebra: string | null; merged: string | null }) {
-  const mismatch = intakeq && tebra && intakeq !== tebra
+const PLAN_TYPE_LABEL: Record<string, string> = {
+  ppo: 'PPO', hmo: 'HMO', epo: 'EPO', pos: 'POS', medicare: 'Medicare', medicaid: 'Medicaid',
+}
+
+const RELATIONSHIP_LABEL: Record<string, string> = {
+  self: 'Self', spouse: 'Spouse', child: 'Child', other: 'Other',
+}
+
+function InsuranceField({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="grid grid-cols-4 gap-2 border-b border-border py-3 text-sm last:border-b-0">
-      <span className="font-medium text-muted-foreground">{label}</span>
-      <span className="text-foreground">{intakeq ?? '—'}</span>
-      <span className="text-foreground">{tebra ?? '—'}</span>
-      <span className={mismatch ? 'rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800' : 'text-foreground'}>{merged ?? '—'}</span>
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm text-foreground">{value ?? '—'}</p>
     </div>
   )
 }
@@ -55,9 +75,34 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   const { anonId } = await params
   const patient = await getPatientDetail(anonId)
   if (!patient) notFound()
+  const notes = await listNotesForPatient(anonId)
+  const primaryPayerName = await getPayerName(patient.primaryPayerId)
+  const secondaryPayerName = await getPayerName(patient.secondaryPayerId)
+  const dispenses = await listDispensesForPatient(anonId)
+  const medicationCatalog = await listMedicationsWithInventory()
+  const medicationById = new Map(medicationCatalog.map((m) => [m.id, m]))
+  const allProviders = await listAllProviders()
+  const sessionProvider = await resolveSessionProvider(session)
+  const [labOrders, labTests] = await Promise.all([listOrdersForPatient(anonId), listLabTests()])
+  const screeningSubmissions = (await listFormSubmissions({ patientId: anonId, status: 'completed' })).filter((s) => s.bandLabel !== null)
+  const carePlans = await listCarePlansForPatient(anonId)
   await logAudit(session, 'viewed patient medical record', anonId)
 
-  const name = patient.nameTebra ?? patient.nameIntakeq
+  const name = patient.name
+  const canWriteInsurance = ['admin', 'crc', 'frontdesk'].includes(session.role)
+  // Matches POST /api/patients/[anonId]/lab-orders's own role gate (spec §8: ordering is a clinical action).
+  const canOrderLabs = ['admin', 'pi'].includes(session.role)
+  // Matches POST /api/patients/[anonId]/prescriptions's own role gate (spec §10: prescribing is the clinical tier).
+  const canPrescribe = ['admin', 'pi'].includes(session.role)
+  // admin needs the explicit on-behalf-of picker only when its own session
+  // has no provider row behind it (spec §5).
+  const needsOnBehalfOf = session.role === 'admin' && sessionProvider === null
+  // Built from the FULL roster (listAllProviders), not just active ones, so
+  // a prescription written by a since-deactivated provider still shows its
+  // prescriber.
+  const prescriberById = Object.fromEntries(allProviders.map((p) => [p.id, { name: p.name, credentials: p.credentials, specialty: p.specialty }]))
+  const specialties = [...new Set(allProviders.filter((p) => p.isActive).map((p) => p.specialty))].sort()
+  const activeProviders = allProviders.filter((p) => p.isActive).map((p) => ({ id: p.id, name: p.name, specialty: p.specialty }))
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -68,7 +113,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
           <PatientAvatar name={name} size="lg" />
           <div>
             <h1 className="text-xl font-bold text-foreground">{name}</h1>
-            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dobTebra ?? patient.dobIntakeq}</p>
+            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dob}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Chart data as of {new Date(patient.chartDataAsOf).toLocaleString()}</p>
           </div>
         </div>
@@ -77,17 +122,11 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
           <VisitStat icon={CalendarCheck2} label="Next Appointment" value={formatDate(patient.nextApptDate)} />
           <VisitStat icon={Stethoscope} label="Current Provider" value={patient.currentProvider ?? '—'} />
         </div>
-      </div>
-
-      <section className={SECTION}>
-        <h2 className={SECTION_HEADING}>Dual-Sourced Fields</h2>
-        <div className="grid grid-cols-4 gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Field</span><span>Intake Form</span><span>Clinical Record</span><span>Merged (used)</span>
+        <div className="mt-4 flex items-center gap-3">
+          <a href={`/api/patients/${anonId}/fhir/Bundle`} className="rounded-md border border-primary/20 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/5">Download as FHIR (JSON)</a>
+          <a href={`/api/patients/${anonId}/ccda`} className="rounded-md border border-primary/20 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/5">Download as C-CDA (XML)</a>
         </div>
-        <ComparisonRow label="Name" intakeq={patient.nameIntakeq} tebra={patient.nameTebra} merged={patient.nameTebra ?? patient.nameIntakeq} />
-        <ComparisonRow label="DOB" intakeq={patient.dobIntakeq} tebra={patient.dobTebra} merged={patient.dobTebra ?? patient.dobIntakeq} />
-        <ComparisonRow label="Email" intakeq={patient.emailIntakeq} tebra={patient.emailTebra} merged={patient.emailTebra ?? patient.emailIntakeq} />
-      </section>
+      </div>
 
       <section className={SECTION}>
         <h2 className={SECTION_HEADING}>Diagnoses</h2>
@@ -96,9 +135,8 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
         ) : (
           <ul className="space-y-1.5 text-sm text-foreground">
             {patient.diagnoses.map((d) => (
-              <li key={`dx-${d.id}`} className="flex items-center justify-between gap-2 border-b border-border py-1.5 last:border-b-0">
-                <span><span className="font-mono text-xs text-muted-foreground">{d.code}</span> — {d.description}</span>
-                <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{d.source}</span>
+              <li key={`dx-${d.id}`} className="border-b border-border py-1.5 last:border-b-0">
+                <span className="font-mono text-xs text-muted-foreground">{d.code}</span> — {d.description}
               </li>
             ))}
           </ul>
@@ -106,37 +144,64 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
       </section>
 
       <section className={SECTION}>
-        <h2 className={SECTION_HEADING}>Medication History</h2>
-        {patient.medications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No medications recorded.</p>
+        <MedicationHistorySection
+          patientId={anonId}
+          episodes={patient.medications}
+          prescriberById={prescriberById}
+          catalog={medicationCatalog}
+          specialties={specialties}
+          activeProviders={activeProviders}
+          needsOnBehalfOf={needsOnBehalfOf}
+          canPrescribe={canPrescribe}
+        />
+      </section>
+
+      <section className={SECTION}>
+        <CarePlanSection patientId={anonId} plans={carePlans} canWrite={['admin', 'pi'].includes(session.role)} />
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_HEADING}>Medications Dispensed</h2>
+        {dispenses.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No medications dispensed.</p>
         ) : (
-          <div className="space-y-4">
-            {(['active', 'inactive'] as const).map((status) => {
-              const meds = patient.medications.filter((m) => m.status === status)
-              if (meds.length === 0) return null
+          <ul className="space-y-1.5">
+            {dispenses.map((d) => {
+              const med = medicationById.get(d.medicationId)
               return (
-                <div key={status}>
-                  <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${status === 'active' ? 'text-emerald-700' : 'text-muted-foreground'}`}>
-                    {status === 'active' ? 'Currently Taking' : 'Past Medications'}
-                  </p>
-                  <ul className="space-y-1.5">
-                    {meds.map((m) => (
-                      <li key={`med-${m.id}`} className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm">
-                        <Pill className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground">{m.name} <span className="font-normal text-muted-foreground">({m.medicationClass})</span></p>
-                          <p className="text-xs text-muted-foreground">
-                            {m.dose ?? 'Dose not recorded'} · started {formatDate(m.startDate)}
-                            {m.status === 'inactive' && m.stopDate ? ` · stopped ${formatDate(m.stopDate)}` : ''}
-                          </p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <li key={`dispense-${d.id}`} className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm">
+                  <Pill className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">{med?.name ?? `Medication #${d.medicationId}`}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {d.quantity} {med?.unit ?? 'units'} · dispensed by {d.dispensedByName} · {formatDate(d.dispensedAt)}
+                    </p>
+                  </div>
+                </li>
               )
             })}
-          </div>
+          </ul>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_HEADING}>Screening Questionnaires</h2>
+        {screeningSubmissions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No screening questionnaires completed.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {screeningSubmissions.map((s) => (
+              <li key={`screening-${s.id}`} className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm">
+                <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{s.templateName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Completed {formatDate(s.completedDate)} · Score: {s.totalScore} ({s.bandLabel})
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
@@ -149,6 +214,98 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
             {patient.allergies.map((a) => <AllergyBadge key={a.id} allergen={a.allergen} reaction={a.reaction} severity={a.severity} />)}
           </div>
         )}
+      </section>
+
+      <section className={SECTION}>
+        <h2 className={SECTION_HEADING}>Insurance</h2>
+        {patient.primaryPayerId === null ? (
+          <p className="text-sm text-muted-foreground">No insurance on file.</p>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Primary</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                <InsuranceField label="Payer" value={primaryPayerName} />
+                <InsuranceField label="Member ID" value={patient.primaryMemberId} />
+                <InsuranceField label="Group Number" value={patient.primaryGroupNumber} />
+                <InsuranceField label="Plan Type" value={patient.primaryPlanType ? PLAN_TYPE_LABEL[patient.primaryPlanType] : null} />
+                <InsuranceField label="Subscriber" value={patient.primarySubscriberName} />
+                <InsuranceField label="Relationship" value={patient.primarySubscriberRelationship ? RELATIONSHIP_LABEL[patient.primarySubscriberRelationship] : null} />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Card — Front</p>
+                  {patient.primaryCardFrontUrl && (
+                    <a href={patient.primaryCardFrontUrl} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
+                      <img src={patient.primaryCardFrontUrl} alt="Primary insurance card, front" className="h-24 w-auto rounded-md border border-border object-cover" />
+                    </a>
+                  )}
+                  <InsuranceCardUpload anonId={anonId} side="front" hasImage={!!patient.primaryCardFrontUrl} canWrite={canWriteInsurance} />
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Card — Back</p>
+                  {patient.primaryCardBackUrl && (
+                    <a href={patient.primaryCardBackUrl} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
+                      <img src={patient.primaryCardBackUrl} alt="Primary insurance card, back" className="h-24 w-auto rounded-md border border-border object-cover" />
+                    </a>
+                  )}
+                  <InsuranceCardUpload anonId={anonId} side="back" hasImage={!!patient.primaryCardBackUrl} canWrite={canWriteInsurance} />
+                </div>
+              </div>
+            </div>
+
+            {patient.secondaryPayerId !== null && (
+              <div className="border-t border-border pt-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Secondary</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                  <InsuranceField label="Payer" value={secondaryPayerName} />
+                  <InsuranceField label="Member ID" value={patient.secondaryMemberId} />
+                  <InsuranceField label="Group Number" value={patient.secondaryGroupNumber} />
+                  <InsuranceField label="Plan Type" value={patient.secondaryPlanType ? PLAN_TYPE_LABEL[patient.secondaryPlanType] : null} />
+                  <InsuranceField label="Subscriber" value={patient.secondarySubscriberName} />
+                  <InsuranceField label="Relationship" value={patient.secondarySubscriberRelationship ? RELATIONSHIP_LABEL[patient.secondarySubscriberRelationship] : null} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className={SECTION_HEADING}>Notes</h2>
+          <NoteForm patientId={anonId} canWrite={['pi', 'admin'].includes(session.role)} />
+        </div>
+        {notes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No notes recorded.</p>
+        ) : (
+          <div className="space-y-2.5">
+            {notes.map((n) => (
+              <NoteCard
+                key={n.id}
+                patientId={anonId}
+                canSign={n.status === 'draft' && (n.authorName === session.name || session.role === 'admin')}
+                note={{
+                  id: n.id,
+                  noteType: n.noteType,
+                  authorName: n.authorName,
+                  authorRole: n.authorRole,
+                  subjective: n.subjective,
+                  objective: n.objective,
+                  assessment: n.assessment,
+                  plan: n.plan,
+                  status: n.status,
+                  createdAt: n.createdAt.toString(),
+                  signedAt: n.signedAt?.toString() ?? null,
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className={SECTION}>
+        <LabResultsSection patientId={anonId} orders={labOrders} labTests={labTests} canOrder={canOrderLabs} />
       </section>
     </div>
   )

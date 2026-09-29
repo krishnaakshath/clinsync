@@ -12,7 +12,17 @@ describe('TopBanner', () => {
   // patient portal too -- TopBanner is now identity/actions only (search,
   // notifications, signed-in user, sign out).
   it('shows the signed-in user name', () => {
-    render(<TopBanner userName="Jamie Ruiz" />)
+    render(<TopBanner userName="Jamie Ruiz" role="crc" />)
     expect(screen.getByText('Jamie Ruiz')).toBeInTheDocument()
+  })
+
+  it('hides the notification bell for a non-admin role', () => {
+    render(<TopBanner userName="Jamie Ruiz" role="crc" />)
+    expect(screen.queryByLabelText('Notifications')).not.toBeInTheDocument()
+  })
+
+  it('shows the notification bell for an admin role', () => {
+    render(<TopBanner userName="Test Admin" role="admin" />)
+    expect(screen.getByLabelText('Notifications')).toBeInTheDocument()
   })
 })

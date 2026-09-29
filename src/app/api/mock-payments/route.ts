@@ -25,6 +25,11 @@ export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 
+  // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk
+  // only; this route is the only client-side caller's (VirtualCardPaymentForm,
+  // on /billing/pay) POST target, so it takes the same allowlist.
+  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const parsed = mockPaymentSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid payment payload', details: parsed.error.flatten() }, { status: 400 })
 

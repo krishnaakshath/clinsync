@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { inArray } from 'drizzle-orm'
+import { inArray, desc, eq } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
-import { users } from '@/db/schema'
+import { users, auditLog } from '@/db/schema'
 import { GET as listUsers, POST as createUser } from '@/app/api/users/route'
 
 const UNAUTHORIZED = () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,6 +23,12 @@ afterEach(async () => {
   }
 })
 
+// The "logs an audit entry..." test below inserts a real auditLog row via
+// the real GET handler against the shared dev DB -- clean it up too.
+afterAll(async () => {
+  await getDb().delete(auditLog).where(eq(auditLog.action, 'viewed staff roster'))
+})
+
 function postReq(body: unknown) {
   return new NextRequest('http://localhost/api/users', { method: 'POST', body: JSON.stringify(body) })
 }
@@ -35,9 +41,18 @@ describe('GET /api/users', () => {
   })
 
   it('rejects a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC', userId: null })
     const res = await listUsers()
     expect(res.status).toBe(403)
+  })
+
+  it('logs an audit entry when the staff roster is viewed', async () => {
+    await listUsers()
+    // Scoped to this test's own action string, not "the globally latest row"
+    // -- the shared dev DB has concurrent writers (other branches/worktrees),
+    // so an unscoped "latest row" read is racy.
+    const [latest] = await getDb().select().from(auditLog).where(eq(auditLog.action, 'viewed staff roster')).orderBy(desc(auditLog.id)).limit(1)
+    expect(latest?.action).toBe('viewed staff roster')
   })
 
   it('returns the staff roster without any password field', async () => {
@@ -61,7 +76,7 @@ describe('POST /api/users', () => {
   })
 
   it('rejects a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI', userId: null })
     const res = await createUser(postReq({ name: 'Test User', email: 'newstaff.test@example.com', role: 'crc' }))
     expect(res.status).toBe(403)
   })
@@ -74,6 +89,22 @@ describe('POST /api/users', () => {
   it('rejects an invalid role', async () => {
     const res = await createUser(postReq({ name: 'Test User', email: 'newstaff.test@example.com', role: 'superadmin' }))
     expect(res.status).toBe(400)
+  })
+
+  it('accepts the frontdesk role', async () => {
+    const res = await createUser(postReq({ name: 'Test Front Desk', email: 'newfrontdesk.test@example.com', role: 'frontdesk' }))
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    createdIds.push(body.id)
+    expect(body.role).toBe('frontdesk')
+  })
+
+  it('accepts the pharmacy role', async () => {
+    const res = await createUser(postReq({ name: 'Test Pharmacy User', email: 'newpharmacy.test@example.com', role: 'pharmacy' }))
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    createdIds.push(body.id)
+    expect(body.role).toBe('pharmacy')
   })
 
   it('rejects an unexpected extra field (.strict() enforcement)', async () => {

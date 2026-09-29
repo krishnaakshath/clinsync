@@ -7,6 +7,7 @@ import { getIntakePortalData, getSubmissionPatientIdByToken } from '@/lib/querie
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
 import { recordFormChartDiscrepancies } from '@/lib/queries/discrepancies'
+import { recordFormSubmissionScore } from '@/lib/queries/form-submission-scoring'
 
 // Deliberately NOT requireSession()-gated -- a referred patient has no staff
 // account. Authorization here is possession of the unguessable token itself,
@@ -53,6 +54,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   await logPatientPortalAction(parsed.data.complete ? 'completed intake form via patient portal' : 'saved partial progress via patient portal', patientId)
 
   if (parsed.data.complete) {
+    await recordFormSubmissionScore(updated[0].id)
     const discrepancyCount = await recordFormChartDiscrepancies(updated[0].id)
     if (discrepancyCount > 0) await logPatientPortalAction(`form answers flagged ${discrepancyCount} discrepancy(ies) against chart data`, patientId)
   }

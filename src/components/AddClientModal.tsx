@@ -1,6 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 interface NewPatientForm {
   name: string
@@ -10,10 +12,23 @@ interface NewPatientForm {
   city: string
   zip: string
   currentProvider: string
+  primaryPayerId: string
+  primaryMemberId: string
+  primaryGroupNumber: string
+  primaryPlanType: string
+  primarySubscriberName: string
+  primarySubscriberRelationship: string
 }
 
 const EMPTY_FORM: NewPatientForm = {
   name: '', dob: '', email: '', phone: '', city: '', zip: '', currentProvider: '',
+  primaryPayerId: '', primaryMemberId: '', primaryGroupNumber: '', primaryPlanType: '',
+  primarySubscriberName: '', primarySubscriberRelationship: '',
+}
+
+interface PayerOption {
+  id: number
+  name: string
 }
 
 export function AddClientModal({ onClose }: { onClose: () => void }) {
@@ -21,9 +36,29 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<NewPatientForm>(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [payerOptions, setPayerOptions] = useState<PayerOption[]>([])
+
+  useEffect(() => {
+    fetch('/api/payers')
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => setPayerOptions(data))
+      .catch(() => setPayerOptions([]))
+  }, [])
 
   function update<K extends keyof NewPatientForm>(key: K, value: NewPatientForm[K]) {
     setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  function selectPayer(value: string) {
+    setForm((f) => ({
+      ...f,
+      primaryPayerId: value,
+      // Default the subscriber fields the first time a payer is picked
+      // (going from "no insurance" to "insurance"), without stomping on
+      // anything the user already typed if they're just switching payers.
+      primarySubscriberName: f.primaryPayerId === '' && value !== '' ? f.name : f.primarySubscriberName,
+      primarySubscriberRelationship: f.primaryPayerId === '' && value !== '' ? 'self' : f.primarySubscriberRelationship,
+    }))
   }
 
   async function submit() {
@@ -40,6 +75,12 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
         city: form.city || undefined,
         zip: form.zip || undefined,
         currentProvider: form.currentProvider || undefined,
+        primaryPayerId: form.primaryPayerId ? Number(form.primaryPayerId) : undefined,
+        primaryMemberId: form.primaryPayerId ? (form.primaryMemberId || undefined) : undefined,
+        primaryGroupNumber: form.primaryPayerId ? (form.primaryGroupNumber || undefined) : undefined,
+        primaryPlanType: form.primaryPayerId ? (form.primaryPlanType || undefined) : undefined,
+        primarySubscriberName: form.primaryPayerId ? (form.primarySubscriberName || undefined) : undefined,
+        primarySubscriberRelationship: form.primaryPayerId ? (form.primarySubscriberRelationship || undefined) : undefined,
       }),
     })
     setSubmitting(false)
@@ -56,11 +97,13 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-card p-6 shadow-lg">
-        <h2 className="mb-1 text-lg font-semibold text-foreground">Add New Patient</h2>
-        <p className="mb-4 text-xs text-muted-foreground">
-          This creates a new chart in Tebra -- Clinsync doesn&apos;t store patient records of its own.
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add New Patient</DialogTitle>
+        </DialogHeader>
+        <p className="-mt-2 text-xs text-muted-foreground">
+          This creates a new chart in your practice&apos;s EHR -- Clinsync doesn&apos;t store patient records of its own.
         </p>
 
         <div className="space-y-3">
@@ -78,14 +121,41 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
 
           <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Care details</p>
           <input value={form.currentProvider} onChange={(e) => update('currentProvider', e.target.value)} placeholder="Current provider (optional)" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+
+          <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Insurance (optional)</p>
+          <select value={form.primaryPayerId} onChange={(e) => selectPayer(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+            <option value="">No insurance on file</option>
+            {payerOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          {form.primaryPayerId && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <input value={form.primaryMemberId} onChange={(e) => update('primaryMemberId', e.target.value)} placeholder="Member ID" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+                <input value={form.primaryGroupNumber} onChange={(e) => update('primaryGroupNumber', e.target.value)} placeholder="Group number" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+              </div>
+              <select value={form.primaryPlanType} onChange={(e) => update('primaryPlanType', e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+                <option value="">Plan type</option>
+                <option value="ppo">PPO</option><option value="hmo">HMO</option><option value="epo">EPO</option><option value="pos">POS</option><option value="medicare">Medicare</option><option value="medicaid">Medicaid</option>
+              </select>
+              <div className="grid grid-cols-2 gap-3">
+                <input value={form.primarySubscriberName} onChange={(e) => update('primarySubscriberName', e.target.value)} placeholder="Subscriber name" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+                <select value={form.primarySubscriberRelationship} onChange={(e) => update('primarySubscriberRelationship', e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
+                  <option value="self">Self</option>
+                  <option value="spouse">Spouse</option>
+                  <option value="child">Child</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </>
+          )}
         </div>
 
-        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-        <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-md border border-border px-4 py-1.5 text-sm font-medium text-foreground hover:bg-secondary">Cancel</button>
-          <button onClick={submit} disabled={submitting || !form.name || !form.dob} className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">Save</button>
-        </div>
-      </div>
-    </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={submitting || !form.name || !form.dob}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
