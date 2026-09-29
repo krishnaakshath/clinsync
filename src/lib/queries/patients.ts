@@ -3,12 +3,13 @@ import {
   patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications,
   formSubmissions, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
   rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes, medicationAdministrations,
-  medicationDispenses, carePlans, carePlanGoals, labOrders, labResults,
+  medicationDispenses, carePlans, carePlanGoals, labOrders, labResults, medications,
 } from '@/db/schema'
-import { eq, inArray, or } from 'drizzle-orm'
+import { desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
 import { listDiscrepanciesForPatient } from '@/lib/queries/discrepancies'
 import type { Verdict } from '@/lib/rule-engine'
+import type { ChargeStatus } from '@/lib/charge-status'
 
 export interface CriteriaSummary {
   inclusionMet: number
@@ -127,6 +128,181 @@ export async function getPatientDetail(anonId: string) {
 
     return { ...withoutMfaSecret(patient), mfaEnabled: patient.mfaEnabled, overallStatus: screening?.overallStatus, criteria, diagnoses: dx, medications: meds, allergies: patientAllergies, identityVerification: identity ?? null, portalConfigured: !!patient.portalPasswordHash, discrepancies }
   })
+}
+
+export interface PharmacyEpisode {
+  id: number
+  name: string
+  medicationClass: string
+  dose: string | null
+  startDate: string
+  stopDate: string | null
+  catalogMedicationId: number | null
+}
+
+export interface PharmacyPatientView {
+  id: string
+  name: string
+  dob: string
+  currentProvider: string | null
+  diagnoses: { id: number; code: string; description: string }[]
+  activeMedications: PharmacyEpisode[]
+  pastMedications: PharmacyEpisode[]
+  dispenses: {
+    id: number
+    medicationId: number
+    medicationName: string
+    medicationEpisodeId: number | null
+    quantity: number
+    dispensedByName: string
+    dispensedAt: Date
+    notes: string | null
+    charge: { id: number; status: ChargeStatus; amountCents: number } | null
+  }[]
+}
+
+/**
+ * Narrow, pharmacy-scoped patient projection for the dispensing counter --
+ * deliberately NOT `getPatientDetail()`. `getPatientDetail()` returns
+ * screening criteria (with evidence quotes), identity-verification records,
+ * chart discrepancies and portal-credential state -- none of which a
+ * pharmacist confirming a chart and dispensing a drug needs, and all of
+ * which is PHI a pharmacy-role session has no business receiving on the wire.
+ *
+ * Exact-id matching only, case-insensitive after trimming
+ * (`lower(trim(id)) = lower(trim(input))`) -- deliberately NOT the fuzzy
+ * name+DOB matching front desk's duplicate search uses. Front desk's job is
+ * finding candidate duplicates, so fuzzy matching is a feature there; a
+ * dispensing counter's job is confirming ONE specific chart before handing
+ * over medication, so a near-miss match here would be a dispensing error,
+ * not a helpful suggestion.
+ *
+ * `name`/`dob`: this worktree's schema.ts still declares the patients table
+ * with the old split `nameTebra`/`nameIntakeq`/`dobTebra`/`dobIntakeq`
+ * columns (see `findLikelyDuplicatePatients` above), but a concurrent
+ * worktree (unified-patient-record) has already migrated the live, shared
+ * Neon `patients` table to single-sourced `name`/`dob` columns -- confirmed
+ * directly against `information_schema.columns`, and confirmed the hard way:
+ * every other query in this codebase still doing `nameTebra ?? nameIntakeq`
+ * now 500s against the live DB with "column ... does not exist". This
+ * worktree's schema.ts has not been reconciled with that migration yet, so
+ * `name`/`dob` are selected here as raw SQL fragments against the real
+ * column names rather than via schema.ts column objects (adding those
+ * columns to the shared schema.ts is unified-patient-record's reconciliation
+ * to make, not this task's). `dob::text` casts in SQL so Postgres hands back
+ * a plain 'YYYY-MM-DD' string -- without it, node-postgres's default type
+ * parser for the `date` OID returns a JS `Date`, not the string this view's
+ * shape promises.
+ *
+ * `catalogMedicationId` is resolved the same way as Task 3's `inCatalog`:
+ * one full-catalog fetch (the catalog is ~15 rows), compared
+ * case-insensitively in application code rather than a per-episode
+ * correlated subquery.
+ *
+ * `dispenses` left-joins `medications` (for the display name) and `charges`
+ * (via `medicationDispenses.chargeId`, Task 1) -- a dispense with no charge
+ * yet (a sample, an in-office dose) is a left-join miss, not a row to drop.
+ * Ordered `desc(dispensedAt), desc(id))`, same tie-break as
+ * `listDispensesForPatient`'s comment in medication-dispenses.ts:74-77:
+ * `dispensedAt`'s `defaultNow()` has millisecond resolution, so two
+ * near-simultaneous dispenses can share a timestamp.
+ *
+ * No caching, unlike `getPatientDetail`'s 30s cache -- a pharmacist reading
+ * this view needs to see a dispense or a just-logged bill immediately; a
+ * stale "not billed yet" at the counter invites a double-bill attempt.
+ */
+export async function getPatientPharmacyView(patientId: string): Promise<PharmacyPatientView | null> {
+  const db = getDb()
+  const trimmed = patientId.trim()
+
+  const [patientRow] = await db
+    .select({
+      id: patients.id,
+      name: sql<string>`patients.name`,
+      dob: sql<string>`patients.dob::text`,
+      currentProvider: patients.currentProvider,
+    })
+    .from(patients)
+    .where(sql`lower(trim(${patients.id})) = lower(trim(${trimmed}))`)
+  if (!patientRow) return null
+
+  const dx = await db
+    .select({ id: diagnoses.id, code: diagnoses.code, description: diagnoses.description })
+    .from(diagnoses)
+    .where(eq(diagnoses.patientId, patientRow.id))
+
+  const episodeRows = await db
+    .select({
+      id: medicationEpisodes.id,
+      name: medicationEpisodes.name,
+      medicationClass: medicationEpisodes.medicationClass,
+      dose: medicationEpisodes.dose,
+      startDate: medicationEpisodes.startDate,
+      stopDate: medicationEpisodes.stopDate,
+      status: medicationEpisodes.status,
+    })
+    .from(medicationEpisodes)
+    .where(eq(medicationEpisodes.patientId, patientRow.id))
+
+  const catalogRows = await db.select({ id: medications.id, name: medications.name }).from(medications)
+  const catalogIdByName = new Map(catalogRows.map((m) => [m.name.toLowerCase(), m.id]))
+
+  const toEpisode = (e: (typeof episodeRows)[number]): PharmacyEpisode => ({
+    id: e.id,
+    name: e.name,
+    medicationClass: e.medicationClass,
+    dose: e.dose,
+    startDate: e.startDate,
+    stopDate: e.stopDate,
+    catalogMedicationId: catalogIdByName.get(e.name.toLowerCase()) ?? null,
+  })
+
+  const activeMedications = episodeRows.filter((e) => e.status === 'active').map(toEpisode)
+  const pastMedications = episodeRows.filter((e) => e.status === 'inactive').map(toEpisode)
+
+  const dispenseRows = await db
+    .select({
+      id: medicationDispenses.id,
+      medicationId: medicationDispenses.medicationId,
+      medicationName: medications.name,
+      medicationEpisodeId: medicationDispenses.medicationEpisodeId,
+      quantity: medicationDispenses.quantity,
+      dispensedByName: medicationDispenses.dispensedByName,
+      dispensedAt: medicationDispenses.dispensedAt,
+      notes: medicationDispenses.notes,
+      chargeId: charges.id,
+      chargeStatus: charges.status,
+      chargeAmountCents: charges.amountCents,
+    })
+    .from(medicationDispenses)
+    .leftJoin(medications, eq(medications.id, medicationDispenses.medicationId))
+    .leftJoin(charges, eq(charges.id, medicationDispenses.chargeId))
+    .where(eq(medicationDispenses.patientId, patientRow.id))
+    .orderBy(desc(medicationDispenses.dispensedAt), desc(medicationDispenses.id))
+
+  return {
+    id: patientRow.id,
+    name: patientRow.name,
+    dob: patientRow.dob,
+    currentProvider: patientRow.currentProvider,
+    diagnoses: dx,
+    activeMedications,
+    pastMedications,
+    dispenses: dispenseRows.map((r) => ({
+      id: r.id,
+      medicationId: r.medicationId,
+      // medicationDispenses.medicationId is a NOT NULL FK to medications.id,
+      // so this left-join miss never actually happens -- the fallback exists
+      // only to satisfy the join's nullable TS type.
+      medicationName: r.medicationName ?? '',
+      medicationEpisodeId: r.medicationEpisodeId,
+      quantity: r.quantity,
+      dispensedByName: r.dispensedByName,
+      dispensedAt: r.dispensedAt,
+      notes: r.notes,
+      charge: r.chargeId != null ? { id: r.chargeId, status: r.chargeStatus as ChargeStatus, amountCents: r.chargeAmountCents! } : null,
+    })),
+  }
 }
 
 /**
