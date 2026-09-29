@@ -47,7 +47,7 @@ describe('PUT /api/settings/practice-info', () => {
   })
 
   it('rejects a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC', userId: null })
     const res = await updatePracticeInfo(req('http://localhost/api/settings/practice-info', { practiceName: 'x', practiceSite: 'y', practiceTimezone: 'America/Los_Angeles' }))
     expect(res.status).toBe(403)
   })
@@ -74,7 +74,7 @@ describe('PUT /api/settings/ehr-connections', () => {
   })
 
   it('rejects a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI', userId: null })
     const res = await updateEhrConnections(req('http://localhost/api/settings/ehr-connections', { intakeqApiKey: 'x' }))
     expect(res.status).toBe(403)
   })

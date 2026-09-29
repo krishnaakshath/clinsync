@@ -63,14 +63,14 @@ export async function POST(request: NextRequest) {
   // password, or an account with no password set at all, so this endpoint
   // never confirms which part was wrong or whether an email exists.
   if (adminEmail && adminPasswordHash && email.toLowerCase() === adminEmail.toLowerCase() && verifyPassword(password, adminPasswordHash)) {
-    if (staffMfaDisabled) return completeLoginWithoutMfa('admin', adminName)
+    if (staffMfaDisabled) return completeLoginWithoutMfa('admin', adminName, null)
     const adminMfaState = await getAdminMfaState()
     return startStaffMfaChallenge({ role: 'admin', name: adminName, userId: null, ip, mfaMethod: adminMfaState.mfaMethod, phone: adminMfaState.phone, email: adminEmail })
   }
 
   const user = await findUserByEmail(email)
   if (user?.passwordHash && verifyPassword(password, user.passwordHash)) {
-    if (staffMfaDisabled) return completeLoginWithoutMfa(user.role, user.name)
+    if (staffMfaDisabled) return completeLoginWithoutMfa(user.role, user.name, user.id)
     return startStaffMfaChallenge({ role: user.role, name: user.name, userId: user.id, ip, mfaMethod: user.mfaMethod, phone: user.phone, email: user.email })
   }
 
@@ -80,9 +80,9 @@ export async function POST(request: NextRequest) {
 // Mirrors /api/login/mfa's own success path (setSessionCookie + logAudit +
 // {ok:true}) so a DISABLE_STAFF_MFA login is indistinguishable downstream
 // from a real completed-MFA login -- same cookie shape, same audit trail.
-async function completeLoginWithoutMfa(role: Role, name: string) {
-  await setSessionCookie(role, name)
-  await logAudit({ role, name }, 'completed login (MFA disabled)', null)
+async function completeLoginWithoutMfa(role: Role, name: string, userId: number | null) {
+  await setSessionCookie(role, name, userId)
+  await logAudit({ role, name, userId }, 'completed login (MFA disabled)', null)
   return NextResponse.json({ ok: true })
 }
 

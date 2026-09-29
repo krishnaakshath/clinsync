@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { Users, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { resolveSessionProvider } from '@/lib/provider-identity'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listActiveProviders } from '@/lib/queries/providers'
@@ -46,12 +47,15 @@ export default async function DoctorPortalPage() {
   const lastName = session.name.trim().split(/\s+/).pop() ?? session.name
   const myPatients = patients.filter((p) => (p.currentProvider ?? '').toLowerCase().includes(lastName.toLowerCase()))
 
-  // Same last-name matching as myPatients above -- there's no real
-  // session<->provider-row link yet, so this is the same best-effort match
-  // used to resolve "this PI's own patients" applied to "this PI's own
-  // provider row" for the assignment queue.
-  const providers = await listActiveProviders()
-  const providerMatch = providers.find((p) => p.name.toLowerCase().includes(lastName.toLowerCase()))
+  // resolveSessionProvider is the real session<->provider-row link (see
+  // provider-identity.ts); the last-name match below is now only a
+  // FALLBACK for when it returns null. This page deliberately fails open on
+  // that fallback rather than closed: it scopes a read-only dashboard
+  // (which providers/assignments to display), not an attribution write, and
+  // three of the five seeded providers have no linked login at all -- so
+  // failing closed here would regress the demo for a display-only concern.
+  const resolvedProvider = await resolveSessionProvider(session)
+  const providerMatch = resolvedProvider ?? (await listActiveProviders()).find((p) => p.name.toLowerCase().includes(lastName.toLowerCase()))
   const pendingAssignments = providerMatch ? await listPendingAssignmentsForProvider(providerMatch.id) : []
 
   // Spec §6: `pi` is an allowed role to start a telemedicine session, but

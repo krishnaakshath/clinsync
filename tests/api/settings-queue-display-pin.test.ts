@@ -34,7 +34,7 @@ describe('PUT /api/settings/queue-display-pin', () => {
 
   it('rejects a non-admin session', async () => {
     const auth = await import('@/lib/auth')
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'frontdesk', name: 'Test Frontdesk' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'frontdesk', name: 'Test Frontdesk', userId: null })
     const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ pin: '1234' }) })
     const res = await PUT(req as never)
     expect(res.status).toBe(403)

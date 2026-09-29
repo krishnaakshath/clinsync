@@ -112,7 +112,7 @@ describe('POST /api/front-desk/check-in', () => {
 
   it('returns 403 for a pi session', async () => {
     const auth = await import('@/lib/auth')
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Dr. Kunam' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Dr. Kunam', userId: null })
     const providers = await listActiveProviders()
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'outpatient', urgency: 'routine', reason: 'Follow-up', providerId: providers[0].id }) })
     const res = await POST(req as never)

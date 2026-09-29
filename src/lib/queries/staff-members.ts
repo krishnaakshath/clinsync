@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { staffMembers, staffCredentials, users, providers } from '@/db/schema'
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, and } from 'drizzle-orm'
+import type { SessionProvider } from '@/lib/provider-identity'
 
 export interface CreateStaffMemberInput {
   userId: number | null
@@ -90,4 +91,20 @@ export async function updateStaffMember(id: number, input: UpdateStaffMemberInpu
 
   const [staffMember] = await db.update(staffMembers).set(updates).where(eq(staffMembers.id, id)).returning()
   return { ok: true, staffMember }
+}
+
+// The real users -> staffMembers -> providers link a session's userId
+// resolves to (see resolveSessionProvider in provider-identity.ts). Both
+// status filters matter: an 8-hour session cookie outlives an HR change, so
+// a staff member whose employment has ended (terminated/on_leave) must not
+// still be able to prescribe under this link, and a provider row that's
+// since been deactivated must not be attributed a new prescription either.
+export async function getProviderForUserId(userId: number): Promise<SessionProvider | null> {
+  const [row] = await getDb()
+    .select({ id: providers.id, name: providers.name, credentials: providers.credentials, specialty: providers.specialty })
+    .from(staffMembers)
+    .innerJoin(providers, eq(staffMembers.providerId, providers.id))
+    .where(and(eq(staffMembers.userId, userId), eq(staffMembers.employmentStatus, 'active'), eq(providers.isActive, true)))
+
+  return row ?? null
 }

@@ -147,7 +147,7 @@ describe('POST /api/patients', () => {
   })
 
   it('rejects a pi session -- patient creation (which can carry insurance fields) is admin/crc/frontdesk only, matching the insurance-card route', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI', userId: null })
     const response = await createPatient(req({ name: 'Test Patient', dob: '1990-01-01' }))
     expect(response.status).toBe(403)
   })
@@ -202,7 +202,7 @@ describe('POST /api/patients/[anonId]/refresh', () => {
 
 describe('DELETE /api/patients/[anonId]', () => {
   async function createTestPatient(): Promise<string> {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin', userId: null })
     const res = await createPatient(new NextRequest('http://localhost/api/patients', { method: 'POST', body: JSON.stringify({ name: 'Delete Route Test', dob: '1993-03-03' }) }))
     const body = await res.json()
     return body.id
@@ -215,20 +215,20 @@ describe('DELETE /api/patients/[anonId]', () => {
   })
 
   it('rejects a non-admin session -- deleting a chart is an admin-only action', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC', userId: null })
     const response = await deletePatientRoute(new NextRequest('http://localhost/api/patients/RD-0001', { method: 'DELETE' }), { params: Promise.resolve({ anonId: 'RD-0001' }) })
     expect(response.status).toBe(403)
   })
 
   it('returns 404 for an unknown anonymous id', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin', userId: null })
     const response = await deletePatientRoute(new NextRequest('http://localhost/api/patients/RD-9999/delete-test', { method: 'DELETE' }), { params: Promise.resolve({ anonId: 'RD-9999-delete-test' }) })
     expect(response.status).toBe(404)
   })
 
   it('permanently removes the patient as an admin', async () => {
     const id = await createTestPatient()
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'admin', name: 'Test Admin', userId: null })
     const response = await deletePatientRoute(new NextRequest(`http://localhost/api/patients/${id}`, { method: 'DELETE' }), { params: Promise.resolve({ anonId: id }) })
     expect(response.status).toBe(200)
 

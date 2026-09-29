@@ -99,7 +99,7 @@ afterAll(async () => {
 })
 
 async function reqAs(role: 'admin' | 'pi' | 'crc', name: string, body: unknown) {
-  const cookie = await buildSessionCookieValue(role, name)
+  const cookie = await buildSessionCookieValue(role, name, null)
   return new NextRequest('http://localhost/api/account/mfa/reset', {
     method: 'POST',
     body: JSON.stringify(body),

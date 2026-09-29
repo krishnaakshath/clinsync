@@ -19,13 +19,13 @@ describe('GET /api/audit-log', () => {
   })
 
   it('returns 403 for a non-admin session', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC', userId: null })
     const response = await listAuditLog(new NextRequest('http://localhost/api/audit-log'))
     expect(response.status).toBe(403)
   })
 
   it('returns 403 for a PI session (audit log is admin-only, not just non-CRC)', async () => {
-    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI' })
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI', userId: null })
     const response = await listAuditLog(new NextRequest('http://localhost/api/audit-log'))
     expect(response.status).toBe(403)
   })

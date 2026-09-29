@@ -4,7 +4,7 @@ import { getDb } from '@/db/client'
 import { appSettings, patients, diagnoses, medicationEpisodes, patientTrialScreenings, screeningCriteriaResults, auditLog } from '@/db/schema'
 import { eq, and, gt } from 'drizzle-orm'
 
-const TEST_SESSION = { role: 'crc' as const, name: 'Test Runner' }
+const TEST_SESSION = { role: 'crc' as const, name: 'Test Runner', userId: null }
 const TEST_PATIENT_ID = 'RD-9001'
 
 // appSettings is a single-row table, but its row's serial id is whatever the

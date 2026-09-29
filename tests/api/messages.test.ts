@@ -60,13 +60,13 @@ describe('GET /api/messages/[patientId]', () => {
   })
 
   it('allows any staff session to read a patient\'s thread', async () => {
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz', userId: null })
     const res = await GET(req() as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     expect(res.status).toBe(200)
   })
 
   it('prefers a staff session over a patient session when both are somehow present', async () => {
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin', userId: null })
     vi.mocked(patientSession.getPatientSession).mockResolvedValue({ patientId: OTHER_PATIENT_ID })
     // A patient session for OTHER_PATIENT_ID would normally 403 against
     // STAFF_PATIENT_ID's thread -- staff wins the branch, so this succeeds.
@@ -75,7 +75,7 @@ describe('GET /api/messages/[patientId]', () => {
   })
 
   it('marks provider-authored messages read once a patient session reads the thread', async () => {
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'pi', name: 'Dr. Rajiv Kunam' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'pi', name: 'Dr. Rajiv Kunam', userId: null })
     const sendRes = await POST(req({ body: 'Please remember to take your medication with food.' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     const sent = await sendRes.json()
     createdIds.push(sent.id)
@@ -103,19 +103,19 @@ describe('POST /api/messages/[patientId]', () => {
   })
 
   it('rejects an empty body', async () => {
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz', userId: null })
     const res = await POST(req({ body: '' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     expect(res.status).toBe(400)
   })
 
   it('rejects a payload with an unexpected extra field (mass-assignment guard)', async () => {
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz', userId: null })
     const res = await POST(req({ body: 'hello', senderRole: 'provider' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     expect(res.status).toBe(400)
   })
 
   it('lets any staff role (not just pi) send as the provider', async () => {
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin', userId: null })
     const res = await POST(req({ body: 'Your next appointment is confirmed.' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     const body = await res.json()
     createdIds.push(body.id)
@@ -141,7 +141,7 @@ describe('POST /api/messages/[patientId]', () => {
     // was found) used to always attribute to the staff session regardless
     // of which UI actually sent the request. MessageComposer now sends
     // `actingAs` based on which surface it renders in.
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin', userId: null })
     vi.mocked(patientSession.getPatientSession).mockResolvedValue({ patientId: STAFF_PATIENT_ID })
     const res = await POST(req({ body: 'Sent from the patient portal composer.', actingAs: 'patient' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     const body = await res.json()
@@ -152,7 +152,7 @@ describe('POST /api/messages/[patientId]', () => {
   })
 
   it('still prefers staff by default when actingAs is omitted and both sessions are present', async () => {
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin', userId: null })
     vi.mocked(patientSession.getPatientSession).mockResolvedValue({ patientId: STAFF_PATIENT_ID })
     const res = await POST(req({ body: 'Sent from the staff inbox composer.' }) as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     const body = await res.json()
@@ -163,7 +163,7 @@ describe('POST /api/messages/[patientId]', () => {
   })
 
   it('rejects actingAs: patient for a patient session that does not match this thread\'s patientId', async () => {
-    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin' })
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'admin', name: 'Test Admin', userId: null })
     vi.mocked(patientSession.getPatientSession).mockResolvedValue({ patientId: OTHER_PATIENT_ID })
     // actingAs: 'patient' is only a hint -- it must still be a real,
     // matching patient session, so this falls through to the staff session

@@ -16,7 +16,7 @@ beforeAll(() => {
 })
 
 const baseProps: DashboardPageProps = {
-  session: { role: 'crc', name: 'Test CRC' },
+  session: { role: 'crc', name: 'Test CRC', userId: null },
   data: {
     latestForms: [], pendingForms: [{ id: 1, status: 'sent', sentDate: new Date(), completedDate: null, templateName: 'Intake', patientName: 'Jane Doe' }],
     pendingFormsTotal: 1, pendingClassification: [{ id: 'RD-0001', nameTebra: 'Jane Doe', nameIntakeq: 'Jane Doe' }],
