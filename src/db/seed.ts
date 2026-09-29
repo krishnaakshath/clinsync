@@ -9,7 +9,6 @@ import {
   medicationEpisodes,
   patientTrialScreenings,
   screeningCriteriaResults,
-  identityMatches,
   users,
   payers,
   charges,
@@ -96,8 +95,8 @@ const PROVIDER_ROSTER = [
 
 type HeroPatient = {
   id: string; trialId: string; overallStatus: 'green' | 'yellow' | 'red'
-  nameIntakeq: string; nameTebra: string | null; dobIntakeq: string; dobTebra: string | null
-  city: string; zip: string; phone: string; emailIntakeq: string; emailTebra: string | null
+  name: string; dob: string
+  city: string; zip: string; phone: string; email: string
   provider: string; ratingScale: { name: string; score: number; date: string }
   diagnosisCode: { code: string; description: string }
   activeMed: { name: string; medicationClass: string; dose: string; startDate: string }
@@ -107,8 +106,8 @@ type HeroPatient = {
 const HERO_PATIENTS: HeroPatient[] = [
   {
     id: 'RD-0001', trialId: 'nct06911112', overallStatus: 'green',
-    nameIntakeq: 'Maria Alvarez', nameTebra: 'Maria Alvarez', dobIntakeq: '1985-03-12', dobTebra: '1985-03-12',
-    city: 'Redlands', zip: '92373', phone: '909-555-0142', emailIntakeq: 'malvarez.demo@example.com', emailTebra: 'maria.alvarez.demo@example.com',
+    name: 'Maria Alvarez', dob: '1985-03-12',
+    city: 'Redlands', zip: '92373', phone: '909-555-0142', email: 'maria.alvarez.demo@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'PHQ-9', score: 18, date: '2026-09-01' },
     diagnosisCode: { code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' },
     activeMed: { name: 'Sertraline', medicationClass: 'SSRI/SNRI antidepressant', dose: '100mg daily', startDate: '2026-06-01' },
@@ -120,8 +119,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0002', trialId: 'nct06911112', overallStatus: 'red',
-    nameIntakeq: 'James Thornton', nameTebra: 'James Thornton', dobIntakeq: '1990-11-02', dobTebra: '1990-11-02',
-    city: 'Highland', zip: '92346', phone: '909-555-0198', emailIntakeq: 'jthornton.demo@example.com', emailTebra: 'jthornton.demo@example.com',
+    name: 'James Thornton', dob: '1990-11-02',
+    city: 'Highland', zip: '92346', phone: '909-555-0198', email: 'jthornton.demo@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'PHQ-9', score: 9, date: '2026-08-20' },
     diagnosisCode: { code: 'F32.1', description: 'Major depressive disorder, single episode, moderate' },
     activeMed: { name: 'Bupropion', medicationClass: 'NDRI (excluded class)', dose: '150mg daily', startDate: '2026-08-01' },
@@ -132,8 +131,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0003', trialId: 'nct06911112', overallStatus: 'yellow',
-    nameIntakeq: 'Linda Cho', nameTebra: null, dobIntakeq: '1978-06-30', dobTebra: null,
-    city: 'Yucaipa', zip: '92399', phone: '909-555-0177', emailIntakeq: 'lcho.demo@example.com', emailTebra: null,
+    name: 'Linda Cho', dob: '1978-06-30',
+    city: 'Yucaipa', zip: '92399', phone: '909-555-0177', email: 'lcho.demo@example.com',
     provider: 'Unmatched', ratingScale: { name: 'PHQ-9', score: 15, date: '2026-09-05' },
     diagnosisCode: { code: 'F32.1', description: 'Major depressive disorder, single episode, moderate' },
     activeMed: { name: 'Unknown', medicationClass: 'Unknown', dose: 'Unknown', startDate: '2026-01-01' },
@@ -143,8 +142,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0004', trialId: 'nct-adhd-demo-01', overallStatus: 'green',
-    nameIntakeq: 'Priya Natarajan', nameTebra: 'Priya Natarajan', dobIntakeq: '1994-02-18', dobTebra: '1994-02-18',
-    city: 'Redlands', zip: '92374', phone: '909-555-0133', emailIntakeq: 'pnatarajan.demo@example.com', emailTebra: 'pnatarajan.demo@example.com',
+    name: 'Priya Natarajan', dob: '1994-02-18',
+    city: 'Redlands', zip: '92374', phone: '909-555-0133', email: 'pnatarajan.demo@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'ASRS-v1.1', score: 21, date: '2026-09-02' },
     diagnosisCode: { code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' },
     activeMed: { name: 'None', medicationClass: 'None', dose: 'N/A', startDate: '2026-01-01' },
@@ -155,8 +154,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0005', trialId: 'nct-adhd-demo-01', overallStatus: 'red',
-    nameIntakeq: 'Marcus Webb', nameTebra: 'Marcus Webb', dobIntakeq: '1988-09-09', dobTebra: '1988-09-09',
-    city: 'Loma Linda', zip: '92354', phone: '909-555-0161', emailIntakeq: 'mwebb.demo@example.com', emailTebra: 'mwebb.demo@example.com',
+    name: 'Marcus Webb', dob: '1988-09-09',
+    city: 'Loma Linda', zip: '92354', phone: '909-555-0161', email: 'mwebb.demo@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'ASRS-v1.1', score: 19, date: '2026-08-28' },
     diagnosisCode: { code: 'F90.2', description: 'Attention-deficit hyperactivity disorder, combined type' },
     activeMed: { name: 'Lisdexamfetamine', medicationClass: 'Stimulant', dose: '30mg daily', startDate: '2026-09-01' },
@@ -166,8 +165,8 @@ const HERO_PATIENTS: HeroPatient[] = [
   },
   {
     id: 'RD-0006', trialId: 'nct06911112', overallStatus: 'yellow',
-    nameIntakeq: 'Katherine Voss', nameTebra: 'Kathryn Voss', dobIntakeq: '1982-12-05', dobTebra: '1982-12-05',
-    city: 'Redlands', zip: '92373', phone: '909-555-0188', emailIntakeq: 'kvoss.demo@example.com', emailTebra: 'kvoss.old@example.com',
+    name: 'Kathryn Voss', dob: '1982-12-05',
+    city: 'Redlands', zip: '92373', phone: '909-555-0188', email: 'kvoss.old@example.com',
     provider: 'Dr. R. Kunam', ratingScale: { name: 'PHQ-9', score: 16, date: '2026-08-15' },
     diagnosisCode: { code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' },
     activeMed: { name: 'Venlafaxine', medicationClass: 'SSRI/SNRI antidepressant', dose: '75mg daily', startDate: '2026-08-10' },
@@ -257,21 +256,17 @@ async function seedFillerPatients() {
 
     await db.insert(patients).values({
       id,
-      intakeqClientIdRef: `enc-iq-${id}`,
-      tebraPatientIdRef: i % 5 === 4 ? null : `enc-tb-${id}`, // a few unmatched-to-Tebra, like the hero roster's Linda Cho
-      nameIntakeq: FILLER_NAMES[i],
-      nameTebra: i % 5 === 4 ? null : FILLER_NAMES[i],
-      dobIntakeq: `${birthYear}-${birthMonth}-${birthDay}`,
-      dobTebra: i % 5 === 4 ? null : `${birthYear}-${birthMonth}-${birthDay}`,
-      cityIntakeq: location.city,
-      zipIntakeq: location.zip,
+      name: FILLER_NAMES[i],
+      dob: `${birthYear}-${birthMonth}-${birthDay}`,
+      city: location.city,
+      zip: location.zip,
       // RD-0007 (i === 0) is deliberately left with no phone number at all --
       // it's the one seeded broadcast recipient (Phase 5) whose SMS delivery
       // is meant to genuinely fail per simulateBroadcastDelivery's own logic,
       // rather than a hand-authored 'failed' status the simulator could
       // never actually produce for a patient with real contact info.
-      phoneIntakeq: i === 0 ? null : `909-555-0${String(300 + i).padStart(3, '0')}`,
-      emailIntakeq: `${first.toLowerCase()}.${last.toLowerCase().replace(/[^a-z]/g, '')}.demo@example.com`,
+      phone: i === 0 ? null : `909-555-0${String(300 + i).padStart(3, '0')}`,
+      email: `${first.toLowerCase()}.${last.toLowerCase().replace(/[^a-z]/g, '')}.demo@example.com`,
       currentProvider: PROVIDER_ROSTER[i % PROVIDER_ROSTER.length].name,
       ratingScales: inTrial ? [{ name: trial.ratingScales[0].name, score: 8 + (i % 16), date: '2026-09-01' }] : [],
       referralType: REFERRAL_TYPES[i % REFERRAL_TYPES.length],
@@ -281,7 +276,7 @@ async function seedFillerPatients() {
     })
 
     if (inTrial) {
-      await db.insert(diagnoses).values({ patientId: id, code: trial.diagnosisCodes[0].code, description: trial.diagnosisCodes[0].description, source: 'tebra', date: '2026-08-01' })
+      await db.insert(diagnoses).values({ patientId: id, code: trial.diagnosisCodes[0].code, description: trial.diagnosisCodes[0].description, date: '2026-08-01' })
       const screening = await db.insert(patientTrialScreenings).values({ patientId: id, trialId: trial.id, overallStatus: status }).returning()
       await db.insert(screeningCriteriaResults).values({
         screeningId: screening[0].id,
@@ -298,7 +293,7 @@ async function seedFillerPatients() {
       // still a real chart with its own diagnosis, so the panel doesn't
       // read as "trial candidates only."
       const dx = GENERAL_DIAGNOSES[i % GENERAL_DIAGNOSES.length]
-      await db.insert(diagnoses).values({ patientId: id, code: dx.code, description: dx.description, source: 'tebra', date: '2026-07-15' })
+      await db.insert(diagnoses).values({ patientId: id, code: dx.code, description: dx.description, date: '2026-07-15' })
     }
 
     // Roughly half the panel has an active medication on file, drawn from a
@@ -795,7 +790,6 @@ async function clearExistingData() {
   await db.delete(patientTrialScreenings)
   await db.delete(medicationEpisodes)
   await db.delete(diagnoses)
-  await db.delete(identityMatches)
   await db.delete(formSubmissionScores)
   await db.delete(formChartDiscrepancies)
   await db.delete(formSubmissions)
@@ -922,17 +916,12 @@ export async function seed() {
   for (const p of HERO_PATIENTS) {
     await db.insert(patients).values({
       id: p.id,
-      intakeqClientIdRef: `enc-iq-${p.id}`,
-      tebraPatientIdRef: p.nameTebra ? `enc-tb-${p.id}` : null,
-      nameIntakeq: p.nameIntakeq,
-      nameTebra: p.nameTebra,
-      dobIntakeq: p.dobIntakeq,
-      dobTebra: p.dobTebra,
-      cityIntakeq: p.city,
-      zipIntakeq: p.zip,
-      phoneIntakeq: p.phone,
-      emailIntakeq: p.emailIntakeq,
-      emailTebra: p.emailTebra,
+      name: p.name,
+      dob: p.dob,
+      city: p.city,
+      zip: p.zip,
+      phone: p.phone,
+      email: p.email,
       currentProvider: p.provider,
       ratingScales: [p.ratingScale],
       referralType: 'Provider referral',
@@ -941,7 +930,7 @@ export async function seed() {
       commConsentPref: 'Phone',
     })
 
-    await db.insert(diagnoses).values({ patientId: p.id, code: p.diagnosisCode.code, description: p.diagnosisCode.description, source: 'tebra', date: '2025-01-15' })
+    await db.insert(diagnoses).values({ patientId: p.id, code: p.diagnosisCode.code, description: p.diagnosisCode.description, date: '2025-01-15' })
     if (p.activeMed.name !== 'Unknown' && p.activeMed.name !== 'None') {
       await db.insert(medicationEpisodes).values({ patientId: p.id, name: p.activeMed.name, medicationClass: p.activeMed.medicationClass, dose: p.activeMed.dose, startDate: p.activeMed.startDate, status: 'active' })
     }
@@ -958,15 +947,6 @@ export async function seed() {
   await seedRooms()
   await seedBilling()
   await seedDocumentsAndFaxes()
-
-  await db.insert(identityMatches).values([
-    { intakeqClientIdRef: 'enc-iq-pending-01', referralName: 'Linda Cho', referralDob: '1978-06-30', candidateTebraPatientIdRef: 'enc-tb-cand-01', candidateName: 'Linda M. Cho', candidateDob: '1978-06-30', confidence: 72, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-02', referralName: 'Katherine Voss', referralDob: '1982-12-05', candidateTebraPatientIdRef: 'enc-tb-cand-02', candidateName: 'Kathryn Voss', candidateDob: '1982-12-05', confidence: 88, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-03', referralName: 'Nathaniel Cross', referralDob: '1975-04-18', candidateTebraPatientIdRef: 'enc-tb-cand-03', candidateName: 'Nathaniel R. Cross', candidateDob: '1975-04-18', confidence: 91, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-04', referralName: 'Priyanka Raghavan', referralDob: '1989-09-02', candidateTebraPatientIdRef: 'enc-tb-cand-04', candidateName: 'Priyanka Raghavann', candidateDob: '1989-09-02', confidence: 68, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-05', referralName: 'Samuel Whitfield', referralDob: '1966-11-23', candidateTebraPatientIdRef: 'enc-tb-cand-05', candidateName: 'Sam Whitfield', candidateDob: '1966-11-23', confidence: 76, status: 'pending' },
-    { intakeqClientIdRef: 'enc-iq-pending-06', referralName: 'Isabella Marchetti', referralDob: '1993-02-14', candidateTebraPatientIdRef: 'enc-tb-cand-06', candidateName: 'Isabela Marchetti', candidateDob: '1993-02-14', confidence: 84, status: 'pending' },
-  ])
 
   // Form templates: one per trial condition, each with a handful of
   // realistic intake questions including at least one hipaaSensitive field.
