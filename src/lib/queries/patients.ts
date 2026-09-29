@@ -263,6 +263,15 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   if (labOrderIds.length > 0) {
     await db.delete(labResults).where(inArray(labResults.labOrderId, labOrderIds))
   }
+  // documents.lab_order_id is a nullable FK to lab_orders(id) with no ON
+  // DELETE action. Documents filed to this patient are already gone (line
+  // ~228), but an un-filed document (PATCH { patientId: null }, which clears
+  // patientId and leaves labOrderId alone) can still point at one of this
+  // patient's orders -- exactly the case the patient-scoped delete above
+  // misses and this delete would collide with.
+  if (labOrderIds.length > 0) {
+    await db.update(documents).set({ labOrderId: null }).where(inArray(documents.labOrderId, labOrderIds))
+  }
   await db.delete(labOrders).where(eq(labOrders.patientId, anonId))
 
   await db.delete(patients).where(eq(patients.id, anonId))
