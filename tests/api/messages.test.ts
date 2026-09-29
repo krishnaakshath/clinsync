@@ -5,6 +5,7 @@ import { getDb } from '@/db/client'
 import { messages } from '@/db/schema'
 import * as auth from '@/lib/auth'
 import * as patientSession from '@/lib/patient-session'
+import { sendMessage } from '@/lib/queries/messages'
 
 const STAFF_PATIENT_ID = 'RD-0001' // seeded real patient (Maria Alvarez)
 const OTHER_PATIENT_ID = 'RD-0002' // a different seeded patient
@@ -72,6 +73,24 @@ describe('GET /api/messages/[patientId]', () => {
     // STAFF_PATIENT_ID's thread -- staff wins the branch, so this succeeds.
     const res = await GET(req() as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
     expect(res.status).toBe(200)
+  })
+
+  it('excludes another patient\'s message content from a staff GET of this patient\'s thread', async () => {
+    const ownMessage = await sendMessage(STAFF_PATIENT_ID, 'patient', 'Maria Alvarez', 'Only for my thread, patient A')
+    createdIds.push(ownMessage.id)
+    const otherMessage = await sendMessage(OTHER_PATIENT_ID, 'patient', 'Test Patient B', 'Should never appear in patient A\'s thread')
+    createdIds.push(otherMessage.id)
+
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'crc', name: 'Jamie Ruiz' })
+    const res = await GET(req() as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
+    const body = await res.json()
+    const bodyText = JSON.stringify(body)
+
+    expect(res.status).toBe(200)
+    expect(body.some((m: { id: number }) => m.id === ownMessage.id)).toBe(true)
+    expect(bodyText).toContain('Only for my thread, patient A')
+    expect(body.some((m: { id: number }) => m.id === otherMessage.id)).toBe(false)
+    expect(bodyText).not.toContain('Should never appear in patient A\'s thread')
   })
 
   it('marks provider-authored messages read once a patient session reads the thread', async () => {
