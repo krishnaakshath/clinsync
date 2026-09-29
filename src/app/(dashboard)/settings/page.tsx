@@ -1,4 +1,4 @@
-import { Building2, Plug, SlidersHorizontal, UserCircle2, Users, IdCard } from 'lucide-react'
+import { Building2, Plug, SlidersHorizontal, UserCircle2, Users, IdCard, Monitor } from 'lucide-react'
 import { eq } from 'drizzle-orm'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { getDb } from '@/db/client'
@@ -8,6 +8,7 @@ import { listAllProviders } from '@/lib/queries/providers'
 import { listAllUsers } from '@/lib/queries/users'
 import { ROLE_CAPABILITIES } from '@/lib/role-capabilities'
 import { AutoClassifyToggle } from '@/components/AutoClassifyToggle'
+import { QueueDisplayPinForm } from '@/components/QueueDisplayPinForm'
 import { PracticeInfoForm } from '@/components/PracticeInfoForm'
 import { EhrConnectionsForm } from '@/components/EhrConnectionsForm'
 import { ProviderProfilesPanel } from '@/components/settings/ProviderProfilesPanel'
@@ -65,6 +66,12 @@ export default async function SettingsPage() {
     </section>
   )
 
+  const queueDisplayTab = (
+    <section className={SECTION}>
+      <QueueDisplayPinForm isAdmin={isAdmin} configured={settings.queueDisplayPinConfigured} />
+    </section>
+  )
+
   const providersTab = (
     <section className={SECTION}>
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Provider roster</h2>
@@ -117,6 +124,7 @@ export default async function SettingsPage() {
         { id: 'practice', label: <><Building2 className="h-4 w-4" aria-hidden="true" />Practice</>, content: practiceTab },
         { id: 'ehr', label: <><Plug className="h-4 w-4" aria-hidden="true" />EHR Connections</>, content: ehrTab },
         { id: 'classification', label: <><SlidersHorizontal className="h-4 w-4" aria-hidden="true" />Classification</>, content: classificationTab },
+        { id: 'queue-display', label: <><Monitor className="h-4 w-4" aria-hidden="true" />Queue Display</>, content: queueDisplayTab },
         { id: 'providers', label: <><Users className="h-4 w-4" aria-hidden="true" />Providers</>, content: providersTab },
         { id: 'staff', label: <><IdCard className="h-4 w-4" aria-hidden="true" />Staff</>, content: staffTab },
         { id: 'account', label: <><UserCircle2 className="h-4 w-4" aria-hidden="true" />Account</>, content: accountTab },

@@ -118,6 +118,31 @@ describe('POST /api/front-desk/check-in', () => {
     const res = await POST(req as never)
     expect(res.status).toBe(403)
   })
+
+  it('returns a positive integer queueTicketNumber on the created assignment', async () => {
+    const providers = await listActiveProviders()
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'outpatient', urgency: 'routine', reason: 'Follow-up', providerId: providers[0].id }) })
+    const res = await POST(req as never)
+    const body = await res.json()
+    createdAssignmentIds.push(body.id)
+    expect(Number.isInteger(body.queueTicketNumber)).toBe(true)
+    expect(body.queueTicketNumber).toBeGreaterThan(0)
+  })
+
+  it('gives two sequential real check-ins distinct sequential ticket numbers', async () => {
+    const providers = await listActiveProviders()
+    const req1 = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'outpatient', urgency: 'routine', reason: 'Follow-up', providerId: providers[0].id }) })
+    const res1 = await POST(req1 as never)
+    const body1 = await res1.json()
+    createdAssignmentIds.push(body1.id)
+
+    const req2 = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'outpatient', urgency: 'routine', reason: 'Follow-up', providerId: providers[0].id }) })
+    const res2 = await POST(req2 as never)
+    const body2 = await res2.json()
+    createdAssignmentIds.push(body2.id)
+
+    expect(body2.queueTicketNumber).toBe(body1.queueTicketNumber + 1)
+  })
 })
 
 describe('POST /api/front-desk/check-in — admissions', () => {

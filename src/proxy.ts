@@ -33,4 +33,13 @@ export async function proxy(request: NextRequest) {
 // the call. Deliberately scoped to /telemedicine/join only (not all of
 // /telemedicine): the provider call screen at /telemedicine/[sessionId] is
 // staff-session-gated on purpose and must keep redirecting to /login.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|telemedicine/join).*)'] }
+// display/queue is excluded because it's the lobby queue screen (spec §3):
+// a TV with no staff logged in, gated instead by its own PIN check against
+// appSettings.queueDisplayPin (see src/app/api/queue-display/route.ts) --
+// without this exclusion every request from that unattended screen would
+// get redirected to /login before ever reaching the PIN gate. Scoped to
+// the exact `display/queue` path segment (not a bare `display` prefix) so
+// this exclusion can never over-match a future unrelated `/display-*`
+// route -- there is exactly one route under /display today and none other
+// planned, so this costs nothing to tighten now.
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|telemedicine/join|display/queue).*)'] }
