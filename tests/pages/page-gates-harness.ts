@@ -77,4 +77,30 @@ export const PAGE_GATES: PageGateCase[] = [
   { route: '/workbook', load: () => import('@/app/(dashboard)/workbook/page'), allowed: ['admin', 'crc'] },
   // LeftNav.tsx:34 — { href: '/identity-matching', roles: ['admin', 'crc'] }
   { route: '/identity-matching', load: () => import('@/app/(dashboard)/identity-matching/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:98 — showBilling
+  { route: '/billing/charges', load: () => import('@/app/(dashboard)/billing/charges/page'), allowed: ['admin', 'crc', 'frontdesk'] },
+  // LeftNav.tsx:98 — showBilling
+  {
+    route: '/billing/charges/[chargeId]',
+    load: () => import('@/app/(dashboard)/billing/charges/[chargeId]/page'),
+    props: { params: Promise.resolve({ chargeId: '1' }) },
+    allowed: ['admin', 'crc', 'frontdesk'],
+  },
+  // LeftNav.tsx:98 — showBilling
+  { route: '/billing/insurance-collections', load: () => import('@/app/(dashboard)/billing/insurance-collections/page'), allowed: ['admin', 'crc', 'frontdesk'] },
+  // LeftNav.tsx:98 — showBilling
+  { route: '/billing/patient-collections', load: () => import('@/app/(dashboard)/billing/patient-collections/page'), allowed: ['admin', 'crc', 'frontdesk'] },
+  // LeftNav.tsx:98 — showBilling
+  { route: '/billing/statements', load: () => import('@/app/(dashboard)/billing/statements/page'), allowed: ['admin', 'crc', 'frontdesk'] },
+  // LeftNav.tsx:98 — showBilling
+  { route: '/billing/ar-dashboard', load: () => import('@/app/(dashboard)/billing/ar-dashboard/page'), allowed: ['admin', 'crc', 'frontdesk'] },
+  // LeftNav.tsx:98 — showBilling
+  { route: '/billing/analytics', load: () => import('@/app/(dashboard)/billing/analytics/page'), allowed: ['admin', 'crc', 'frontdesk'] },
+  // LeftNav.tsx:98 — showBilling
+  {
+    route: '/billing/pay',
+    load: () => import('@/app/(dashboard)/billing/pay/page'),
+    props: { searchParams: Promise.resolve({}) },
+    allowed: ['admin', 'crc', 'frontdesk'],
+  },
 ]

@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -18,6 +18,9 @@ const STATUS_DOT: Record<ChargeStatus, string> = {
 export default async function ChargeCaptureDetailPage({ params }: { params: Promise<{ chargeId: string }> }) {
   // Must be the first statement — see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
+  // LeftNav.tsx:98 — the Billing group is rendered for admin/crc/frontdesk
+  // only. Must precede notFound() below, not follow it.
+  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) redirect('/')
 
   const { chargeId } = await params
   const charge = await getCharge(Number(chargeId))

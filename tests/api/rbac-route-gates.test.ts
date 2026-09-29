@@ -35,6 +35,7 @@ import { GET as getWorkbookExport } from '@/app/api/workbook/export/route'
 import { GET as listIdentityMatches } from '@/app/api/identity-matches/route'
 import { POST as confirmIdentityMatch } from '@/app/api/identity-matches/[id]/confirm/route'
 import { POST as rejectIdentityMatch } from '@/app/api/identity-matches/[id]/reject/route'
+import { POST as postMockPayment } from '@/app/api/mock-payments/route'
 
 describe('GET /api/workbook/full', () => {
   it('403s pi and frontdesk', async () => {
@@ -150,5 +151,32 @@ describe('POST /api/identity-matches/[id]/reject', () => {
       { params: Promise.resolve({ id: '999999' }) }
     )
     expect(res.status).toBe(404)
+  })
+})
+
+describe('POST /api/mock-payments', () => {
+  it('403s pi', async () => {
+    for (const role of deniedFor(['admin', 'crc', 'frontdesk'])) {
+      sessionRole = role
+      const res = await postMockPayment(
+        new NextRequest('http://localhost/api/mock-payments', { method: 'POST', body: JSON.stringify({}) })
+      )
+      expect(res.status, `role ${role}`).toBe(403)
+    }
+  })
+
+  // An intentionally invalid (empty) body so an allowed role's response
+  // proves it: the gate must let admin/crc/frontdesk through to the route's
+  // own Zod validation, which then 400s on the missing fields -- never
+  // recording a payment. Anything other than 403 here shows the gate didn't
+  // block them; the 400 itself is the route's own concern, not this test's.
+  it('does not 403 admin, crc, or frontdesk', async () => {
+    for (const role of ['admin', 'crc', 'frontdesk'] as const) {
+      sessionRole = role
+      const res = await postMockPayment(
+        new NextRequest('http://localhost/api/mock-payments', { method: 'POST', body: JSON.stringify({}) })
+      )
+      expect(res.status, `role ${role}`).not.toBe(403)
+    }
   })
 })
