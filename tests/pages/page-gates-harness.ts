@@ -117,8 +117,11 @@ export const PAGE_GATES: PageGateCase[] = [
   { route: '/reports/encounters/all', load: () => import('@/app/(dashboard)/reports/encounters/all/page'), allowed: ['admin', 'crc'] },
   // LeftNav.tsx:60 — { href: '/reports', roles: ['admin', 'crc'] }
   { route: '/reports/notes/unsigned', load: () => import('@/app/(dashboard)/reports/notes/unsigned/page'), allowed: ['admin', 'crc'] },
-  // LeftNav.tsx:61 — { href: '/documents', roles: ['admin', 'crc'] }
-  { route: '/documents', load: () => import('@/app/(dashboard)/documents/page'), allowed: ['admin', 'crc'] },
+  // No row for (dashboard)/documents/page.tsx: the document-assignment plan
+  // (spec §7, its Task 4 already committed and live-verified) deliberately
+  // keeps /documents open to all 4 roles, so this page has no gate to test.
+  // LeftNav.tsx:61 nav-hides it from pi/frontdesk, but that's nav rendering,
+  // not enforcement -- there is intentionally no server-side check here.
   // LeftNav.tsx:61 — { href: '/documents', roles: ['admin', 'crc'] }
   { route: '/documents/fax-history', load: () => import('@/app/(dashboard)/documents/fax-history/page'), allowed: ['admin', 'crc'] },
   // LeftNav.tsx:64 — { href: '/pipeline-dashboard', roles: ['admin', 'crc'] }
