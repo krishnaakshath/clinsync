@@ -34,6 +34,7 @@ export interface DashboardPageProps {
   // fetches listExpiringOrExpiredCredentials() once and hands it only to
   // AdminDashboard, per this task's brief (Task 4 §Step 2/3).
   expiringCredentials?: ExpiringCredential[]
+  canStartTelemedicine: boolean
 }
 
 const FORM_STATUS_STYLE: Record<string, string> = {
@@ -87,7 +88,7 @@ function formatExpiryPhrase(daysUntilExpiry: number): string {
   return `expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}`
 }
 
-export function AdminDashboard({ session, data, templates, patients, appointmentsInRange, staffByRole, expiringCredentials = [] }: DashboardPageProps) {
+export function AdminDashboard({ session, data, templates, patients, appointmentsInRange, staffByRole, expiringCredentials = [], canStartTelemedicine }: DashboardPageProps) {
   const screenedCount = data.screeningBreakdown.green + data.screeningBreakdown.yellow + data.screeningBreakdown.red
   const unscreenedCount = Math.max(patients.length - screenedCount, 0)
   const screenedPct = patients.length > 0 ? Math.round((screenedCount / patients.length) * 100) : 0
@@ -163,7 +164,7 @@ export function AdminDashboard({ session, data, templates, patients, appointment
             narrower type. The page.tsx caller always sources this array from
             listAppointmentsInRange(), whose rows are already real
             AppointmentStatus values, so this narrowing is safe. */}
-        <DashboardAppointmentsTable appointments={appointmentsInRange as DashboardAppointmentRow[]} />
+        <DashboardAppointmentsTable appointments={appointmentsInRange as DashboardAppointmentRow[]} canStartTelemedicine={canStartTelemedicine} />
       </section>
 
       <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">

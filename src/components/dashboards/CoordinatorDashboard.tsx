@@ -45,7 +45,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
 }
 
-export function CoordinatorDashboard({ session, data, templates, patients, appointmentsInRange }: DashboardPageProps) {
+export function CoordinatorDashboard({ session, data, templates, patients, appointmentsInRange, canStartTelemedicine }: DashboardPageProps) {
   const screenedCount = data.screeningBreakdown.green + data.screeningBreakdown.yellow + data.screeningBreakdown.red
   const unscreenedCount = Math.max(patients.length - screenedCount, 0)
   const screenedPct = patients.length > 0 ? Math.round((screenedCount / patients.length) * 100) : 0
@@ -163,7 +163,7 @@ export function CoordinatorDashboard({ session, data, templates, patients, appoi
             narrower type. The page.tsx caller always sources this array from
             listAppointmentsInRange(), whose rows are already real
             AppointmentStatus values, so this narrowing is safe. */}
-        <DashboardAppointmentsTable appointments={appointmentsInRange as DashboardAppointmentRow[]} />
+        <DashboardAppointmentsTable appointments={appointmentsInRange as DashboardAppointmentRow[]} canStartTelemedicine={canStartTelemedicine} />
       </section>
 
       {/* Stats and charts, secondary to the queues above. */}

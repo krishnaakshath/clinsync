@@ -24,4 +24,13 @@ export async function proxy(request: NextRequest) {
 // referenced directly by <img> tags on unauthenticated pages (both login
 // screens, the intake portal) -- without this exclusion those requests hit
 // this same staff-session gate and redirect to /login, breaking the image.
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal).*)'] }
+// telemedicine/join is excluded the same way intake and patient-portal are:
+// it's the patient-facing video-visit join page, gated by its own
+// single-use join token (see src/app/telemedicine/join/[token]/page.tsx),
+// not a staff session. Found and fixed during this task's real-dev-server
+// verification -- without this exclusion, a real patient clicking their
+// join link would be bounced to the staff /login page instead of reaching
+// the call. Deliberately scoped to /telemedicine/join only (not all of
+// /telemedicine): the provider call screen at /telemedicine/[sessionId] is
+// staff-session-gated on purpose and must keep redirecting to /login.
+export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|branding|intake|patient-portal|telemedicine/join).*)'] }

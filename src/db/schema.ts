@@ -460,6 +460,33 @@ export const appointments = pgTable('appointments', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+export const telemedicineSessionStatusEnum = pgEnum('telemedicine_session_status', [
+  'scheduled', 'waiting', 'in_progress', 'completed', 'failed',
+])
+
+export const telemedicineSessions = pgTable('telemedicine_sessions', {
+  id: serial('id').primaryKey(),
+  appointmentId: integer('appointment_id').notNull().references(() => appointments.id).unique(),
+  patientJoinToken: text('patient_join_token').notNull().unique(),
+  status: telemedicineSessionStatusEnum('status').default('scheduled').notNull(),
+  providerJoinedAt: timestamp('provider_joined_at'),
+  patientJoinedAt: timestamp('patient_joined_at'),
+  endedAt: timestamp('ended_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const telemedicineSignalTypeEnum = pgEnum('telemedicine_signal_type', ['offer', 'answer', 'ice_candidate'])
+export const telemedicineSignalSenderEnum = pgEnum('telemedicine_signal_sender', ['provider', 'patient'])
+
+export const telemedicineSignals = pgTable('telemedicine_signals', {
+  id: serial('id').primaryKey(),
+  sessionId: integer('session_id').notNull().references(() => telemedicineSessions.id),
+  sender: telemedicineSignalSenderEnum('sender').notNull(),
+  signalType: telemedicineSignalTypeEnum('signal_type').notNull(),
+  payload: jsonb('payload').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 export const roomStatusEnum = pgEnum('room_status', ['available', 'occupied', 'dirty', 'blocked'])
 
 export const rooms = pgTable('rooms', {

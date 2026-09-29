@@ -56,6 +56,12 @@ export default async function DashboardHomePage() {
       visitReason: a.visitReason, status: a.status, startsAt: a.startsAt.toString(),
     })),
     staffByRole,
+    // spec §6's role table: only admin/pi may start a telemedicine session
+    // for an appointment -- this page only ever renders AdminDashboard or
+    // CoordinatorDashboard (crc), so `admin` is the only role that reaches
+    // here with this true, but the check is written against the full
+    // allow-list to match the API route's own role gate exactly.
+    canStartTelemedicine: (['admin', 'pi'] as string[]).includes(session.role),
   }
 
   return session.role === 'admin'

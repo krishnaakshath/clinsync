@@ -26,6 +26,7 @@ const baseProps: DashboardPageProps = {
   patients: [{ id: 'RD-0001', nameTebra: 'Jane Doe', nameIntakeq: 'Jane Doe' }],
   appointmentsInRange: [],
   staffByRole: [{ role: 'admin', count: 1 }, { role: 'pi', count: 2 }, { role: 'crc', count: 3 }],
+  canStartTelemedicine: true,
 }
 
 describe('AdminDashboard', () => {

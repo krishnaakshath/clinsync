@@ -5,9 +5,11 @@ import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listActiveProviders } from '@/lib/queries/providers'
 import { listPendingAssignmentsForProvider } from '@/lib/queries/doctor-assignments'
+import { listAppointmentsInRange } from '@/lib/queries/appointments'
 import { PatientsTable } from '@/components/PatientsTable'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { AssignmentScheduleModalTrigger } from '@/components/AssignmentScheduleModal'
+import { DashboardAppointmentsTable, type DashboardAppointmentRow } from '@/components/DashboardAppointmentsTable'
 
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
@@ -52,6 +54,21 @@ export default async function DoctorPortalPage() {
   const providerMatch = providers.find((p) => p.name.toLowerCase().includes(lastName.toLowerCase()))
   const pendingAssignments = providerMatch ? await listPendingAssignmentsForProvider(providerMatch.id) : []
 
+  // Spec §6: `pi` is an allowed role to start a telemedicine session, but
+  // (until this fix) had no UI entry point -- DashboardAppointmentsTable's
+  // canStartTelemedicine action was only reachable via AdminDashboard /
+  // CoordinatorDashboard. listAppointmentsInRange's `providerIds` filter
+  // (same query AdminDashboard/CoordinatorDashboard use, scoped here to
+  // just this pi's own matched provider row) does the ownership scoping at
+  // the query level: if providerMatch didn't resolve, pass `[]` so nothing
+  // renders rather than silently falling back to "all providers." Every row
+  // returned already belongs to this pi, so canStartTelemedicine can be
+  // unconditionally true -- there is no cross-provider row to gate per-row.
+  const now = new Date()
+  const rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const rangeEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const myAppointments = await listAppointmentsInRange(rangeStart, rangeEnd, providerMatch ? [providerMatch.id] : [])
+
   await logAudit(session, 'viewed My Patients (doctor portal)', null)
 
   const meetsCount = myPatients.filter((p) => p.overallStatus === 'green').length
@@ -91,6 +108,17 @@ export default async function DoctorPortalPage() {
           </ul>
         </div>
       )}
+
+      <div className="mb-6 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">My Appointments</h2>
+        <DashboardAppointmentsTable
+          appointments={myAppointments.map((a) => ({
+            id: a.id, patientId: a.patientId, patientName: a.patientName, providerName: a.providerName,
+            visitReason: a.visitReason, status: a.status, startsAt: a.startsAt.toString(),
+          })) as DashboardAppointmentRow[]}
+          canStartTelemedicine
+        />
+      </div>
 
       {/* Project down to only what PatientsTable renders -- see the same
           comment in patients/page.tsx. */}
