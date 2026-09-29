@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { EnterLabResultModal } from '@/components/EnterLabResultModal'
+import { AttachImagingModal } from '@/components/AttachImagingModal'
+import { ImagingAttachmentStrip, type AttachmentView } from '@/components/ImagingAttachmentStrip'
 import type { Role } from '@/lib/auth'
 
 export interface WorklistOrder {
@@ -19,6 +21,8 @@ export interface WorklistOrder {
   testId: number
   testName: string
   testCode: string
+  category: 'lab' | 'imaging'
+  attachments: AttachmentView[]
   orderedByProviderId: number
   orderedByProviderName: string
 }
@@ -61,11 +65,13 @@ function LabRow({
   showActions,
   canCollect,
   canResultOrCancel,
+  canAttachImaging,
   busyId,
   rowError,
   cancelFor,
   onMarkCollected,
   onOpenResult,
+  onOpenAttach,
   onStartCancel,
   onCancelReasonChange,
   onCancelBack,
@@ -75,11 +81,13 @@ function LabRow({
   showActions: boolean
   canCollect: boolean
   canResultOrCancel: boolean
+  canAttachImaging: boolean
   busyId: number | null
   rowError: RowError | null
   cancelFor: CancelDraft | null
   onMarkCollected: (id: number) => void
   onOpenResult: (order: WorklistOrder) => void
+  onOpenAttach: (order: WorklistOrder) => void
   onStartCancel: (id: number) => void
   onCancelReasonChange: (reason: string) => void
   onCancelBack: () => void
@@ -109,8 +117,12 @@ function LabRow({
           {showActions && (o.status === 'ordered' || o.status === 'collected') && canResultOrCancel && (
             <Button size="xs" variant="destructive" onClick={() => onStartCancel(o.id)} disabled={busyId === o.id}>Cancel</Button>
           )}
+          {showActions && o.category === 'imaging' && o.status !== 'cancelled' && canAttachImaging && (
+            <Button size="xs" variant="outline" onClick={() => onOpenAttach(o)} disabled={busyId === o.id}>Attach image</Button>
+          )}
         </div>
       </div>
+      <ImagingAttachmentStrip attachments={o.attachments} />
       {cancelFor?.id === o.id && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <input
@@ -135,11 +147,17 @@ export function LabWorklist({ orders, labTests, role }: { orders: WorklistOrder[
   const [rowError, setRowError] = useState<RowError | null>(null)
   const [cancelFor, setCancelFor] = useState<CancelDraft | null>(null)
   const [resultFor, setResultFor] = useState<WorklistOrder | null>(null)
+  const [attachFor, setAttachFor] = useState<WorklistOrder | null>(null)
 
   // Mark collected: admin/pi/frontdesk (spec §8 -- logistics, not a clinical
   // judgment). Enter result / cancel: admin/pi only.
   const canCollect = ['admin', 'pi', 'frontdesk'].includes(role)
   const canResultOrCancel = ['admin', 'pi'].includes(role)
+  // Same admin/pi tier as canResultOrCancel (the enterResult tier, per POST
+  // /api/lab-orders/[id]/imaging's own gate) -- NOT the generic-documents
+  // tier (admin/crc/frontdesk), since attaching imaging to an order is a
+  // clinical act on the lab lifecycle, not generic document filing.
+  const canAttachImaging = ['admin', 'pi'].includes(role)
 
   const ordered = orders.filter((o) => o.status === 'ordered')
   const collected = orders.filter((o) => o.status === 'collected')
@@ -179,11 +197,13 @@ export function LabWorklist({ orders, labTests, role }: { orders: WorklistOrder[
   const rowProps = {
     canCollect,
     canResultOrCancel,
+    canAttachImaging,
     busyId,
     rowError,
     cancelFor,
     onMarkCollected: markCollected,
     onOpenResult: setResultFor,
+    onOpenAttach: setAttachFor,
     onStartCancel: (id: number) => setCancelFor({ id, reason: '' }),
     onCancelReasonChange: (reason: string) => setCancelFor((prev) => (prev ? { ...prev, reason } : prev)),
     onCancelBack: () => setCancelFor(null),
@@ -229,6 +249,14 @@ export function LabWorklist({ orders, labTests, role }: { orders: WorklistOrder[
           defaultUnit={testDefaults(resultFor.testId)?.defaultUnit ?? null}
           defaultReferenceRange={testDefaults(resultFor.testId)?.referenceRange ?? null}
           onClose={() => setResultFor(null)}
+        />
+      )}
+
+      {attachFor && (
+        <AttachImagingModal
+          orderId={attachFor.id}
+          testName={attachFor.testName}
+          onClose={() => setAttachFor(null)}
         />
       )}
     </div>
