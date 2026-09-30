@@ -425,7 +425,18 @@ export const appointments = pgTable('appointments', {
 })
 
 export const documentStatusEnum = pgEnum('document_status', ['new', 'processed'])
-export const documentLabelEnum = pgEnum('document_label', ['other', 'drivers_license', 'legal_document'])
+// Was 'document_label' with 3 values -- the hims-platform branch renamed this
+// column to document_type and extended it with insurance/imaging categories
+// as part of a real feature, and that's what's live on the DB both branches
+// share. Mirroring the rename (not re-adding the old column) so master reads
+// what's actually there; master's own UI only ever uses the original 3
+// values, which remain a subset of this enum.
+export const documentTypeEnum = pgEnum('document_type', [
+  'other', 'drivers_license', 'legal_document',
+  'insurance_card_primary_front', 'insurance_card_primary_back',
+  'insurance_card_secondary_front', 'insurance_card_secondary_back',
+  'insurance_eob', 'insurance_authorization', 'imaging_result',
+])
 export const faxDeliveryStatusEnum = pgEnum('fax_delivery_status', ['delivered', 'failed'])
 
 export const documents = pgTable('documents', {
@@ -434,7 +445,7 @@ export const documents = pgTable('documents', {
   documentDate: date('document_date').notNull(),
   status: documentStatusEnum('status').default('new').notNull(),
   receivedFrom: text('received_from').notNull(),
-  label: documentLabelEnum('label').default('other').notNull(),
+  documentType: documentTypeEnum('document_type').default('other').notNull(),
   patientId: text('patient_id').references(() => patients.id),
   fileType: text('file_type').notNull(), // metadata only, e.g. "PDF" / "JPG" -- no file is ever stored
   createdAt: timestamp('created_at').defaultNow().notNull(),
