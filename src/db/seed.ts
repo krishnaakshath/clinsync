@@ -252,8 +252,10 @@ async function seedFillerPatients() {
       tebraPatientIdRef: i % 5 === 4 ? null : `enc-tb-${id}`, // a few unmatched-to-Tebra, like the hero roster's Linda Cho
       nameIntakeq: FILLER_NAMES[i],
       nameTebra: i % 5 === 4 ? null : FILLER_NAMES[i],
+      name: FILLER_NAMES[i],
       dobIntakeq: `${birthYear}-${birthMonth}-${birthDay}`,
       dobTebra: i % 5 === 4 ? null : `${birthYear}-${birthMonth}-${birthDay}`,
+      dob: `${birthYear}-${birthMonth}-${birthDay}`,
       cityIntakeq: location.city,
       zipIntakeq: location.zip,
       // RD-0007 (i === 0) is deliberately left with no phone number at all --
@@ -612,8 +614,10 @@ export async function seed() {
       tebraPatientIdRef: p.nameTebra ? `enc-tb-${p.id}` : null,
       nameIntakeq: p.nameIntakeq,
       nameTebra: p.nameTebra,
+      name: p.nameIntakeq,
       dobIntakeq: p.dobIntakeq,
       dobTebra: p.dobTebra,
+      dob: p.dobIntakeq,
       cityIntakeq: p.city,
       zipIntakeq: p.zip,
       phoneIntakeq: p.phone,

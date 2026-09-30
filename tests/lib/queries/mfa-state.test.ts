@@ -33,7 +33,7 @@ beforeAll(async () => {
   const [row] = await getDb().insert(users).values({ name: 'MFA Test User', email: TEST_USER_EMAIL, role: 'crc', passwordHash: hashPassword('irrelevant') }).returning()
   testUserId = row.id
   await getDb().insert(patients).values({
-    id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'MFA Test Patient', dobIntakeq: '1990-01-01',
+    id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'MFA Test Patient', name: 'MFA Test Patient', dobIntakeq: '1990-01-01', dob: '1990-01-01',
   })
 })
 

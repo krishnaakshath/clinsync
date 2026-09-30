@@ -100,7 +100,7 @@ function enrollReq(sessionCookieValue: string) {
 }
 
 beforeAll(async () => {
-  await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Account MFA Test Patient', dobIntakeq: '1990-01-01' })
+  await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Account MFA Test Patient', name: 'Account MFA Test Patient', dobIntakeq: '1990-01-01', dob: '1990-01-01' })
   await setPatientPortalPassword(TEST_PATIENT_ID, TEST_PASSWORD)
 })
 

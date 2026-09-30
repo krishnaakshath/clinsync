@@ -89,6 +89,18 @@ export const patients = pgTable('patients', {
   chartDataAsOf: timestamp('chart_data_as_of').defaultNow().notNull(),
   mfaSecretEncrypted: text('mfa_secret_encrypted'),
   mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
+  // Unified single-sourced fields -- added on the shared database by the
+  // hims-platform lineage's later data-model rewrite (that branch replaced
+  // the whole dual-source reconciliation model with these). Master's own
+  // code still uses the dual-sourced columns above as its real model, but
+  // every insert must also populate these two (NOT NULL on the actual
+  // table) or the write fails against the shared database.
+  name: text('name').notNull(),
+  dob: date('dob').notNull(),
+  city: text('city'),
+  zip: text('zip'),
+  phone: text('phone'),
+  email: text('email'),
 })
 
 export const diagnoses = pgTable('diagnoses', {
