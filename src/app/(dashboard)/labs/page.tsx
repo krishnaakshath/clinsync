@@ -15,7 +15,24 @@ export default async function LabsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-foreground">Labs</h1>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Labs</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Manage internal collections and external reference lab results.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-end">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">LIS Integration</span>
+            <span className="flex items-center gap-1.5 text-xs text-success">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-success"></span>
+              </span>
+              Connected (HL7 / FHIR)
+            </span>
+          </div>
+        </div>
+      </div>
       <LabWorklist orders={orders} labTests={labTests} role={session.role} />
     </div>
   )
