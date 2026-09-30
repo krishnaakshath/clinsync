@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Users, CheckCircle2, AlertTriangle, XCircle, FlaskConical, FileSignature, Pill, ClipboardList, Clock } from 'lucide-react'
+import { Clock, AlertCircle, Activity, Search, Filter } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { resolveSessionProvider } from '@/lib/provider-identity'
 import { logAudit } from '@/lib/audit'
@@ -10,50 +10,16 @@ import { listPendingAssignmentsForProvider } from '@/lib/queries/doctor-assignme
 import { listAppointmentsInRange } from '@/lib/queries/appointments'
 import { listWorklist } from '@/lib/queries/lab-orders'
 import { listFormSubmissions } from '@/lib/queries/form-submissions'
-import { PatientAvatar } from '@/components/PatientAvatar'
 import { AssignmentScheduleModalTrigger } from '@/components/AssignmentScheduleModal'
 import { DashboardAppointmentsTable, type DashboardAppointmentRow } from '@/components/DashboardAppointmentsTable'
 import { PatientsTable } from '@/components/PatientsTable'
 
-const SECTION = 'mb-6 overflow-hidden rounded-md border border-border bg-card'
-const SECTION_HEADER = 'flex items-center justify-between border-b border-border px-5 py-3'
-const SECTION_TITLE = 'text-sm font-semibold text-foreground'
-const SECTION_BODY = 'p-5'
-
-const TILE_COLOR: Record<string, string> = {
-  primary: 'bg-primary/10 text-primary',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
-  destructive: 'bg-destructive/10 text-destructive',
-}
-
-function StatTile({ icon: Icon, value, label, color }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string; color: keyof typeof TILE_COLOR }) {
-  return (
-    <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TILE_COLOR[color]}`} aria-hidden="true">
-        <Icon className="h-4.5 w-4.5" />
-      </span>
-      <div>
-        <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  )
-}
-
-const URGENCY_BADGE: Record<string, string> = {
-  emergency: 'bg-destructive/10 text-destructive',
-  urgent: 'bg-warning/10 text-warning',
-  routine: 'bg-muted text-muted-foreground',
-}
-
+// Enterprise EMR dense layout
 export default async function DoctorPortalPage() {
-  // Must be the first statement — see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
   if (session.role !== 'pi') redirect('/')
 
   const patients = await listPatientsWithStatus(null)
-  // Match on last name for backward compat with free-text currentProvider field in seed
   const lastName = session.name.trim().split(/\s+/).pop() ?? session.name
   const myPatients = patients.filter((p) => (p.currentProvider ?? '').toLowerCase().includes(lastName.toLowerCase()))
 
@@ -73,203 +39,209 @@ export default async function DoctorPortalPage() {
     return d >= todayStart && d < todayEnd
   })
 
-  // Lab reports pending review — scoped to this provider's patients
+  // Lab reports pending review
   const labWorklist = await listWorklist()
   const myPatientIds = new Set(myPatients.map((p) => p.id))
   const pendingLabs = labWorklist.filter((l) => myPatientIds.has(l.patientId) && l.status === 'ordered')
 
-  // Client forms submitted and completed — for clinical verification
+  // Client forms
   const completedForms = await listFormSubmissions({ status: 'completed' })
   const myForms = completedForms.filter((f) => myPatientIds.has(f.patientId)).slice(0, 10)
 
   await logAudit(session, 'viewed My Patients (doctor portal)', null)
 
-  const meetsCount = myPatients.filter((p) => p.overallStatus === 'green').length
-  const needsVerificationCount = myPatients.filter((p) => !p.overallStatus || p.overallStatus === 'yellow').length
-  const exclusionCount = myPatients.filter((p) => p.overallStatus === 'red').length
+  const highAcuityCount = pendingLabs.length + pendingAssignments.filter(a => a.urgency === 'urgent' || a.urgency === 'emergency').length
+  const initials = session.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-6 flex items-center gap-4 border-b border-border pb-5">
-        <PatientAvatar name={session.name} size="lg" />
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Doctor Portal</h1>
-          <p className="text-sm text-muted-foreground">Welcome back, {session.name}</p>
+    <div className="flex flex-col gap-6">
+      {/* Top EMR Header Bar */}
+      <div className="flex items-center justify-between rounded-lg border border-border bg-card px-6 py-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="text-lg font-bold">{initials}</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Dr. {lastName}, MD</h1>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success"></span> On Shift</span>
+              <span>•</span>
+              <span>Principal Investigator</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-6">
+          <div className="flex flex-col items-end border-r border-border pr-6">
+            <span className="text-2xl font-bold tabular-nums text-foreground">{myPatients.length}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total Panel</span>
+          </div>
+          <div className="flex flex-col items-end border-r border-border pr-6">
+            <span className="text-2xl font-bold tabular-nums text-foreground">{todaysCheckups.length}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today's Visits</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className={`text-2xl font-bold tabular-nums ${highAcuityCount > 0 ? 'text-destructive' : 'text-foreground'}`}>{highAcuityCount}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Action Needed</span>
+          </div>
         </div>
       </div>
 
-      {/* KPI Row */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile icon={Users} value={myPatients.length} label="Assigned patients" color="primary" />
-        <StatTile icon={CheckCircle2} value={meetsCount} label="Meets criteria" color="success" />
-        <StatTile icon={AlertTriangle} value={needsVerificationCount} label="Needs review" color="warning" />
-        <StatTile icon={XCircle} value={exclusionCount} label="Excluded" color="destructive" />
-      </div>
-
-      {/* Two-column layout for today's work */}
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Today's Checkups */}
-        <div className={SECTION}>
-          <div className={SECTION_HEADER}>
-            <span className={SECTION_TITLE}>Today&apos;s Checkups</span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{todaysCheckups.length}</span>
+      {/* Main EMR Grid - 3 Columns for high density */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        
+        {/* LEFT COLUMN: Urgent Clinical Action Items (Labs, Forms, Assignments) */}
+        <div className="col-span-1 flex flex-col gap-6 lg:col-span-4">
+          
+          {/* Pending Triage / Assignments */}
+          <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-warning" />
+                <h3 className="text-sm font-semibold text-foreground">Triage Queue</h3>
+              </div>
+              <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-bold text-warning-foreground">{pendingAssignments.length}</span>
+            </div>
+            <div className="p-0">
+              {pendingAssignments.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">Queue clear.</div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {pendingAssignments.map((a) => (
+                    <li key={a.id} className="flex flex-col gap-2 p-4 transition-colors hover:bg-muted/20">
+                      <div className="flex items-start justify-between">
+                        <span className="font-medium text-foreground">{a.patientId}</span>
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${a.urgency === 'emergency' ? 'bg-destructive/10 text-destructive' : a.urgency === 'urgent' ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground'}`}>
+                          {a.urgency}
+                        </span>
+                      </div>
+                      <p className="text-xs text-foreground/80">{a.reason}</p>
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{a.visitType}</span>
+                        <AssignmentScheduleModalTrigger assignment={a} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-          {todaysCheckups.length === 0 ? (
-            <p className="p-5 text-sm text-muted-foreground">No checkups scheduled for today.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {todaysCheckups.map((a) => (
-                <li key={a.id} className="flex items-center justify-between px-5 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{a.patientName}</p>
-                    <p className="text-xs text-muted-foreground">{a.visitReason} · {new Date(a.startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                  <Link href={`/patients/${a.patientId}`} className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted">
-                    View
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
 
-        {/* Today's Assignments (Check-ins routing to this doctor) */}
-        <div className={SECTION}>
-          <div className={SECTION_HEADER}>
-            <span className={SECTION_TITLE}>Pending Assignments</span>
-            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">{pendingAssignments.length}</span>
-          </div>
-          {pendingAssignments.length === 0 ? (
-            <p className="p-5 text-sm text-muted-foreground">No pending assignments.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {pendingAssignments.map((a) => (
-                <li key={a.id} className="flex items-center justify-between px-5 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{a.reason}</p>
-                    <p className="text-xs text-muted-foreground">{a.patientId} · {a.visitType}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${URGENCY_BADGE[a.urgency] ?? 'bg-muted text-muted-foreground'}`}>{a.urgency}</span>
-                    <AssignmentScheduleModalTrigger assignment={a} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Lab Reports (pending review) */}
-        <div className={SECTION}>
-          <div className={SECTION_HEADER}>
-            <span className={SECTION_TITLE}>Lab Reports — Pending Review</span>
-            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">{pendingLabs.length}</span>
-          </div>
-          {pendingLabs.length === 0 ? (
-            <p className="p-5 text-sm text-muted-foreground">No pending lab results.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>
-                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Test</th>
-                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+          {/* Pending Lab Results */}
+          <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-destructive" />
+                <h3 className="text-sm font-semibold text-foreground">Lab Reports for Review</h3>
+              </div>
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-bold text-destructive">{pendingLabs.length}</span>
+            </div>
+            <div className="p-0">
+              {pendingLabs.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">No pending labs.</div>
+              ) : (
+                <ul className="divide-y divide-border">
                   {pendingLabs.slice(0, 5).map((l) => (
-                    <tr key={l.id} className="border-b border-border last:border-0">
-                      <td className="p-3 text-foreground">{l.patientId}</td>
-                      <td className="p-3 text-foreground">{l.testName}</td>
-                      <td className="p-3">
-                        <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold capitalize text-warning">{l.status}</span>
-                      </td>
-                    </tr>
+                    <li key={l.id} className="flex flex-col gap-1.5 p-4 transition-colors hover:bg-muted/20">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground">{l.patientName || l.patientId}</span>
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground">{new Date(l.orderedAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{l.testName}</span>
+                        <Link href="/labs" className="rounded bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase text-primary hover:bg-primary/20">Review</Link>
+                      </div>
+                    </li>
                   ))}
-                </tbody>
-              </table>
+                </ul>
+              )}
+              {pendingLabs.length > 5 && (
+                <div className="border-t border-border px-4 py-3 text-center">
+                  <Link href="/labs" className="text-xs font-medium text-primary hover:underline">View all {pendingLabs.length} pending labs</Link>
+                </div>
+              )}
             </div>
-          )}
-          {pendingLabs.length > 5 && (
-            <div className="border-t border-border px-5 py-3">
-              <Link href="/labs" className="text-xs font-medium text-primary hover:underline">View all {pendingLabs.length} lab orders →</Link>
-            </div>
-          )}
-        </div>
-
-        {/* Client Forms submitted for clinical verification */}
-        <div className={SECTION}>
-          <div className={SECTION_HEADER}>
-            <span className={SECTION_TITLE}>Client Forms — Submitted</span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{myForms.length}</span>
           </div>
-          {myForms.length === 0 ? (
-            <p className="p-5 text-sm text-muted-foreground">No submitted forms to review.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>
-                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Form</th>
-                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Submitted</th>
-                    <th className="p-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myForms.map((f) => (
-                    <tr key={f.id} className="border-b border-border last:border-0">
-                      <td className="p-3 text-foreground">{f.patientName}</td>
-                      <td className="p-3 text-foreground">{f.templateName}</td>
-                      <td className="p-3 text-muted-foreground">{f.completedDate ? new Date(f.completedDate).toLocaleDateString() : '—'}</td>
-                      <td className="p-3">
-                        <Link href={`/client-forms/${f.id}`} className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted">Review</Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+        </div>
+
+        {/* MIDDLE & RIGHT COLUMNS: Schedule & Patient Panel */}
+        <div className="col-span-1 flex flex-col gap-6 lg:col-span-8">
+          
+          {/* Today's Schedule - Timeline View */}
+          <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                <h3 className="text-base font-semibold text-foreground">Today's Schedule</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
+                  <Filter className="h-3 w-3" /> Filter
+                </button>
+                <Link href="/calendar" className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">
+                  Full Calendar
+                </Link>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
+            
+            <div className="p-0">
+              {todaysCheckups.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">No appointments scheduled for today.</div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {todaysCheckups.map((a) => (
+                    <div key={a.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/10 transition-colors">
+                      <div className="flex w-24 flex-col items-end border-r border-border pr-4">
+                        <span className="text-sm font-bold text-foreground">
+                          {new Date(a.startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{a.status}</span>
+                      </div>
+                      <div className="flex flex-1 flex-col">
+                        <div className="flex items-center justify-between">
+                          <Link href={`/patients/${a.patientId}`} className="text-sm font-bold text-primary hover:underline">
+                            {a.patientName} <span className="text-xs font-normal text-muted-foreground">({a.patientId})</span>
+                          </Link>
+                          {a.status === 'scheduled' && (
+                            <Link href={`/patients/${a.patientId}`} className="rounded bg-success/10 px-2.5 py-1 text-xs font-bold text-success hover:bg-success/20">
+                              Start Encounter
+                            </Link>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-foreground/80">{a.visitReason}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
-      {/* Appointments overview */}
-      <div className={SECTION}>
-        <div className={SECTION_HEADER}>
-          <span className={SECTION_TITLE}>All Appointments</span>
-          <Link href="/calendar" className="text-xs font-medium text-primary hover:underline">View Calendar</Link>
-        </div>
-        <div className={SECTION_BODY}>
-          <DashboardAppointmentsTable
-            appointments={myAppointments.map((a) => ({
-              id: a.id, patientId: a.patientId, patientName: a.patientName, providerName: a.providerName,
-              visitReason: a.visitReason, status: a.status, startsAt: a.startsAt.toString(),
-            })) as DashboardAppointmentRow[]}
-            canStartTelemedicine
-          />
-        </div>
-      </div>
+          {/* Full Patient Panel */}
+          <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h3 className="text-base font-semibold text-foreground">Assigned Patient Panel</h3>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1.5 h-4 w-4 text-muted-foreground" />
+                  <input type="text" placeholder="Search patients..." className="h-8 w-64 rounded-md border border-input bg-transparent pl-9 pr-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary" />
+                </div>
+              </div>
+            </div>
+            <div className="p-0">
+              <PatientsTable patients={myPatients.map((p) => ({
+                id: p.id,
+                overallStatus: p.overallStatus,
+                name: p.name,
+                dob: p.dob,
+                currentProvider: p.currentProvider,
+                referralType: p.referralType,
+                lastCommunication: p.lastCommunication,
+                criteriaSummary: p.criteriaSummary,
+              }))} />
+            </div>
+          </div>
 
-      {/* My Patients full table */}
-      <div className={SECTION}>
-        <div className={SECTION_HEADER}>
-          <span className={SECTION_TITLE}>My Assigned Patients</span>
-          <Link href="/patients" className="text-xs font-medium text-primary hover:underline">View all</Link>
-        </div>
-        <div className={SECTION_BODY}>
-          <PatientsTable patients={myPatients.map((p) => ({
-            id: p.id,
-            overallStatus: p.overallStatus,
-            name: p.name,
-            dob: p.dob,
-            currentProvider: p.currentProvider,
-            referralType: p.referralType,
-            lastCommunication: p.lastCommunication,
-            criteriaSummary: p.criteriaSummary,
-          }))} />
         </div>
       </div>
     </div>
