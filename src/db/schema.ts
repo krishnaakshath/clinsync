@@ -588,7 +588,27 @@ export const encounterNotes = pgTable('encounter_notes', {
   signedAt: timestamp('signed_at'),
 })
 
-export const signableTypeEnum = pgEnum('signable_type', ['form_submission', 'admission_discharge'])
+export const signableTypeEnum = pgEnum('signable_type', ['form_submission', 'admission_discharge', 'policy_acceptance'])
+
+export const policyDocumentTypeEnum = pgEnum('policy_document_type', ['npp', 'tos'])
+
+// The practice's Notice of Privacy Practices and Terms of Service, versioned
+// so a later change never rewrites what an earlier patient actually agreed
+// to. SECURITY/COMPLIANCE: bodyMarkdown below is seeded with clearly-marked
+// DRAFT placeholder text -- it is NOT reviewed legal language and must be
+// replaced by the practice's own attorney/compliance officer before any real
+// patient relies on it. Never treat a draft row as ship-ready compliance
+// copy; see docs/product-review-and-gap-analysis.md's HIPAA gap section.
+export const policyDocuments = pgTable('policy_documents', {
+  id: serial('id').primaryKey(),
+  type: policyDocumentTypeEnum('type').notNull(),
+  version: integer('version').notNull(),
+  title: text('title').notNull(),
+  bodyMarkdown: text('body_markdown').notNull(),
+  isDraft: boolean('is_draft').default(true).notNull(),
+  effectiveDate: date('effective_date').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
 
 // A generic, append-only signature event, keyed by (signableType, signableId)
 // rather than a formSubmissionId/admissionId pair of nullable FKs -- same
@@ -602,6 +622,13 @@ export const signatures = pgTable('signatures', {
   id: serial('id').primaryKey(),
   signableType: signableTypeEnum('signable_type').notNull(),
   signableId: integer('signable_id').notNull(),
+  // Nullable: form_submission/admission_discharge signatures already resolve
+  // their patient by looking up signableId (a formSubmissions/admissions
+  // row, each of which has its own patientId). policy_acceptance's
+  // signableId is a policyDocuments row shared by every patient, so THAT
+  // signable type has no other way to know which patient signed -- this
+  // column exists for it. Set it and every other signable type ignores it.
+  patientId: text('patient_id').references(() => patients.id),
   signerTypedName: text('signer_typed_name').notNull(),
   signerRole: text('signer_role').notNull(), // free text: staff roles (admin/pi/crc/frontdesk) or 'patient' -- form-submission signatures are patient-portal-initiated, not staff
   attestationText: text('attestation_text').notNull(), // the exact attestation sentence shown at signing time, stored verbatim

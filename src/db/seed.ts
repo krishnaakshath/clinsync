@@ -34,6 +34,7 @@ import {
   labTests,
   staffMembers,
   staffCredentials,
+  policyDocuments,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -1243,6 +1244,29 @@ export async function seed() {
       ratingCommunication: 4,
       comments: 'Forms were a bit long but staff followed up quickly.',
       sentBy: 'Jamie Ruiz',
+    },
+  ])
+
+  // SECURITY/COMPLIANCE: draft placeholder text, not reviewed legal
+  // language -- see the isDraft column comment in schema.ts. Every patient
+  // must accept both before reaching (authenticated) portal pages; see
+  // hasAcceptedCurrentPolicies() and the (authenticated) layout's gate.
+  await db.insert(policyDocuments).values([
+    {
+      type: 'npp',
+      version: 1,
+      title: 'Notice of Privacy Practices',
+      bodyMarkdown: '[DRAFT -- NOT REVIEWED BY LEGAL COUNSEL. Replace before any real patient relies on this.]\n\nThis notice describes how medical information about you may be used and disclosed, and how you can access this information. We are required by law to maintain the privacy of your protected health information (PHI). You have the right to inspect and copy your records, request corrections, request restrictions on certain uses, and receive an accounting of disclosures.',
+      isDraft: true,
+      effectiveDate: new Date().toISOString().slice(0, 10),
+    },
+    {
+      type: 'tos',
+      version: 1,
+      title: 'Terms of Service',
+      bodyMarkdown: '[DRAFT -- NOT REVIEWED BY LEGAL COUNSEL. Replace before any real patient relies on this.]\n\nThis portal is not monitored continuously -- if you are experiencing a medical emergency, call 911. Information provided through this portal does not constitute medical advice. You are responsible for keeping your login credentials confidential. Messages are typically reviewed within 1-2 business days. We may suspend or terminate portal access at our discretion.',
+      isDraft: true,
+      effectiveDate: new Date().toISOString().slice(0, 10),
     },
   ])
 }

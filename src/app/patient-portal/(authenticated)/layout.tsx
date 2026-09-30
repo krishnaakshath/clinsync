@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalIdentity } from '@/lib/queries/patient-portal'
+import { hasAcceptedCurrentPolicies } from '@/lib/queries/policy-documents'
 import { PatientPortalSideNav } from '@/components/PatientPortalSideNav'
 import { PatientPortalTopBar } from '@/components/PatientPortalTopBar'
 import { PatientPortalSessionTimeoutWarning } from '@/components/PatientPortalSessionTimeoutWarning'
@@ -11,6 +12,10 @@ import { PatientPortalSessionTimeoutWarning } from '@/components/PatientPortalSe
 // separately-designed one.
 export default async function PatientPortalLayout({ children }: { children: React.ReactNode }) {
   const session = await requirePatientSessionOrRedirect()
+  // HIPAA NPP/ToS acceptance gate -- checked before any chart data renders,
+  // same "check before fetch" discipline requireSessionOrRedirect's own
+  // callers use elsewhere in this app.
+  if (!(await hasAcceptedCurrentPolicies(session.patientId))) redirect('/patient-portal/consent')
   const identity = await getPatientPortalIdentity(session.patientId)
   if (!identity) notFound()
 
