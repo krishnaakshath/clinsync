@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { Users, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
+import Link from 'next/link'
+import { Users, CheckCircle2, AlertTriangle, XCircle, FlaskConical, FileSignature, Pill, ClipboardList, Clock } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { resolveSessionProvider } from '@/lib/provider-identity'
 import { logAudit } from '@/lib/audit'
@@ -7,10 +8,17 @@ import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listActiveProviders } from '@/lib/queries/providers'
 import { listPendingAssignmentsForProvider } from '@/lib/queries/doctor-assignments'
 import { listAppointmentsInRange } from '@/lib/queries/appointments'
-import { PatientsTable } from '@/components/PatientsTable'
+import { listWorklist } from '@/lib/queries/lab-orders'
+import { listFormSubmissions } from '@/lib/queries/form-submissions'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { AssignmentScheduleModalTrigger } from '@/components/AssignmentScheduleModal'
 import { DashboardAppointmentsTable, type DashboardAppointmentRow } from '@/components/DashboardAppointmentsTable'
+import { PatientsTable } from '@/components/PatientsTable'
+
+const SECTION = 'mb-6 overflow-hidden rounded-md border border-border bg-card'
+const SECTION_HEADER = 'flex items-center justify-between border-b border-border px-5 py-3'
+const SECTION_TITLE = 'text-sm font-semibold text-foreground'
+const SECTION_BODY = 'p-5'
 
 const TILE_COLOR: Record<string, string> = {
   primary: 'bg-primary/10 text-primary',
@@ -21,7 +29,7 @@ const TILE_COLOR: Record<string, string> = {
 
 function StatTile({ icon: Icon, value, label, color }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string; color: keyof typeof TILE_COLOR }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4 shadow-none">
+    <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4">
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TILE_COLOR[color]}`} aria-hidden="true">
         <Icon className="h-4.5 w-4.5" />
       </span>
@@ -33,45 +41,46 @@ function StatTile({ icon: Icon, value, label, color }: { icon: React.ComponentTy
   )
 }
 
+const URGENCY_BADGE: Record<string, string> = {
+  emergency: 'bg-destructive/10 text-destructive',
+  urgent: 'bg-warning/10 text-warning',
+  routine: 'bg-muted text-muted-foreground',
+}
+
 export default async function DoctorPortalPage() {
   // Must be the first statement — see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
   if (session.role !== 'pi') redirect('/')
 
   const patients = await listPatientsWithStatus(null)
-  // No real doctor<->patient assignment table exists yet -- currentProvider
-  // is free text (see the Design Decision note in seed.ts), and the seeded
-  // roster spells the same doctor two different ways ("Dr. R. Kunam" vs
-  // "Dr. Rajiv Kunam"). Match on last name so both forms resolve to the
-  // same doctor rather than requiring an exact string match.
+  // Match on last name for backward compat with free-text currentProvider field in seed
   const lastName = session.name.trim().split(/\s+/).pop() ?? session.name
   const myPatients = patients.filter((p) => (p.currentProvider ?? '').toLowerCase().includes(lastName.toLowerCase()))
 
-  // resolveSessionProvider is the real session<->provider-row link (see
-  // provider-identity.ts); the last-name match below is now only a
-  // FALLBACK for when it returns null. This page deliberately fails open on
-  // that fallback rather than closed: it scopes a read-only dashboard
-  // (which providers/assignments to display), not an attribution write, and
-  // three of the five seeded providers have no linked login at all -- so
-  // failing closed here would regress the demo for a display-only concern.
   const resolvedProvider = await resolveSessionProvider(session)
   const providerMatch = resolvedProvider ?? (await listActiveProviders()).find((p) => p.name.toLowerCase().includes(lastName.toLowerCase()))
   const pendingAssignments = providerMatch ? await listPendingAssignmentsForProvider(providerMatch.id) : []
 
-  // Spec §6: `pi` is an allowed role to start a telemedicine session, but
-  // (until this fix) had no UI entry point -- DashboardAppointmentsTable's
-  // canStartTelemedicine action was only reachable via AdminDashboard /
-  // CoordinatorDashboard. listAppointmentsInRange's `providerIds` filter
-  // (same query AdminDashboard/CoordinatorDashboard use, scoped here to
-  // just this pi's own matched provider row) does the ownership scoping at
-  // the query level: if providerMatch didn't resolve, pass `[]` so nothing
-  // renders rather than silently falling back to "all providers." Every row
-  // returned already belongs to this pi, so canStartTelemedicine can be
-  // unconditionally true -- there is no cross-provider row to gate per-row.
   const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
   const rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
   const rangeEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
   const myAppointments = await listAppointmentsInRange(rangeStart, rangeEnd, providerMatch ? [providerMatch.id] : [])
+  const todaysCheckups = myAppointments.filter((a) => {
+    const d = new Date(a.startsAt)
+    return d >= todayStart && d < todayEnd
+  })
+
+  // Lab reports pending review — scoped to this provider's patients
+  const labWorklist = await listWorklist()
+  const myPatientIds = new Set(myPatients.map((p) => p.id))
+  const pendingLabs = labWorklist.filter((l) => myPatientIds.has(l.patientId) && l.status === 'ordered')
+
+  // Client forms submitted and completed — for clinical verification
+  const completedForms = await listFormSubmissions({ status: 'completed' })
+  const myForms = completedForms.filter((f) => myPatientIds.has(f.patientId)).slice(0, 10)
 
   await logAudit(session, 'viewed My Patients (doctor portal)', null)
 
@@ -81,61 +90,188 @@ export default async function DoctorPortalPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-4 rounded-md border border-border bg-card p-5 shadow-none">
+      {/* Header */}
+      <div className="mb-6 flex items-center gap-4 border-b border-border pb-5">
         <PatientAvatar name={session.name} size="lg" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">My Patients</h1>
-          <p className="text-sm text-muted-foreground">Patients currently assigned to you, {session.name}.</p>
+          <h1 className="text-xl font-bold text-foreground">Doctor Portal</h1>
+          <p className="text-sm text-muted-foreground">Welcome back, {session.name}</p>
         </div>
       </div>
 
+      {/* KPI Row */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile icon={Users} value={myPatients.length} label="Total assigned" color="primary" />
-        <StatTile icon={CheckCircle2} value={meetsCount} label="Meets" color="success" />
-        <StatTile icon={AlertTriangle} value={needsVerificationCount} label="Needs verification" color="warning" />
-        <StatTile icon={XCircle} value={exclusionCount} label="Potential exclusion" color="destructive" />
+        <StatTile icon={Users} value={myPatients.length} label="Assigned patients" color="primary" />
+        <StatTile icon={CheckCircle2} value={meetsCount} label="Meets criteria" color="success" />
+        <StatTile icon={AlertTriangle} value={needsVerificationCount} label="Needs review" color="warning" />
+        <StatTile icon={XCircle} value={exclusionCount} label="Excluded" color="destructive" />
       </div>
 
-      {pendingAssignments.length > 0 && (
-        <div className="mb-6 rounded-md border border-border bg-card p-5 shadow-none">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Assigned to you</h2>
-          <ul className="space-y-2">
-            {pendingAssignments.map((a) => (
-              <li key={a.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
-                <div>
-                  <p className="font-medium text-foreground">{a.reason}</p>
-                  <p className="text-xs text-muted-foreground">{a.patientId} · {a.visitType} · {a.urgency}</p>
-                </div>
-                <AssignmentScheduleModalTrigger assignment={a} />
-              </li>
-            ))}
-          </ul>
+      {/* Two-column layout for today's work */}
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Today's Checkups */}
+        <div className={SECTION}>
+          <div className={SECTION_HEADER}>
+            <span className={SECTION_TITLE}>Today&apos;s Checkups</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{todaysCheckups.length}</span>
+          </div>
+          {todaysCheckups.length === 0 ? (
+            <p className="p-5 text-sm text-muted-foreground">No checkups scheduled for today.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {todaysCheckups.map((a) => (
+                <li key={a.id} className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{a.patientName}</p>
+                    <p className="text-xs text-muted-foreground">{a.visitReason} · {new Date(a.startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                  <Link href={`/patients/${a.patientId}`} className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted">
+                    View
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
 
-      <div className="mb-6 rounded-md border border-border bg-card p-5 shadow-none">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">My Appointments</h2>
-        <DashboardAppointmentsTable
-          appointments={myAppointments.map((a) => ({
-            id: a.id, patientId: a.patientId, patientName: a.patientName, providerName: a.providerName,
-            visitReason: a.visitReason, status: a.status, startsAt: a.startsAt.toString(),
-          })) as DashboardAppointmentRow[]}
-          canStartTelemedicine
-        />
+        {/* Today's Assignments (Check-ins routing to this doctor) */}
+        <div className={SECTION}>
+          <div className={SECTION_HEADER}>
+            <span className={SECTION_TITLE}>Pending Assignments</span>
+            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">{pendingAssignments.length}</span>
+          </div>
+          {pendingAssignments.length === 0 ? (
+            <p className="p-5 text-sm text-muted-foreground">No pending assignments.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {pendingAssignments.map((a) => (
+                <li key={a.id} className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{a.reason}</p>
+                    <p className="text-xs text-muted-foreground">{a.patientId} · {a.visitType}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${URGENCY_BADGE[a.urgency] ?? 'bg-muted text-muted-foreground'}`}>{a.urgency}</span>
+                    <AssignmentScheduleModalTrigger assignment={a} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Lab Reports (pending review) */}
+        <div className={SECTION}>
+          <div className={SECTION_HEADER}>
+            <span className={SECTION_TITLE}>Lab Reports — Pending Review</span>
+            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">{pendingLabs.length}</span>
+          </div>
+          {pendingLabs.length === 0 ? (
+            <p className="p-5 text-sm text-muted-foreground">No pending lab results.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>
+                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Test</th>
+                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingLabs.slice(0, 5).map((l) => (
+                    <tr key={l.id} className="border-b border-border last:border-0">
+                      <td className="p-3 text-foreground">{l.patientId}</td>
+                      <td className="p-3 text-foreground">{l.testName}</td>
+                      <td className="p-3">
+                        <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold capitalize text-warning">{l.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {pendingLabs.length > 5 && (
+            <div className="border-t border-border px-5 py-3">
+              <Link href="/labs" className="text-xs font-medium text-primary hover:underline">View all {pendingLabs.length} lab orders →</Link>
+            </div>
+          )}
+        </div>
+
+        {/* Client Forms submitted for clinical verification */}
+        <div className={SECTION}>
+          <div className={SECTION_HEADER}>
+            <span className={SECTION_TITLE}>Client Forms — Submitted</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{myForms.length}</span>
+          </div>
+          {myForms.length === 0 ? (
+            <p className="p-5 text-sm text-muted-foreground">No submitted forms to review.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>
+                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Form</th>
+                    <th className="p-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Submitted</th>
+                    <th className="p-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myForms.map((f) => (
+                    <tr key={f.id} className="border-b border-border last:border-0">
+                      <td className="p-3 text-foreground">{f.patientName}</td>
+                      <td className="p-3 text-foreground">{f.templateName}</td>
+                      <td className="p-3 text-muted-foreground">{f.completedDate ? new Date(f.completedDate).toLocaleDateString() : '—'}</td>
+                      <td className="p-3">
+                        <Link href={`/client-forms/${f.id}`} className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted">Review</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Project down to only what PatientsTable renders -- see the same
-          comment in patients/page.tsx. */}
-      <PatientsTable patients={myPatients.map((p) => ({
-        id: p.id,
-        overallStatus: p.overallStatus,
-        name: p.name,
-        dob: p.dob,
-        currentProvider: p.currentProvider,
-        referralType: p.referralType,
-        lastCommunication: p.lastCommunication,
-        criteriaSummary: p.criteriaSummary,
-      }))} />
+      {/* Appointments overview */}
+      <div className={SECTION}>
+        <div className={SECTION_HEADER}>
+          <span className={SECTION_TITLE}>All Appointments</span>
+          <Link href="/calendar" className="text-xs font-medium text-primary hover:underline">View Calendar</Link>
+        </div>
+        <div className={SECTION_BODY}>
+          <DashboardAppointmentsTable
+            appointments={myAppointments.map((a) => ({
+              id: a.id, patientId: a.patientId, patientName: a.patientName, providerName: a.providerName,
+              visitReason: a.visitReason, status: a.status, startsAt: a.startsAt.toString(),
+            })) as DashboardAppointmentRow[]}
+            canStartTelemedicine
+          />
+        </div>
+      </div>
+
+      {/* My Patients full table */}
+      <div className={SECTION}>
+        <div className={SECTION_HEADER}>
+          <span className={SECTION_TITLE}>My Assigned Patients</span>
+          <Link href="/patients" className="text-xs font-medium text-primary hover:underline">View all</Link>
+        </div>
+        <div className={SECTION_BODY}>
+          <PatientsTable patients={myPatients.map((p) => ({
+            id: p.id,
+            overallStatus: p.overallStatus,
+            name: p.name,
+            dob: p.dob,
+            currentProvider: p.currentProvider,
+            referralType: p.referralType,
+            lastCommunication: p.lastCommunication,
+            criteriaSummary: p.criteriaSummary,
+          }))} />
+        </div>
+      </div>
     </div>
   )
 }

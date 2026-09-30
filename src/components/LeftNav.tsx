@@ -8,55 +8,78 @@ import {
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
   ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard, CalendarClock, Search,
+  Syringe, DollarSign,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 
 type Icon = React.ComponentType<{ className?: string }>
 
-// Role-scoped navigation: a Principal Investigator's job here is making
-// clinical eligibility calls, not running practice operations, so they get
-// a trimmed, clinical-only nav (Home/My Patients/Patients/Trials/Calendar/
-// Client Forms/Messages, plus their own Account tab in Settings) -- no
-// Workbook, Form Templates (building/editing form structures is a
-// coordinator/admin task), Billing, or the Operations group (Reports/
-// Documents/Broadcasts/Experience Surveys/Pipeline Dashboard), which are
-// the coordinator's and admin's tools. Client Forms stays visible to PI --
-// reviewing a patient's actual submitted answers is clinical review, not
-// practice administration. Admin and CRC both keep
-// full operational access -- see src/lib/role-capabilities.ts, which this
-// must stay consistent with.
+// Role-scoped navigation. Each role sees only the routes relevant to their
+// job. This list is the source of truth that nav-role-enforcement tests
+// derive server-side gate assertions from: a restricted entry here without
+// a matching PAGE_GATES row will fail that suite.
 //
-// NAV_ITEMS, NAV_BILLING_ITEMS and NAV_TRAILING_ITEMS are exported as the
-// source of truth that tests/pages/nav-role-enforcement.test.tsx derives
-// its server-side gate assertions from, so a `roles`-restricted entry
-// added here without a matching PAGE_GATES row fails that suite.
+// Per RBAC spec:
+//  frontdesk  — check-in, assignments, beds, booking; NO billing, NO labs, NO messages, NO trials, NO staff
+//  billing    — billing section only; NO clinical routes whatsoever
+//  pharmacy   — pharmacy routes only; NO patients page, NO messages, NO labs, NO staff
+//  pi/doctor  — clinical workflow: My Patients, Patients, Calendar, Client Forms, Labs; NO billing
+//  crc/admin  — full operational access
+
 export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
+  // Visible to all roles that reach a dashboard
   { href: '/', label: 'Home', icon: LayoutDashboard },
+
+  // Doctor / PI — clinical workflow
   { href: '/doctor', label: 'My Patients', icon: Stethoscope, roles: ['pi'] as Role[] },
+
+  // Patient list — clinical roles only (not billing, not pharmacy)
   { href: '/patients', label: 'Patients', icon: Users, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+
+  // Admin/CRC operational tools
   { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: ['admin', 'crc'] as Role[] },
-  { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+
+  // Trials & Protocols — clinical only (NOT frontdesk, NOT billing, NOT pharmacy)
+  { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical, roles: ['crc', 'pi', 'admin'] as Role[] },
+
+  // Calendar — clinical scheduling (NOT billing, NOT pharmacy)
   { href: '/calendar', label: 'Calendar', icon: Calendar, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+
+  // Form Templates — admin/crc only
   { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc'] as Role[] },
-  { href: '/client-forms', label: 'Client Forms', icon: FileSignature, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+
+  // Client Forms — clinical review (NOT billing, NOT pharmacy)
+  { href: '/client-forms', label: 'Client Forms', icon: FileSignature, roles: ['crc', 'pi', 'admin'] as Role[] },
+
+  // Front Desk specific flows
   { href: '/front-desk/check-in', label: 'Check-In', icon: ClipboardCheck, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
   { href: '/front-desk/assignments', label: 'Assignments', icon: ListChecks, roles: ['frontdesk', 'admin', 'crc'] as Role[] },
-  { href: '/inpatient/beds', label: 'Beds', icon: BedDouble, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
-  { href: '/pharmacy', label: 'Pharmacy', icon: Pill, roles: ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'] as Role[] },
+  { href: '/inpatient/beds', label: 'Beds / Wards', icon: BedDouble, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
+
+  // Pharmacy — dedicated section; no full patient record access
+  { href: '/pharmacy', label: 'Pharmacy', icon: Pill, roles: ['crc', 'pi', 'admin', 'pharmacy'] as Role[] },
   { href: '/pharmacy/patient-lookup', label: 'Patient Lookup', icon: Search, roles: ['pharmacy', 'admin'] as Role[] },
-  { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
-  { href: '/staff', label: 'Staff', icon: IdCard, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+
+  // Labs — clinical roles only (NOT frontdesk, NOT billing, NOT pharmacy)
+  { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['admin', 'crc', 'pi'] as Role[] },
+
+  // Staff directory — admin/crc only (NOT frontdesk, NOT billing, NOT pharmacy)
+  { href: '/staff', label: 'Staff', icon: IdCard, roles: ['crc', 'admin'] as Role[] },
+
+  // Booking requests — frontdesk / admin / crc
   { href: '/booking-requests', label: 'Booking Requests', icon: CalendarClock, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
-  { href: '/messages', label: 'Messages', icon: MessageSquare, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
+
+  // Messages — clinical comms (NOT billing, NOT frontdesk)
+  { href: '/messages', label: 'Messages', icon: MessageSquare, roles: ['crc', 'pi', 'admin'] as Role[] },
 ]
 
 export const NAV_BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
+  { href: '/billing/ar-dashboard', label: 'A/R Dashboard', icon: TrendingUp },
   { href: '/billing/charges', label: 'Charges', icon: Receipt },
   { href: '/billing/insurance-collections', label: 'Insurance Collections', icon: ShieldCheck },
   { href: '/billing/patient-collections', label: 'Patient Collections', icon: HandCoins },
   { href: '/billing/statements', label: 'Statements', icon: FileBarChart },
-  { href: '/billing/ar-dashboard', label: 'A/R Dashboard', icon: TrendingUp },
   { href: '/billing/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/billing/pay', label: 'Virtual Card Payment (Demo)', icon: CreditCard },
 ]
@@ -68,6 +91,7 @@ export const NAV_TRAILING_ITEMS: { href: string; label: string; icon: Icon; role
   { href: '/experience-surveys', label: 'Experience Surveys', icon: Star, roles: ['admin', 'crc'] as Role[] },
   { href: '/pipeline-dashboard', label: 'Pipeline Dashboard', icon: Activity, roles: ['admin', 'crc'] as Role[] },
   { href: '/audit-log', label: 'Audit Log', icon: History, roles: ['admin'] as Role[] },
+  // Settings: NOT visible to billing role
   { href: '/settings', label: 'Settings', icon: Settings, roles: ['admin', 'crc', 'pi', 'frontdesk', 'pharmacy'] as Role[] },
 ]
 
@@ -76,7 +100,11 @@ function isActive(pathname: string | null, href: string): boolean {
 }
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
-  return <p className="mb-1.5 mt-4 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 first:mt-0">{children}</p>
+  return (
+    <p className="mb-1 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 first:mt-2">
+      {children}
+    </p>
+  )
 }
 
 function NavLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: Icon; active: boolean }) {
@@ -84,10 +112,10 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
         active
-          ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
-          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground'
+          ? 'bg-primary text-primary-foreground'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -104,59 +132,81 @@ export function LeftNav({ role }: { role: Role }) {
   const trailingItems = NAV_TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
   const showBilling = BILLING_ROLES.includes(role)
   const billingActive = pathname?.startsWith('/billing') ?? false
-  const [billingOpen, setBillingOpen] = useState(billingActive)
+  const [billingOpen, setBillingOpen] = useState(billingActive || role === 'billing')
+
+  // Billing-only nav: only show the billing section, nothing else clinical
+  const isBillingOnly = role === 'billing'
 
   return (
-    <nav className="w-60 shrink-0 overflow-y-auto bg-card border-r border-border p-3">
-      <div className="mb-4 px-2.5 py-2">
-        <ClinsyncLogo className="text-lg font-semibold tracking-tight text-sidebar-foreground" />
+    <nav className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-card">
+      {/* Logo / Wordmark */}
+      <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
+        <ClinsyncLogo className="text-base font-bold tracking-tight text-foreground" />
       </div>
-      <GroupLabel>Workspace</GroupLabel>
-      <ul className="space-y-0.5">
-        {items.map((item) => (
-          <li key={item.href}>
-            <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
-          </li>
-        ))}
-      </ul>
 
-      {showBilling && (
-        <>
-          <GroupLabel>Billing</GroupLabel>
-          <button
-            type="button"
-            onClick={() => setBillingOpen((v) => !v)}
-            aria-expanded={billingOpen}
-            className={`flex w-full items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
-              billingActive
-                ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
-                : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground'
-            }`}
-          >
-            <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="flex-1 text-left">Billing</span>
-            {billingOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
-          </button>
-          {billingOpen && (
-            <ul className="mt-0.5 space-y-0.5 ps-3">
-              {NAV_BILLING_ITEMS.map((item) => (
+      <div className="flex-1 overflow-y-auto p-3">
+        {!isBillingOnly && (
+          <>
+            <GroupLabel>Navigation</GroupLabel>
+            <ul className="space-y-0.5">
+              {items.map((item) => (
                 <li key={item.href}>
                   <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
                 </li>
               ))}
             </ul>
-          )}
-        </>
-      )}
+          </>
+        )}
 
-      <GroupLabel>Operations</GroupLabel>
-      <ul className="space-y-0.5">
-        {trailingItems.map((item) => (
-          <li key={item.href}>
-            <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
-          </li>
-        ))}
-      </ul>
+        {showBilling && (
+          <>
+            <GroupLabel>Billing</GroupLabel>
+            {!isBillingOnly && (
+              <button
+                type="button"
+                onClick={() => setBillingOpen((v) => !v)}
+                aria-expanded={billingOpen}
+                className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  billingActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="flex-1 text-left">Billing</span>
+                {billingOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+              </button>
+            )}
+            {(billingOpen || isBillingOnly) && (
+              <ul className={`mt-0.5 space-y-0.5 ${!isBillingOnly ? 'ps-3' : ''}`}>
+                {NAV_BILLING_ITEMS.map((item) => (
+                  <li key={item.href}>
+                    <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+
+        {!isBillingOnly && trailingItems.length > 0 && (
+          <>
+            <GroupLabel>Operations</GroupLabel>
+            <ul className="space-y-0.5">
+              {trailingItems.map((item) => (
+                <li key={item.href}>
+                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+
+      {/* Role badge at bottom */}
+      <div className="shrink-0 border-t border-border px-4 py-3">
+        <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60">{role}</p>
+      </div>
     </nav>
   )
 }
