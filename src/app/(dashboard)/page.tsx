@@ -47,7 +47,7 @@ export default async function DashboardHomePage() {
   ])
   await logAudit(session, 'viewed home dashboard', null)
 
-  const staffByRole = ['admin', 'pi', 'crc', 'frontdesk', 'pharmacy', 'billing'].map((role) => ({
+  const staffByRole = ['admin', 'pi', 'crc', 'frontdesk', 'pharmacy', 'billing', 'labs'].map((role) => ({
     role,
     count: allStaff.filter((u) => u.role === role).length,
   }))

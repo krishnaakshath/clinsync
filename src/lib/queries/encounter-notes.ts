@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { encounterNotes } from '@/db/schema'
 import { desc, eq } from 'drizzle-orm'
+import type { Role } from '@/lib/auth'
 
 export type EncounterNote = typeof encounterNotes.$inferSelect
 
@@ -10,7 +11,11 @@ export interface CreateNoteInput {
   admissionId: number | null
   noteType: 'progress' | 'nursing' | 'intake'
   authorName: string
-  authorRole: 'crc' | 'pi' | 'admin' | 'frontdesk' | 'pharmacy' | 'billing'
+  // Full Role, not narrowed to 'pi' | 'admin' -- POST .../notes/route.ts's
+  // own runtime gate is what actually restricts who can call this; matches
+  // the same widen-the-type/gate-at-runtime convention used elsewhere
+  // (auditLog.role, messages.senderRole).
+  authorRole: Role
   subjective: string | null
   objective: string | null
   assessment: string | null
