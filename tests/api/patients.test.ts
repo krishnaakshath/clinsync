@@ -81,7 +81,7 @@ describe('patient list/detail never expose the encrypted TOTP secret', () => {
 
   beforeAll(async () => {
     await getDb().insert(patients).values({
-      id: LEAK_TEST_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'MFA Leak Test Patient', dobIntakeq: '1990-01-01',
+      id: LEAK_TEST_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'MFA Leak Test Patient', name: 'MFA Leak Test Patient', dobIntakeq: '1990-01-01', dob: '1990-01-01',
       mfaSecretEncrypted: 'enc-secret-that-must-not-leak', mfaEnabled: true,
     })
     await invalidateCache(patientListCacheKey(null))

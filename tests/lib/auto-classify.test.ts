@@ -53,7 +53,7 @@ describe('maybeAutoClassify', () => {
     // proving maybeAutoClassify now recomputes from real data rather than
     // just re-aggregating whatever criteria rows already existed.
     await getDb().insert(patients).values({
-      id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Test Patient', dobIntakeq: '1990-01-01',
+      id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Test Patient', name: 'Test Patient', dobIntakeq: '1990-01-01', dob: '1990-01-01',
       ratingScales: [{ name: 'PHQ-9', score: 15, date: '2026-08-01' }],
     })
     await getDb().insert(diagnoses).values({ patientId: TEST_PATIENT_ID, code: 'F33.1', description: 'Test diagnosis', source: 'tebra' })

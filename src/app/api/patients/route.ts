@@ -55,8 +55,16 @@ export async function POST(request: NextRequest) {
   })
 
   // Anon IDs are RD-#### sequential; find the current max and increment.
+  // Some legacy/imported charts carry non-numeric RD- ids (e.g.
+  // 'RD-FHIR-CCDA-EMPTY') -- those must be excluded from the max computation,
+  // not just parsed loosely, or a stray one poisons every id generated after
+  // it with NaN.
   const existing = await getDb().select({ id: patients.id }).from(patients)
-  const nextNum = existing.length === 0 ? 1 : Math.max(...existing.map((p) => parseInt(p.id.replace('RD-', ''), 10))) + 1
+  const numericIds = existing
+    .map((p) => p.id.match(/^RD-(\d+)$/))
+    .filter((m): m is RegExpMatchArray => m !== null)
+    .map((m) => parseInt(m[1], 10))
+  const nextNum = numericIds.length === 0 ? 1 : Math.max(...numericIds) + 1
   const newId = `RD-${String(nextNum).padStart(4, '0')}`
   const fullName = `${tebraPatient.firstName} ${tebraPatient.lastName}`
 
@@ -71,8 +79,10 @@ export async function POST(request: NextRequest) {
     tebraPatientIdRef: `ENC[${tebraPatient.tebraPatientId}]`,
     nameIntakeq: fullName,
     nameTebra: fullName,
+    name: fullName,
     dobIntakeq: tebraPatient.birthDate,
     dobTebra: tebraPatient.birthDate,
+    dob: tebraPatient.birthDate,
     cityTebra: tebraPatient.city || null,
     zipTebra: tebraPatient.zip || null,
     emailTebra: tebraPatient.email || null,

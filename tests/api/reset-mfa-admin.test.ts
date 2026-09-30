@@ -54,7 +54,7 @@ beforeAll(async () => {
   await setUserMfaSecret(testUserId, 'enc')
   await enableUserMfa(testUserId)
 
-  await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Admin Reset Target Patient', dobIntakeq: '1990-01-01' })
+  await getDb().insert(patients).values({ id: TEST_PATIENT_ID, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Admin Reset Target Patient', name: 'Admin Reset Target Patient', dobIntakeq: '1990-01-01', dob: '1990-01-01' })
   await setPatientMfaSecret(TEST_PATIENT_ID, 'enc')
   await enablePatientMfa(TEST_PATIENT_ID)
 })

@@ -11,8 +11,16 @@ function unwrapRef(ref: string): string {
 }
 
 async function nextAnonId(): Promise<string> {
+  // Some legacy/imported charts carry non-numeric RD- ids (e.g.
+  // 'RD-FHIR-CCDA-EMPTY') -- those must be excluded from the max computation,
+  // not just parsed loosely, or a stray one poisons every id generated after
+  // it with NaN.
   const existing = await getDb().select({ id: patients.id }).from(patients)
-  const nextNum = existing.length === 0 ? 1 : Math.max(...existing.map((p) => parseInt(p.id.replace('RD-', ''), 10))) + 1
+  const numericIds = existing
+    .map((p) => p.id.match(/^RD-(\d+)$/))
+    .filter((m): m is RegExpMatchArray => m !== null)
+    .map((m) => parseInt(m[1], 10))
+  const nextNum = numericIds.length === 0 ? 1 : Math.max(...numericIds) + 1
   return `RD-${String(nextNum).padStart(4, '0')}`
 }
 
@@ -80,7 +88,9 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
       id,
       intakeqClientIdRef: `ENC[${client.clientId}]`,
       nameIntakeq: `${client.firstName} ${client.lastName}`,
+      name: `${client.firstName} ${client.lastName}`,
       dobIntakeq: client.dateOfBirth,
+      dob: client.dateOfBirth,
       cityIntakeq: client.city,
       zipIntakeq: client.zip,
       phoneIntakeq: client.phone,
@@ -176,7 +186,9 @@ export async function confirmIdentityMatch(matchId: number): Promise<{ patientId
     intakeqClientIdRef: match.intakeqClientIdRef,
     tebraPatientIdRef: match.candidateTebraPatientIdRef,
     nameIntakeq: client ? `${client.firstName} ${client.lastName}` : match.referralName,
+    name: client ? `${client.firstName} ${client.lastName}` : match.referralName,
     dobIntakeq: client?.dateOfBirth ?? match.referralDob,
+    dob: client?.dateOfBirth ?? match.referralDob,
     cityIntakeq: client?.city ?? null,
     zipIntakeq: client?.zip ?? null,
     phoneIntakeq: client?.phone ?? null,
