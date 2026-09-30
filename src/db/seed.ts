@@ -915,11 +915,12 @@ export async function seed() {
     // admin-only. The real admin account (support@symbiosystech.com) still
     // authenticates via ADMIN_EMAIL/ADMIN_PASSWORD_HASH, never through this
     // table -- Sam Patel's row here is inert demo data with no password.
-    { name: 'Jamie Ruiz', email: 'jruiz.demo@example.com', role: 'crc', passwordHash: hashPassword('CoordinatorDemo123!') },
-    { name: 'Dr. R. Kunam', email: 'rkunam.demo@example.com', role: 'pi', passwordHash: hashPassword('DoctorDemo123!') },
-    { name: 'Sam Patel', email: 'spatel.demo@example.com', role: 'admin' },
-    { name: 'Taylor Nguyen', email: 'tnguyen.demo@example.com', role: 'frontdesk', passwordHash: hashPassword('FrontDeskDemo123!') },
-    { name: 'Robin Shah', email: 'rshah.demo@example.com', role: 'pharmacy', passwordHash: hashPassword('PharmacyDemo123!') },
+    { name: 'Sam Patel', email: 'admin@clinsync.health', role: 'admin', passwordHash: hashPassword('password') },
+    { name: 'Jamie Ruiz', email: 'crc@clinsync.health', role: 'crc', passwordHash: hashPassword('password') },
+    { name: 'Dr. R. Kunam', email: 'pi@clinsync.health', role: 'pi', passwordHash: hashPassword('password') },
+    { name: 'Taylor Nguyen', email: 'frontdesk@clinsync.health', role: 'frontdesk', passwordHash: hashPassword('password') },
+    { name: 'Robin Shah', email: 'pharmacy@clinsync.health', role: 'pharmacy', passwordHash: hashPassword('password') },
+    { name: 'Alex Billing', email: 'billing@clinsync.health', role: 'billing', passwordHash: hashPassword('password') },
   ])
 
   for (const p of HERO_PATIENTS) {

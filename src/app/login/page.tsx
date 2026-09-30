@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ShieldCheck, Activity, Users } from 'lucide-react'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 import { MfaCodeStep } from '@/components/mfa/MfaCodeStep'
 import { MfaEnrollStep } from '@/components/mfa/MfaEnrollStep'
@@ -62,34 +61,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-muted/20 px-4 py-10 selection:bg-primary/20">
-      {/* Background gradients for a modern, clinical feel */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="h-[500px] w-[800px] rounded-full bg-primary/5 blur-3xl" />
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#fafafa] px-4 py-10 selection:bg-primary/20">
+      <div className="pointer-events-none absolute left-1/2 top-0 -z-10 -translate-x-1/2 transform">
+        <div className="h-[600px] w-[1000px] rounded-full bg-gradient-to-b from-primary/5 to-transparent blur-3xl" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[440px]">
-        {/* Header */}
-        <div className="mb-10 flex flex-col items-center text-center">
+      <div className="relative z-10 w-full max-w-[400px]">
+        <div className="mb-8 flex flex-col items-center text-center">
           <ClinsyncLogo className="text-3xl font-extrabold tracking-tight text-foreground" />
-          <span className="mt-3 inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary">
-            Staff Portal
-          </span>
         </div>
 
-        {/* Login Card */}
-        <div className="rounded-2xl border border-border bg-card p-8 shadow-xl shadow-black/5">
+        <div className="rounded-3xl border border-border/50 bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)]">
           {step.kind === 'password' && (
             <>
               <div className="mb-8 text-center">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h1>
-                <p className="mt-2 text-sm text-muted-foreground">Sign in to your clinical-staff account.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Sign in to your account.</p>
               </div>
 
               <form onSubmit={handlePasswordSubmit} className="space-y-5">
                 <div className="space-y-1.5">
                   <label htmlFor="email" className="text-sm font-medium leading-none">
-                    Work Email
+                    Email Address
                   </label>
                   <input
                     id="email"
@@ -98,16 +91,14 @@ export default function LoginPage() {
                     autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@clinsync.health"
-                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="name@example.com"
+                    className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="password" className="text-sm font-medium leading-none">
-                      Password
-                    </label>
-                  </div>
+                  <label htmlFor="password" className="text-sm font-medium leading-none">
+                    Password
+                  </label>
                   <input
                     id="password"
                     type="password"
@@ -116,7 +107,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
                 {error && (
@@ -135,7 +126,7 @@ export default function LoginPage() {
                       Authenticating...
                     </div>
                   ) : (
-                    'Sign in to Clinsync'
+                    'Sign in'
                   )}
                 </button>
               </form>
@@ -158,16 +149,6 @@ export default function LoginPage() {
             />
           )}
         </div>
-        
-        {step.kind === 'password' && (
-          <div className="mt-10">
-            <div className="flex items-center justify-center gap-8 text-xs font-medium text-muted-foreground">
-              <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> HIPAA Compliant</span>
-              <span className="flex items-center gap-1.5"><Activity className="h-4 w-4" /> Real-time Sync</span>
-              <span className="flex items-center gap-1.5"><Users className="h-4 w-4" /> RBAC Secured</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
