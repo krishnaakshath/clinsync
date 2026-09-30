@@ -37,17 +37,17 @@ export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[
   // Patient list — clinical roles only (not billing, not pharmacy)
   { href: '/patients', label: 'Patients', icon: Users, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
 
-  // Admin/CRC operational tools
-  { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: ['admin', 'crc'] as Role[] },
+  // Admin/CRC/PI operational tools
+  { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: ['admin', 'crc', 'pi'] as Role[] },
 
-  // Trials & Protocols — clinical only (NOT frontdesk, NOT billing, NOT pharmacy)
+  // Trials & Protocols — clinical only
   { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical, roles: ['crc', 'pi', 'admin'] as Role[] },
 
-  // Calendar — clinical scheduling (NOT billing, NOT pharmacy)
+  // Calendar — clinical scheduling
   { href: '/calendar', label: 'Calendar', icon: Calendar, roles: ['crc', 'pi', 'admin', 'frontdesk'] as Role[] },
 
-  // Form Templates — admin/crc only
-  { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc'] as Role[] },
+  // Form Templates — admin/crc/pi
+  { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc', 'pi'] as Role[] },
 
   // Client Forms — clinical review (NOT billing, NOT pharmacy)
   { href: '/client-forms', label: 'Client Forms', icon: FileSignature, roles: ['crc', 'pi', 'admin'] as Role[] },

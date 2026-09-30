@@ -8,8 +8,7 @@ export default async function WorkbookPage() {
   const session = await requireSessionOrRedirect()
   // LeftNav.tsx:33 hides this section from every role but admin/crc; that is
   // nav rendering, not enforcement. Same list, same redirect target as
-  // audit-log/page.tsx:20.
-  if (!['admin', 'crc'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'pi'].includes(session.role)) redirect('/')
   const rows = await listWorkbookRows()
   await logAudit(session, 'viewed full pre-screening workbook', null)
 

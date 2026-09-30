@@ -9,7 +9,7 @@ export default async function FormsPage() {
   const session = await requireSessionOrRedirect()
   // LeftNav.tsx:37 — the Form Templates entry is rendered for admin/crc
   // only. Same list, same redirect target as workbook/page.tsx:12.
-  if (!['admin', 'crc'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'pi'].includes(session.role)) redirect('/')
   const templates = await listFormTemplates()
   await logAudit(session, 'viewed form templates', null)
 

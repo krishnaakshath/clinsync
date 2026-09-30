@@ -73,8 +73,16 @@ export async function runPage(c: PageGateCase, role: Role) {
 }
 
 export const PAGE_GATES: PageGateCase[] = [
-  // LeftNav.tsx:33 — { href: '/workbook', roles: ['admin', 'crc'] }
-  { route: '/workbook', load: () => import('@/app/(dashboard)/workbook/page'), allowed: ['admin', 'crc'] },
+  // LeftNav.tsx:33
+  { route: '/workbook', load: () => import('@/app/(dashboard)/workbook/page'), allowed: ['admin', 'crc', 'pi'] },
+  // LeftNav.tsx:37
+  { route: '/forms', load: () => import('@/app/(dashboard)/forms/page'), allowed: ['admin', 'crc', 'pi'] },
+  { 
+    route: '/forms/[templateId]',
+    load: () => import('@/app/(dashboard)/forms/[templateId]/page'),
+    props: { params: Promise.resolve({ templateId: '1' }) },
+    allowed: ['admin', 'crc', 'pi'],
+  },
   // LeftNav.tsx:98 — showBilling
   { route: '/billing/charges', load: () => import('@/app/(dashboard)/billing/charges/page'), allowed: ['admin', 'crc', 'billing'] },
   // LeftNav.tsx:98 — showBilling
@@ -129,15 +137,7 @@ export const PAGE_GATES: PageGateCase[] = [
     props: { searchParams: Promise.resolve({}) },
     allowed: ['admin', 'crc'],
   },
-  // LeftNav.tsx:37 — { href: '/forms', roles: ['admin', 'crc'] }
-  { route: '/forms', load: () => import('@/app/(dashboard)/forms/page'), allowed: ['admin', 'crc'] },
-  // LeftNav.tsx:37 — { href: '/forms', roles: ['admin', 'crc'] }
-  {
-    route: '/forms/[templateId]',
-    load: () => import('@/app/(dashboard)/forms/[templateId]/page'),
-    props: { params: Promise.resolve({ templateId: '1' }) },
-    allowed: ['admin', 'crc'],
-  },
+
   // LeftNav.tsx:62 — { href: '/broadcasts', roles: ['admin', 'crc'] }
   {
     route: '/broadcasts',
