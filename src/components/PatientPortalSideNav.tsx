@@ -21,18 +21,20 @@ function isActive(pathname: string | null, href: string): boolean {
   return pathname === href || (pathname?.startsWith(`${href}/`) ?? false)
 }
 
-// Same visual language as the staff app's LeftNav -- a persistent, icon+
-// label sidebar with the logo pinned to the top -- so the patient-facing
-// portal reads as the same product instead of a separately-designed one.
+// Deliberately its own visual treatment, not the staff app's dark LeftNav --
+// same reasoning as the patient login page: a patient's own portal should
+// read as calm and consumer-facing, not an internal ops tool. Light ground,
+// soft primary-tinted active state; keeps the app-wide rounded-full pill
+// convention, just recolored for a light background.
 export function PatientPortalSideNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="w-60 shrink-0 overflow-y-auto bg-sidebar p-3">
+    <nav className="w-60 shrink-0 overflow-y-auto border-r border-border/60 bg-secondary/30 p-3">
       <div className="mb-4 px-2.5 py-2">
-        <ClinsyncLogo className="text-lg font-semibold tracking-tight text-sidebar-foreground" />
+        <ClinsyncLogo className="text-lg font-semibold tracking-tight text-foreground" />
       </div>
-      <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">Patient Portal</p>
+      <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">Patient Portal</p>
       <ul className="space-y-0.5">
         {ITEMS.map((item) => {
           const active = isActive(pathname, item.href)
@@ -43,8 +45,8 @@ export function PatientPortalSideNav() {
                 aria-current={active ? 'page' : undefined}
                 className={`flex items-center gap-2.5 rounded-full py-2 pe-3 ps-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground'
+                    ? 'bg-primary/10 font-semibold text-primary'
+                    : 'text-muted-foreground hover:bg-white hover:text-foreground'
                 }`}
               >
                 <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />

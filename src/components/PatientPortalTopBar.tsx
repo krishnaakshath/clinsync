@@ -5,9 +5,11 @@ import { PatientPortalSignOutButton } from '@/components/PatientPortalSignOutBut
 // across every page, shows who's signed in and how to sign out) -- but
 // without a logo, since that now lives in the sidebar, and without
 // search/notifications, which a single patient's own portal doesn't need.
+// Soft shadow instead of a hard border rule, matching the calm,
+// consumer-facing register the rest of the portal uses.
 export function PatientPortalTopBar({ name, dob, patientId }: { name: string; dob: string; patientId: string }) {
   return (
-    <div className="flex items-center justify-between border-b border-border bg-card px-6 py-3">
+    <div className="flex items-center justify-between bg-white px-6 py-3 shadow-sm">
       <div className="flex items-center gap-2.5">
         <PatientAvatar name={name} size="sm" />
         <div>
