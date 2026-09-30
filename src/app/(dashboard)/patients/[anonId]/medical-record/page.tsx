@@ -166,6 +166,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
           activeProviders={activeProviders}
           needsOnBehalfOf={needsOnBehalfOf}
           canPrescribe={canPrescribe}
+          diagnosisCodes={patient.diagnoses.map((d) => d.code)}
         />
       </section>
 

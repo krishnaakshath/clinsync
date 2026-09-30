@@ -39,6 +39,7 @@ const baseProps = {
   specialties: ['Psychiatry', 'Neurology'],
   activeProviders: [],
   needsOnBehalfOf: false,
+  diagnosisCodes: [],
 }
 
 describe('MedicationHistorySection', () => {

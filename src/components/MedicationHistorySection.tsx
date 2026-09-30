@@ -122,8 +122,9 @@ export function MedicationHistorySection(props: {
   activeProviders: { id: number; name: string; specialty: string }[]
   needsOnBehalfOf: boolean
   canPrescribe: boolean
+  diagnosisCodes: string[]
 }) {
-  const { patientId, episodes, prescriberById, catalog, specialties, activeProviders, needsOnBehalfOf, canPrescribe } = props
+  const { patientId, episodes, prescriberById, catalog, specialties, activeProviders, needsOnBehalfOf, canPrescribe, diagnosisCodes } = props
   const [adding, setAdding] = useState(false)
   const [specialtyFilter, setSpecialtyFilter] = useState('')
 
@@ -202,6 +203,7 @@ export function MedicationHistorySection(props: {
           catalog={catalog}
           activeProviders={activeProviders}
           needsOnBehalfOf={needsOnBehalfOf}
+          diagnosisCodes={diagnosisCodes}
           onClose={() => setAdding(false)}
         />
       )}

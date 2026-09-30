@@ -1,9 +1,11 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Sparkles } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import type { MedicationWithInventory } from '@/lib/queries/medications'
+import { suggestMedicationsForDiagnoses } from '@/lib/medication-suggestions'
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -15,14 +17,16 @@ function today(): string {
 // that case and for a genuinely unstocked/off-formulary drug (spec §4);
 // `medicationId` stays null on that path.
 export function AddPrescriptionModal({
-  patientId, catalog, activeProviders, needsOnBehalfOf, onClose,
+  patientId, catalog, activeProviders, needsOnBehalfOf, diagnosisCodes, onClose,
 }: {
   patientId: string
   catalog: MedicationWithInventory[]
   activeProviders: { id: number; name: string; specialty: string }[]
   needsOnBehalfOf: boolean
+  diagnosisCodes: string[]
   onClose: () => void
 }) {
+  const suggestions = suggestMedicationsForDiagnoses(diagnosisCodes, catalog)
   const router = useRouter()
   const [offCatalog, setOffCatalog] = useState(false)
   const [medicationId, setMedicationId] = useState<number | ''>('')
@@ -129,6 +133,31 @@ export function AddPrescriptionModal({
         ) : (
           <>
             <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+              {!offCatalog && suggestions.length > 0 && (
+                <div className="rounded-md border border-accent/20 bg-accent/5 p-2.5">
+                  <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
+                    <Sparkles className="h-3 w-3" aria-hidden="true" />
+                    Commonly used for this patient&apos;s diagnosis — verify appropriateness
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.medication.id}
+                        type="button"
+                        onClick={() => pickCatalogMedication(s.medication.id)}
+                        title={`Suggested for ${s.diagnosisCode} — ${s.diagnosisLabel}`}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                          medicationId === s.medication.id
+                            ? 'border-accent bg-accent text-accent-foreground'
+                            : 'border-accent/30 bg-white text-accent hover:bg-accent/10'
+                        }`}
+                      >
+                        {s.medication.name} <span className="opacity-70">({s.medication.medicationClass})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {!offCatalog && (
                 <select
                   aria-label="Medication"
