@@ -1,87 +1,164 @@
-import { ClipboardCheck, BedDouble, ListChecks, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
+import { ClipboardCheck, BedDouble, ShieldCheck, CalendarClock, IdCard, ArrowRight } from 'lucide-react'
 import type { Session } from '@/lib/auth'
 import { listAvailableRooms } from '@/lib/queries/rooms'
 import { listTodaysAssignments } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
 import { countEligibilityFollowUps } from '@/lib/queries/insurance-eligibility'
+import { listBookingRequests } from '@/lib/queries/booking-requests'
+import { listExpiringOrExpiredCredentials } from '@/lib/queries/staff-credentials'
 import { CheckInButton } from '@/components/CheckInButton'
 import { EligibilityCheckButton } from '@/components/EligibilityCheckButton'
 import { AssignmentStatusChip } from '@/components/AssignmentStatusChip'
+import { PatientAvatar } from '@/components/PatientAvatar'
 
 const URGENCY_ORDER = { emergency: 0, urgent: 1, routine: 2 } as const
 
-function KpiTile({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string }) {
+const CARD_SURFACE = 'rounded-md border border-border bg-card shadow-none'
+
+function MiniStatTile({ value, label, href, icon: Icon }: { value: number; label: string; href: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border bg-card p-4 shadow-none">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+    <Link href={href} className="flex items-center gap-3 rounded-md border border-border bg-card p-4 transition-colors duration-200 hover:bg-muted/40">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
         <Icon className="h-4.5 w-4.5" />
       </span>
       <div>
-        <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-2xl font-bold tabular-nums text-primary">{value}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       </div>
-    </div>
+    </Link>
   )
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
+}
+
+function EmptyRow({ text }: { text: string }) {
+  return <p className="py-6 text-center text-sm text-muted-foreground">{text}</p>
 }
 
 export async function FrontDeskDashboard({ session }: { session: Session }) {
   // Today's assignments only -- listAllAssignments() (used by the full
   // /front-desk/assignments history page) would count and list every
   // assignment ever created, not just what actually happened today.
-  const [rooms, assignments, providers, eligibilityFollowUpCount] = await Promise.all([
+  const [rooms, assignments, providers, eligibilityFollowUpCount, bookingRequests, expiringCredentials] = await Promise.all([
     listAvailableRooms(),
     listTodaysAssignments(),
     listActiveProviders(),
     countEligibilityFollowUps(),
+    listBookingRequests(),
+    listExpiringOrExpiredCredentials(),
   ])
   const providerName = (id: number) => providers.find((p) => p.id === id)?.name ?? `Provider #${id}`
   const pendingCount = assignments.filter((a) => a.status === 'pending').length
   const sortedAssignments = [...assignments].sort((a, b) => URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency])
+  const pendingBookingRequests = bookingRequests.filter((r) => r.status === 'pending').slice(0, 5)
 
   return (
     <div>
-      <div className="mb-6 rounded-md border bg-card p-5 shadow-none">
-        <h1 className="text-2xl font-bold text-foreground">Front Desk</h1>
-        <p className="text-sm text-muted-foreground">Welcome back, {session.name}.</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Hello, {session.name}!</h1>
+          <p className="text-sm text-muted-foreground">Here&apos;s what needs your attention today.</p>
+        </div>
+        <div className="flex gap-3">
+          <CheckInButton providers={providers} rooms={rooms} />
+          <EligibilityCheckButton />
+        </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiTile icon={ClipboardCheck} value={pendingCount} label="Pending assignments" />
-        <KpiTile icon={BedDouble} value={rooms.length} label="Rooms available" />
-        <KpiTile icon={ListChecks} value={assignments.length} label="Total checked in today" />
-        <KpiTile icon={ShieldCheck} value={eligibilityFollowUpCount} label="Eligibility follow-ups" />
+      <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <MiniStatTile value={pendingCount} label="Pending Assignments" href="/front-desk/assignments" icon={ClipboardCheck} />
+        <MiniStatTile value={rooms.length} label="Rooms Available" href="/inpatient/beds" icon={BedDouble} />
+        <MiniStatTile value={pendingBookingRequests.length} label="Booking Requests" href="/booking-requests" icon={CalendarClock} />
+        <MiniStatTile value={expiringCredentials.length} label="Credentials Expiring" href="/staff" icon={IdCard} />
       </div>
 
-      <div className="mb-6 flex gap-3">
-        <CheckInButton providers={providers} rooms={rooms} />
-        <EligibilityCheckButton />
-      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <section className={`${CARD_SURFACE} p-5 lg:col-span-3`}>
+          <SectionHeading>Today&apos;s Assignments ({assignments.length})</SectionHeading>
+          {sortedAssignments.length === 0 ? <EmptyRow text="No assignments checked in yet today." /> : (
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/40 text-left">
+                    <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>
+                    <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Doctor</th>
+                    <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reason</th>
+                    <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Urgency</th>
+                    <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedAssignments.map((a, i) => (
+                    <tr key={a.id} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''}`}>
+                      <td className="p-3 text-foreground">{a.patientId}</td>
+                      <td className="p-3 text-foreground">{providerName(a.providerId)}</td>
+                      <td className="p-3 text-foreground">{a.reason}</td>
+                      <td className="p-3 capitalize text-foreground">{a.urgency}</td>
+                      <td className="p-3"><AssignmentStatusChip status={a.status} declineReason={a.declineReason} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
-      <div className="overflow-hidden rounded-lg border border-border">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border bg-secondary/40 text-left">
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Doctor</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reason</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Urgency</th>
-              <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedAssignments.map((a, i) => (
-              <tr key={a.id} className={`border-b border-border last:border-b-0 ${i % 2 === 1 ? 'bg-muted/40' : ''}`}>
-                <td className="p-3 text-foreground">{a.patientId}</td>
-                <td className="p-3 text-foreground">{providerName(a.providerId)}</td>
-                <td className="p-3 text-foreground">{a.reason}</td>
-                <td className="p-3 capitalize text-foreground">{a.urgency}</td>
-                <td className="p-3"><AssignmentStatusChip status={a.status} declineReason={a.declineReason} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          <section className={`${CARD_SURFACE} p-5`}>
+            <SectionHeading>Pending Booking Requests</SectionHeading>
+            {pendingBookingRequests.length === 0 ? <EmptyRow text="No pending booking requests." /> : (
+              <ul className="divide-y divide-border">
+                {pendingBookingRequests.map((r) => (
+                  <li key={r.id}>
+                    <Link href="/booking-requests" className="flex items-center gap-3 -mx-2 rounded-lg px-2 py-2.5 transition-colors hover:bg-secondary/40">
+                      <PatientAvatar name={r.requesterName} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{r.requesterName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{r.reason}</p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className={`${CARD_SURFACE} p-5`}>
+            <SectionHeading>Credentials Expiring Soon</SectionHeading>
+            {expiringCredentials.length === 0 ? <EmptyRow text="Nothing expiring or expired." /> : (
+              <ul className="divide-y divide-border">
+                {expiringCredentials.slice(0, 5).map((c) => (
+                  <li key={c.id}>
+                    <Link href="/staff" className="flex items-center gap-3 -mx-2 rounded-lg px-2 py-2.5 transition-colors hover:bg-secondary/40">
+                      <PatientAvatar name={c.staffMemberName} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{c.staffMemberName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{c.credentialType}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${c.status === 'expired' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
+                        {c.status === 'expired' ? 'Expired' : `${c.daysUntilExpiry}d left`}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className={`${CARD_SURFACE} p-5`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Eligibility Follow-ups</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning" aria-hidden="true"><ShieldCheck className="h-4 w-4" /></span>
+            </div>
+            <p className="text-2xl font-bold tabular-nums text-foreground">{eligibilityFollowUpCount}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Insurance eligibility checks needing a follow-up</p>
+          </section>
+        </div>
       </div>
     </div>
   )
 }
-
