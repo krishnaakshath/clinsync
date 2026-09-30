@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { Role } from '@/lib/auth'
+import { setSessionCookie } from '@/lib/auth'
 import { encryptSensitive } from '@/lib/crypto'
 import { generateMfaEnrollment } from '@/lib/mfa'
 import { setPendingStaffMfaCookie } from '@/lib/mfa-pending-session'
@@ -8,6 +9,14 @@ import { verifyPassword } from '@/lib/password'
 import { checkLoginRateLimit } from '@/lib/rate-limit'
 import { getAdminMfaState, setAdminMfaSecret } from '@/lib/queries/settings'
 import { findUserByEmail, getUserMfaState, setUserMfaSecret } from '@/lib/queries/users'
+import { logAudit } from '@/lib/audit'
+
+// Demo/eval toggle: set DISABLE_STAFF_MFA=true in the environment to skip
+// the TOTP enroll/verify challenge entirely and complete login on password
+// alone. Ported from the hims-platform lineage, which built this first --
+// all the MFA code below is untouched and fully wired; flipping this back
+// to unset (or "false") re-enables mandatory MFA with no other changes needed.
+const staffMfaDisabled = process.env.DISABLE_STAFF_MFA === 'true'
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -53,15 +62,26 @@ export async function POST(request: NextRequest) {
   // with no password set at all, so this endpoint never confirms which
   // part was wrong or whether an email exists in the system.
   if (adminEmail && adminPasswordHash && email.toLowerCase() === adminEmail.toLowerCase() && verifyPassword(password, adminPasswordHash)) {
+    if (staffMfaDisabled) return completeLoginWithoutMfa('admin', adminName)
     return startStaffMfaChallenge({ role: 'admin', name: adminName, userId: null })
   }
 
   const user = await findUserByEmail(email)
   if (user?.passwordHash && verifyPassword(password, user.passwordHash)) {
+    if (staffMfaDisabled) return completeLoginWithoutMfa(user.role, user.name)
     return startStaffMfaChallenge({ role: user.role, name: user.name, userId: user.id })
   }
 
   return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+}
+
+// Mirrors /api/login/mfa's own success path (setSessionCookie + logAudit +
+// {ok:true}) so a DISABLE_STAFF_MFA login is indistinguishable downstream
+// from a real completed-MFA login -- same cookie shape, same audit trail.
+async function completeLoginWithoutMfa(role: Role, name: string) {
+  await setSessionCookie(role, name)
+  await logAudit({ role, name }, 'completed login (MFA disabled)', null)
+  return NextResponse.json({ ok: true })
 }
 
 // MFA is mandatory for every staff account, so a correct password never
