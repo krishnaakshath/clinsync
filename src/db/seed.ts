@@ -596,8 +596,12 @@ export async function seed() {
     // admin-only. The real admin account (support@symbiosystech.com) still
     // authenticates via ADMIN_EMAIL/ADMIN_PASSWORD_HASH, never through this
     // table -- Sam Patel's row here is inert demo data with no password.
-    { name: 'Jamie Ruiz', email: 'jruiz.demo@example.com', role: 'crc', passwordHash: hashPassword('CoordinatorDemo123!') },
-    { name: 'Dr. R. Kunam', email: 'rkunam.demo@example.com', role: 'pi', passwordHash: hashPassword('DoctorDemo123!') },
+    // SECURITY: this shared demo password is fine for seed/demo data only --
+    // it must be rotated to unique per-account credentials before any real
+    // patient data is loaded into whatever environment these accounts exist
+    // in.
+    { name: 'Jamie Ruiz', email: 'jruiz.demo@example.com', role: 'crc', passwordHash: hashPassword('Pressword@69') },
+    { name: 'Dr. R. Kunam', email: 'rkunam.demo@example.com', role: 'pi', passwordHash: hashPassword('Pressword@69') },
     { name: 'Sam Patel', email: 'spatel.demo@example.com', role: 'admin' },
   ])
 
