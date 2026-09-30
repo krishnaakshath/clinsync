@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ShieldCheck, Users, FlaskConical } from 'lucide-react'
+import { ShieldCheck, Users, FlaskConical, LockKeyhole } from 'lucide-react'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 import { MfaCodeStep } from '@/components/mfa/MfaCodeStep'
 import { MfaEnrollStep } from '@/components/mfa/MfaEnrollStep'
@@ -140,6 +140,10 @@ export default function LoginPage() {
                     {submitting ? 'Signing in…' : 'Sign in'}
                   </button>
                 </form>
+                <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                  <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+                  Access is logged and restricted to authorized staff.
+                </p>
               </>
             )}
             {step.kind === 'enroll' && (
