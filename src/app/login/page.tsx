@@ -1,6 +1,10 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import {
+  ClipboardCheck, Receipt, Stethoscope, ClipboardList, Pill, TestTube2, ShieldCheck, HeartPulse, ArrowLeft, ArrowRight,
+} from 'lucide-react'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 import { MfaCodeStep } from '@/components/mfa/MfaCodeStep'
 import { MfaEnrollStep } from '@/components/mfa/MfaEnrollStep'
@@ -10,8 +14,22 @@ type Step =
   | { kind: 'enroll'; qrDataUrl: string; manualKey: string }
   | { kind: 'verify'; method: 'totp' | 'sms' | 'email' }
 
+// Wayfinding only -- picking a tile does not grant a role. It just brands the
+// form and points staff at the right door; the actual role always comes from
+// the credentials, checked server-side in POST /api/login.
+const PORTALS = [
+  { key: 'frontdesk', label: 'Front Desk', description: 'Registration, check-in, and scheduling', icon: ClipboardCheck },
+  { key: 'billing', label: 'Billing', description: 'Claims, collections, and statements', icon: Receipt },
+  { key: 'pi', label: 'Doctor / PI', description: 'Patients, charts, and prescriptions', icon: Stethoscope },
+  { key: 'crc', label: 'Coordinator', description: 'Screening, forms, and the workbook', icon: ClipboardList },
+  { key: 'pharmacy', label: 'Pharmacy', description: 'Dispensing and medication stock', icon: Pill },
+  { key: 'labs', label: 'Labs', description: 'Collections, results, and imaging', icon: TestTube2 },
+  { key: 'admin', label: 'Admin', description: 'Practice-wide oversight and settings', icon: ShieldCheck },
+] as const
+
 export default function LoginPage() {
   const router = useRouter()
+  const [portal, setPortal] = useState<(typeof PORTALS)[number] | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +84,46 @@ export default function LoginPage() {
         <div className="h-[600px] w-[1000px] rounded-full bg-gradient-to-b from-primary/5 to-transparent blur-3xl" />
       </div>
 
+      {portal === null ? (
+        <div className="relative z-10 w-full max-w-[560px]">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <ClinsyncLogo className="text-3xl font-extrabold tracking-tight text-foreground" />
+            <p className="mt-2 text-sm text-muted-foreground">Choose your portal, then sign in with your staff credentials.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {PORTALS.map(({ key, label, description, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setPortal(PORTALS.find((p) => p.key === key)!)}
+                className="group flex items-center gap-3 rounded-2xl border border-border/50 bg-white p-4 text-left shadow-[0_8px_24px_-12px_rgba(0,0,0,0.06)] transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-foreground">{label}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{description}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
+              </button>
+            ))}
+            <Link
+              href="/patient-portal/login"
+              className="group flex items-center gap-3 rounded-2xl border border-border/50 bg-white p-4 text-left shadow-[0_8px_24px_-12px_rgba(0,0,0,0.06)] transition-colors hover:border-primary/40 hover:bg-primary/[0.03] sm:col-span-2"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                <HeartPulse className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-foreground">Patient Portal</span>
+                <span className="block truncate text-xs text-muted-foreground">View your records, forms, and messages</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      ) : (
       <div className="relative z-10 w-full max-w-[400px]">
         <div className="mb-8 flex flex-col items-center text-center">
           <ClinsyncLogo className="text-3xl font-extrabold tracking-tight text-foreground" />
@@ -74,8 +132,19 @@ export default function LoginPage() {
         <div className="rounded-3xl border border-border/50 bg-white p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)]">
           {step.kind === 'password' && (
             <>
+              <button
+                type="button"
+                onClick={() => setPortal(null)}
+                className="mb-6 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                All portals
+              </button>
               <div className="mb-8 text-center">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h1>
+                <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <portal.icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">{portal.label}</h1>
                 <p className="mt-2 text-sm text-muted-foreground">Sign in to your account.</p>
               </div>
 
@@ -150,6 +219,7 @@ export default function LoginPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   )
 }
