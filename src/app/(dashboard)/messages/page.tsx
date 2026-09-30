@@ -7,7 +7,7 @@ import { PatientAvatar } from '@/components/PatientAvatar'
 import { MessageThreadView } from '@/components/MessageThreadView'
 import { MessageComposer } from '@/components/MessageComposer'
 
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
 // Any staff role can message a patient, same reasoning as broadcasts.sentBy
@@ -32,7 +32,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-4 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
+      <div className="mb-6 flex items-center gap-4 rounded-md border border-border bg-card p-5 shadow-none">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
           <MessageSquare className="h-6 w-6" />
         </span>

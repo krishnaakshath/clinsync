@@ -5,7 +5,7 @@ import { ClientFormsTable } from '@/components/ClientFormsTable'
 
 // Same elevated-card treatment ReportTable.tsx and the rest of the app's
 // data surfaces already use.
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 
 export default async function ClientFormsPage({ searchParams }: { searchParams: Promise<{ status?: string; diagnosisTag?: string }> }) {
   const session = await requireSessionOrRedirect()

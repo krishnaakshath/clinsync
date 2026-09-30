@@ -8,7 +8,7 @@ import { Tabs } from '@/components/Tabs'
 import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
 
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 const HEADING = 'mb-2 border-l-2 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
 // A lighter row than EvidenceCard for the trial-level screening buckets --

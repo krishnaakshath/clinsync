@@ -24,7 +24,7 @@ export default async function ClientFormDetailPage({ params }: { params: Promise
         {submission.questions.map((q) => {
           const rawValue = submission.answers?.[q.id]
           return (
-            <div key={q.id} className="rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+            <div key={q.id} className="rounded-md border border-border bg-card p-4 shadow-none">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{q.label}</p>
               {q.type === 'select' && q.options && q.options.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">

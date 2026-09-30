@@ -22,18 +22,18 @@ export default async function BroadcastsPage({ searchParams }: { searchParams: P
       <h1 className="mb-1 text-2xl font-bold text-foreground">Patient Broadcast</h1>
       <p className="mb-6 text-sm text-muted-foreground">Simulated delivery only — no SMS or email is ever sent to a real patient.</p>
       <div className="mb-6 flex w-fit gap-1 rounded-lg bg-secondary p-1 text-sm">
-        <Link href="/broadcasts?tab=send" className={`rounded-md px-4 py-1.5 font-medium transition-colors ${activeTab === 'send' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Send Broadcast</Link>
-        <Link href="/broadcasts?tab=history" className={`rounded-md px-4 py-1.5 font-medium transition-colors ${activeTab === 'history' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Broadcast History</Link>
+        <Link href="/broadcasts?tab=send" className={`rounded-md px-4 py-1.5 font-medium transition-colors ${activeTab === 'send' ? 'bg-card text-primary shadow-none' : 'text-muted-foreground hover:text-foreground'}`}>Send Broadcast</Link>
+        <Link href="/broadcasts?tab=history" className={`rounded-md px-4 py-1.5 font-medium transition-colors ${activeTab === 'history' ? 'bg-card text-primary shadow-none' : 'text-muted-foreground hover:text-foreground'}`}>Broadcast History</Link>
       </div>
 
       {activeTab === 'send' ? (
         <BroadcastWizard trials={trials.map((t) => ({ id: t.id, condition: t.condition }))} />
       ) : broadcasts.length === 0 ? (
-        <div className="rounded-xl border border-primary/10 bg-card/80 p-8 text-center shadow-sm backdrop-blur-sm">
+        <div className="rounded-md border border-border bg-card p-8 text-center shadow-none">
           <p className="text-sm text-muted-foreground">No records found.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-primary/10 bg-card/80 shadow-sm backdrop-blur-sm">
+        <div className="overflow-hidden rounded-md border border-border bg-card shadow-none">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/40 text-left">

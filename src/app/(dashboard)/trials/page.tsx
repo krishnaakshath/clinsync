@@ -19,7 +19,7 @@ export default async function TrialsPage() {
             <Link
               key={t.id}
               href={`/trials/${t.id}`}
-              className="group flex flex-col gap-3 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md"
+              className="group flex flex-col gap-3 rounded-md border border-border bg-card p-5 shadow-none"
             >
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">

@@ -22,7 +22,7 @@ export default async function WorkbookPage() {
         </div>
         <a
           href="/api/workbook/full"
-          className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-none transition-opacity hover:opacity-90"
         >
           Download Full Workbook
         </a>

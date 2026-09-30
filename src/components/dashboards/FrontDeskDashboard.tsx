@@ -12,7 +12,7 @@ const URGENCY_ORDER = { emergency: 0, urgent: 1, routine: 2 } as const
 
 function KpiTile({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm">
+    <div className="flex items-center gap-3 rounded-md border bg-card p-4 shadow-none">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
         <Icon className="h-4.5 w-4.5" />
       </span>
@@ -40,7 +40,7 @@ export async function FrontDeskDashboard({ session }: { session: Session }) {
 
   return (
     <div>
-      <div className="mb-6 rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm">
+      <div className="mb-6 rounded-md border bg-card p-5 shadow-none">
         <h1 className="text-2xl font-bold text-foreground">Front Desk</h1>
         <p className="text-sm text-muted-foreground">Welcome back, {session.name}.</p>
       </div>

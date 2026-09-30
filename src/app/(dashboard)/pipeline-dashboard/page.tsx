@@ -7,7 +7,7 @@ import { logAudit } from '@/lib/audit'
 import { getPipelinePerformance, getPipelineTrend } from '@/lib/queries/pipeline-dashboard'
 import { PipelineTrendChart } from '@/components/PipelineTrendChart'
 
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 
 const PRESETS = [
   { key: 'week', label: 'This Week' },
@@ -24,7 +24,7 @@ const TILE_COLOR: Record<string, string> = {
 
 function StatTile({ icon: Icon, value, label, color }: { icon: ComponentType<{ className?: string }>; value: string; label: string; color: keyof typeof TILE_COLOR }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+    <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4 shadow-none">
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TILE_COLOR[color]}`} aria-hidden="true">
         <Icon className="h-4.5 w-4.5" />
       </span>
@@ -75,7 +75,7 @@ export default async function PipelineDashboardPage({ searchParams }: { searchPa
         <h1 className="text-2xl font-bold text-foreground">Pipeline Performance</h1>
         <div className="flex gap-1 rounded-lg bg-secondary p-1 text-sm">
           {PRESETS.map((p) => (
-            <Link key={p.key} href={`/pipeline-dashboard?preset=${p.key}`} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${range.preset === p.key ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{p.label}</Link>
+            <Link key={p.key} href={`/pipeline-dashboard?preset=${p.key}`} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${range.preset === p.key ? 'bg-card text-primary shadow-none' : 'text-muted-foreground hover:text-foreground'}`}>{p.label}</Link>
           ))}
         </div>
       </div>
@@ -103,7 +103,7 @@ export default async function PipelineDashboardPage({ searchParams }: { searchPa
       <section>
         <h2 className="mb-3 border-l-2 border-primary/50 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Activity Over Time</h2>
         {trend.length === 0 ? (
-          <div className="rounded-xl border border-primary/10 bg-card/80 p-8 text-center shadow-sm backdrop-blur-sm">
+          <div className="rounded-md border border-border bg-card p-8 text-center shadow-none">
             <p className="text-sm text-muted-foreground">No pipeline activity in this date range.</p>
           </div>
         ) : (

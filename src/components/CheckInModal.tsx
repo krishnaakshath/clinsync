@@ -17,7 +17,12 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
   const [roomId, setRoomId] = useState<number | ''>('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [ticketNumber, setTicketNumber] = useState<number | null>(null)
+  const [checkinResult, setCheckinResult] = useState<{
+    queueTicketNumber: number
+    patientId: string
+    roomId: number | null
+    checkedInAt: string
+  } | null>(null)
 
   async function submit() {
     setSubmitting(true)
@@ -37,7 +42,12 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
     setSubmitting(false)
     if (res.ok) {
       const body = await res.json()
-      setTicketNumber(body.queueTicketNumber)
+      setCheckinResult({
+        queueTicketNumber: body.queueTicketNumber,
+        patientId: body.patientId ?? patientId,
+        roomId: body.roomId ?? null,
+        checkedInAt: new Date().toLocaleString(),
+      })
       router.refresh()
       return
     }
@@ -47,18 +57,33 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
 
   const canSubmit = Boolean(patientId) && providerId !== '' && Boolean(reason) && (visitType === 'outpatient' || roomId !== '' || rooms.length === 0) && !submitting
 
-  if (ticketNumber !== null) {
+  if (checkinResult !== null) {
+    const room = rooms.find((r) => r.id === checkinResult.roomId)
     return (
       <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Checked In</DialogTitle>
+            <DialogTitle>Check-in Ticket</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 py-2 text-center">
-            <p className="text-sm text-muted-foreground">Give this number to the patient</p>
-            <p className="text-5xl font-bold text-foreground">Ticket #{ticketNumber}</p>
+          <div id="print-ticket" className="space-y-3 rounded-md border p-4 text-center">
+            <p className="text-sm text-muted-foreground">Queue Number</p>
+            <p className="text-5xl font-bold text-foreground">{checkinResult.queueTicketNumber}</p>
+            <hr className="border-border" />
+            <p className="text-sm text-muted-foreground">Patient</p>
+            <p className="text-lg font-semibold text-foreground">{checkinResult.patientId}</p>
+            {room && (
+              <>
+                <p className="text-sm text-muted-foreground">Room</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {room.ward} — Room {room.roomNumber}, Bed {room.bedNumber}
+                </p>
+              </>
+            )}
+            <p className="text-sm text-muted-foreground">Date / Time</p>
+            <p className="text-sm text-foreground">{checkinResult.checkedInAt}</p>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => window.print()}>Print</Button>
             <Button onClick={onClose}>Done</Button>
           </DialogFooter>
         </DialogContent>

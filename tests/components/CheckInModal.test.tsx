@@ -58,4 +58,84 @@ describe('CheckInModal', () => {
 
     expect(screen.getByText('Check In')).toBeDisabled()
   })
+
+  describe('check-in ticket', () => {
+    async function checkInSuccessfully(overrides?: { roomId?: number; patientId?: string; providerId?: number }) {
+      const patientId = overrides?.patientId ?? 'RD-0001'
+      const providerId = overrides?.providerId ?? 1
+      const roomId = overrides?.roomId
+
+      const apiResponse = {
+        id: 1,
+        queueTicketNumber: 42,
+        patientId,
+        providerId,
+        visitType: roomId ? 'inpatient' : 'outpatient',
+        urgency: 'routine',
+        reason: 'Follow-up',
+        roomId: roomId ?? null,
+      }
+      const fetchMock = vi.fn(async () => new Response(JSON.stringify(apiResponse), { status: 201 }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      render(<CheckInModal providers={PROVIDERS} rooms={ROOMS} onClose={vi.fn()} />)
+
+      fireEvent.change(screen.getByLabelText(/patient id/i), { target: { value: patientId } })
+      fireEvent.change(screen.getByLabelText(/assign to doctor/i), { target: { value: String(providerId) } })
+      fireEvent.change(screen.getByLabelText(/reason/i), { target: { value: 'Follow-up' } })
+
+      if (roomId) {
+        fireEvent.click(screen.getByLabelText(/inpatient/i))
+        fireEvent.change(screen.getByLabelText(/room/i), { target: { value: String(roomId) } })
+      }
+
+      fireEvent.click(screen.getByText('Check In'))
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+      return { fetchMock }
+    }
+
+    it('shows the queue number on the ticket after a successful check-in', async () => {
+      await checkInSuccessfully()
+      await waitFor(() => expect(screen.getByText(/42/)).toBeInTheDocument())
+    })
+
+    it('shows the patient name on the ticket', async () => {
+      await checkInSuccessfully({ patientId: 'RD-0001' })
+      await waitFor(() => expect(screen.getByText('RD-0001')).toBeInTheDocument())
+    })
+
+    it('shows the assigned room on the ticket for inpatient visits', async () => {
+      await checkInSuccessfully({ roomId: 1 })
+      await waitFor(() => expect(screen.getByText(/Ward A.*101.*A/)).toBeInTheDocument())
+    })
+
+    it('shows the current date on the ticket', async () => {
+      await checkInSuccessfully()
+      const today = new Date().toLocaleDateString()
+      await waitFor(() => expect(screen.getByText(new RegExp(today.replace(/[/\\-]/g, '[/\\\\-]')))).toBeInTheDocument())
+    })
+
+    it('shows a Print button on the ticket', async () => {
+      await checkInSuccessfully()
+      await waitFor(() => expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument())
+    })
+
+    it('calls window.print when the Print button is clicked', async () => {
+      await checkInSuccessfully()
+      const printMock = vi.fn()
+      vi.stubGlobal('print', printMock)
+
+      await waitFor(() => expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument())
+      fireEvent.click(screen.getByRole('button', { name: /print/i }))
+      expect(printMock).toHaveBeenCalledTimes(1)
+
+      vi.unstubAllGlobals()
+    })
+
+    it('wraps the ticket in a printable div with id="print-ticket"', async () => {
+      await checkInSuccessfully()
+      await waitFor(() => expect(document.getElementById('print-ticket')).not.toBeNull())
+    })
+  })
 })

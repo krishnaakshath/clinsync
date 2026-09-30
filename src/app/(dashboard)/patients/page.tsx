@@ -31,12 +31,12 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
               this visible to a role the route now 403s would just be a dead
               button. */}
           {['admin', 'crc'].includes(session.role) && (
-            <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Download Verification Workbook</a>
+            <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-none transition-opacity hover:opacity-90">Download Verification Workbook</a>
           )}
         </div>
       </div>
 
-      <div className="mb-4 flex items-center gap-1 rounded-lg border border-primary/10 bg-card/80 p-1 text-sm backdrop-blur-sm">
+      <div className="mb-4 flex items-center gap-1 rounded-lg border border-primary/10 bg-card p-1 text-sm">
         <Link href="/patients" className={`rounded-md px-3 py-1.5 font-medium transition-colors ${!trialId ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}>All Trials</Link>
         {trials.map((t) => (
           <Link key={t.id} href={`/patients?trialId=${t.id}`} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${trialId === t.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}>{t.condition}</Link>

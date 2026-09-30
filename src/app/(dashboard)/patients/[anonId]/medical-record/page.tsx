@@ -22,7 +22,7 @@ import { listFormSubmissions } from '@/lib/queries/form-submissions'
 import { listCarePlansForPatient } from '@/lib/queries/care-plans'
 import { resolveSessionProvider } from '@/lib/provider-identity'
 
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
 function formatDate(value: string | Date | null): string {
@@ -71,6 +71,19 @@ function InsuranceField({ label, value }: { label: string; value: string | null 
 export default async function MedicalRecordPage({ params }: { params: Promise<{ anonId: string }> }) {
   // Must be the first statement — see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
+  // Pharmacy staff see prescriptions only via their own patient-lookup
+  // dispensing flow. Full clinical charts are clinical-only.
+  if (session.role === 'pharmacy') {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm font-medium text-foreground">Chart access restricted</p>
+        <p className="max-w-xs text-sm text-muted-foreground">
+          Pharmacy staff can view a patient&apos;s prescriptions through the{' '}
+          <a href="/pharmacy/patient-lookup" className="text-primary underline">Pharmacy Patient Lookup</a>.
+        </p>
+      </div>
+    )
+  }
 
   const { anonId } = await params
   const patient = await getPatientDetail(anonId)

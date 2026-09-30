@@ -19,7 +19,7 @@ import { getPatientDetail } from '@/lib/queries/patients'
 import { listAdmissionsForPatient } from '@/lib/queries/admissions'
 import { listAvailableRooms } from '@/lib/queries/rooms'
 
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 const SECTION_HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
 function SummaryTile({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string }) {

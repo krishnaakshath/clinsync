@@ -75,7 +75,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         </div>
         <div className="flex gap-1 rounded-lg bg-secondary p-1 text-sm">
           {(['day', 'week', 'month'] as const).map((v) => (
-            <Link key={v} href={buildCalendarHref(v, anchor, providerIdsParam)} className={`rounded-md px-3 py-1.5 font-medium capitalize transition-colors ${view === v ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{v}</Link>
+            <Link key={v} href={buildCalendarHref(v, anchor, providerIdsParam)} className={`rounded-md px-3 py-1.5 font-medium capitalize transition-colors ${view === v ? 'bg-card text-primary shadow-none' : 'text-muted-foreground hover:text-foreground'}`}>{v}</Link>
           ))}
         </div>
       </div>
@@ -108,7 +108,7 @@ function DayView({ date, appointments }: { date: Date; appointments: Appointment
   return (
     <div className="space-y-2">
       {dayAppointments.map((a) => (
-        <div key={a.id} className="flex items-center justify-between gap-4 rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md">
+        <div key={a.id} className="flex items-center justify-between gap-4 rounded-md border border-border bg-card p-4 shadow-none">
           <div className="flex items-center gap-4">
             <div className="w-24 shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatTime(a.startsAt)}</div>
             <div>

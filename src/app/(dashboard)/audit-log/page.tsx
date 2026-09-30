@@ -4,7 +4,7 @@ import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listAuditLog } from '@/lib/queries/audit-log'
 
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin',

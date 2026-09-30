@@ -6,7 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { listReviews, listSurveyableSubmissions } from '@/lib/queries/reviews'
 import { SendSurveyButton } from '@/components/SendSurveyButton'
 
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 const FIELD = 'rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring'
 const STATUS_DOT: Record<string, string> = { sent: 'bg-warning', completed: 'bg-success' }
 const STATUS_LABEL: Record<string, string> = { sent: 'Sent', completed: 'Completed' }
@@ -47,7 +47,7 @@ export default async function ExperienceSurveysPage({ searchParams }: { searchPa
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm">
+        <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card p-4 shadow-none">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700" aria-hidden="true">
             <Star className="h-4.5 w-4.5" />
           </span>
@@ -56,7 +56,7 @@ export default async function ExperienceSurveysPage({ searchParams }: { searchPa
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Avg. rating ({completedRatings.length} responses)</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm">
+        <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card p-4 shadow-none">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success" aria-hidden="true">
             <MessagesSquare className="h-4.5 w-4.5" />
           </span>
@@ -65,7 +65,7 @@ export default async function ExperienceSurveysPage({ searchParams }: { searchPa
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Completed</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card/80 p-4 shadow-sm backdrop-blur-sm">
+        <div className="flex items-center gap-3 rounded-xl border border-primary/10 bg-card p-4 shadow-none">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning" aria-hidden="true">
             <Send className="h-4.5 w-4.5" />
           </span>
@@ -104,11 +104,11 @@ export default async function ExperienceSurveysPage({ searchParams }: { searchPa
       </form>
 
       {reviewsList.length === 0 ? (
-        <div className="rounded-xl border border-primary/10 bg-card/80 p-8 text-center shadow-sm backdrop-blur-sm">
+        <div className="rounded-md border border-border bg-card p-8 text-center shadow-none">
           <p className="text-sm text-muted-foreground">No records found.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-primary/10 bg-card/80 shadow-sm backdrop-blur-sm">
+        <div className="overflow-hidden rounded-md border border-border bg-card shadow-none">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/40 text-left">

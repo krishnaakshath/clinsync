@@ -55,11 +55,11 @@ function EmptyRow({ text }: { text: string }) {
   return <p className="py-6 text-center text-sm text-muted-foreground">{text}</p>
 }
 
-const CARD_SURFACE = 'rounded-xl border border-primary/10 bg-card/80 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
+const CARD_SURFACE = 'rounded-md border border-border bg-card shadow-none'
 
 function MiniStatTile({ value, label, href, icon: Icon }: { value: number; label: string; href: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-lg border border-primary/15 bg-primary/5 p-4 backdrop-blur-sm transition-colors duration-200 hover:bg-primary/10">
+    <Link href={href} className="flex items-center gap-3 rounded-md border border-border bg-card p-4 transition-colors duration-200 hover:bg-muted/40">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
         <Icon className="h-4.5 w-4.5" />
       </span>

@@ -5,7 +5,7 @@ import { getReview } from '@/lib/queries/reviews'
 import { RecordSurveyResponseForm } from '@/components/RecordSurveyResponseForm'
 import { BackLink } from '@/components/BackLink'
 
-const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
+const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 
 export default async function ExperienceSurveyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSessionOrRedirect()
