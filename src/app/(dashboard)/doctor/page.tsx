@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { Users, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { CountUp } from '@/components/CountUp'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { PatientsTable } from '@/components/PatientsTable'
@@ -20,7 +21,7 @@ function StatTile({ icon: Icon, value, label, color }: { icon: React.ComponentTy
         <Icon className="h-4.5 w-4.5" />
       </span>
       <div>
-        <p className="text-xl font-bold tabular-nums text-foreground">{value}</p>
+        <p className="text-xl font-bold tabular-nums text-foreground"><CountUp to={value} /></p>
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       </div>
     </div>

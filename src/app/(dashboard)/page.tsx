@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { FileClock, ClipboardCheck, LayoutTemplate, Clock, Users, Star, Send, CheckCircle2, Fingerprint, Sparkles, ArrowRight } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { PortalTileLink } from '@/components/PortalTileLink'
+import { CountUp } from '@/components/CountUp'
 import { getDashboardData } from '@/lib/queries/dashboard'
 import { listFormTemplates } from '@/lib/queries/form-templates'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
@@ -41,15 +43,15 @@ const STAT_ICON_COLOR: Record<string, string> = {
 
 function MiniStatTile({ value, label, href, icon: Icon, color }: { value: number; label: string; href: string; icon: React.ComponentType<{ className?: string }>; color: keyof typeof STAT_ICON_COLOR }) {
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-lg border border-primary/15 bg-primary/5 p-4 backdrop-blur-sm transition-colors duration-200 hover:bg-primary/10">
+    <PortalTileLink href={href} spotlightColor="rgba(61, 79, 143, 0.1)" className="flex items-center gap-3 rounded-lg border border-primary/15 bg-primary/5 p-4 backdrop-blur-sm transition-colors duration-200 hover:bg-primary/10">
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${STAT_ICON_COLOR[color]}`} aria-hidden="true">
         <Icon className="h-4.5 w-4.5" />
       </span>
       <div>
-        <p className="text-xl font-bold tabular-nums text-primary">{value}</p>
+        <p className="text-xl font-bold tabular-nums text-primary"><CountUp to={value} /></p>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       </div>
-    </Link>
+    </PortalTileLink>
   )
 }
 
