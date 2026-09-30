@@ -27,12 +27,12 @@ const attachImagingSchema = z.object({ name: z.string().trim().min(1) }).strict(
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  // Deliberately the same admin/pi tier as POST /api/lab-orders/[id]/result,
+  // Deliberately the same admin/pi/labs tier as POST /api/lab-orders/[id]/result,
   // NOT the generic documents route's admin/crc/frontdesk tier -- attaching
   // imaging to an order is a clinical act on the lab lifecycle (it can
   // transition ordered -> collected, same as scanning a specimen), not
   // generic document filing (spec §5).
-  if (!['admin', 'pi'].includes(session.role)) {
+  if (!['admin', 'pi', 'labs'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

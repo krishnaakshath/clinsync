@@ -110,4 +110,15 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
       'View Charges and Payments'
     ],
   },
+  labs: {
+    label: 'Laboratory',
+    summary: 'Runs the lab bench: works the collection-to-result pipeline for every ordered test, but never orders a test or cancels one — that stays a clinical (PI/Admin) decision.',
+    bullets: [
+      'View the Lab worklist across all patients',
+      'Mark an ordered sample as collected',
+      'Enter results and flag them normal, abnormal, or critical',
+      'Attach imaging results to an order',
+      'View the medical record\'s Lab Results and Imaging sections (read-only, no chart edit access)',
+    ],
+  },
 }

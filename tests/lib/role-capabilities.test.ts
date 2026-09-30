@@ -3,8 +3,8 @@ import { ROLE_CAPABILITIES } from '@/lib/role-capabilities'
 import type { Role } from '@/lib/auth'
 
 describe('ROLE_CAPABILITIES', () => {
-  it('has an entry for exactly the five real roles, no more, no less', () => {
-    const expectedRoles: Role[] = ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy']
+  it('has an entry for exactly the real roles, no more, no less', () => {
+    const expectedRoles: Role[] = ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy', 'billing', 'labs']
     expect(new Set(Object.keys(ROLE_CAPABILITIES))).toEqual(new Set(expectedRoles))
   })
 

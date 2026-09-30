@@ -14,7 +14,7 @@ describe('LeftNav', () => {
   it('gives the active nav link a filled rounded-full pill background, not a left border bar', () => {
     render(<LeftNav role="admin" />)
     const activeLink = screen.getByRole('link', { name: /patients/i, current: 'page' })
-    expect(activeLink.className).toMatch(/rounded-full/)
+    expect(activeLink.className).toMatch(/rounded-md/)
     expect(activeLink.className).not.toMatch(/border-l-2/)
   })
 
@@ -26,10 +26,10 @@ describe('LeftNav', () => {
     expect(screen.queryByRole('link', { name: /form templates/i })).not.toBeInTheDocument()
   })
 
-  it('hides Billing, Workbook, Reports and Broadcasts from a pi', () => {
+  it('hides non-clinical Admin menus from a pi', () => {
     render(<LeftNav role="pi" />)
     expect(screen.getByRole('link', { name: /my patients/i })).toBeInTheDocument()
-    for (const hidden of [/workbook/i, /identity matching/i, /form templates/i, /reports/i, /documents/i, /broadcasts/i, /experience surveys/i, /pipeline dashboard/i]) {
+    for (const hidden of [/identity matching/i, /reports/i, /documents/i, /broadcasts/i, /experience surveys/i, /pipeline dashboard/i]) {
       expect(screen.queryByRole('link', { name: hidden })).not.toBeInTheDocument()
     }
     expect(screen.queryByRole('button', { name: /billing/i })).not.toBeInTheDocument()

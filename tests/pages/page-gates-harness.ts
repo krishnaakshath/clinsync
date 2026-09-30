@@ -178,8 +178,8 @@ export const PAGE_GATES: PageGateCase[] = [
   { route: '/front-desk/assignments', load: () => import('@/app/(dashboard)/front-desk/assignments/page'), allowed: ['frontdesk', 'admin', 'crc'] },
   // LeftNav.tsx:41 — { href: '/inpatient/beds', roles: ['frontdesk', 'admin', 'crc', 'pi'] }
   { route: '/inpatient/beds', load: () => import('@/app/(dashboard)/inpatient/beds/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi'] },
-  // LeftNav.tsx:43 — { href: '/labs', roles: ['frontdesk', 'admin', 'crc', 'pi'] }
-  { route: '/labs', load: () => import('@/app/(dashboard)/labs/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi'] },
+  // LeftNav.tsx:43 — { href: '/labs', roles: ['frontdesk', 'admin', 'crc', 'pi', 'labs'] }
+  { route: '/labs', load: () => import('@/app/(dashboard)/labs/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi', 'labs'] },
   // LeftNav.tsx:45 — { href: '/booking-requests', roles: ['frontdesk', 'admin', 'crc', 'pi'] }
   { route: '/booking-requests', load: () => import('@/app/(dashboard)/booking-requests/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi'] },
   // LeftNav.tsx:65 — { href: '/audit-log', roles: ['admin'] }

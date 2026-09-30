@@ -61,8 +61,10 @@ export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[
   { href: '/pharmacy', label: 'Pharmacy', icon: Pill, roles: ['crc', 'pi', 'admin', 'pharmacy'] as Role[] },
   { href: '/pharmacy/patient-lookup', label: 'Patient Lookup', icon: Search, roles: ['pharmacy', 'admin'] as Role[] },
 
-  // Labs — clinical roles only (NOT frontdesk, NOT billing, NOT pharmacy)
-  { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['admin', 'crc', 'pi'] as Role[] },
+  // Labs — clinical + front-desk + the dedicated Labs role (NOT billing, NOT pharmacy).
+  // frontdesk was previously missing here despite role-capabilities.ts and the
+  // page/API gates already granting it worklist view + mark-collected access.
+  { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['admin', 'crc', 'pi', 'frontdesk', 'labs'] as Role[] },
 
   // Staff directory — admin/crc only (NOT frontdesk, NOT billing, NOT pharmacy)
   { href: '/staff', label: 'Staff', icon: IdCard, roles: ['crc', 'admin'] as Role[] },

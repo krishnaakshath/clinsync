@@ -911,16 +911,21 @@ export async function seed() {
   await db.insert(trials).values([MDD_TRIAL, ADHD_TRIAL])
 
   await db.insert(users).values([
-    // Demo credentials for the pilot's pi/crc roles, so login isn't
+    // Demo credentials for the pilot's non-admin roles, so login isn't
     // admin-only. The real admin account (support@symbiosystech.com) still
     // authenticates via ADMIN_EMAIL/ADMIN_PASSWORD_HASH, never through this
     // table -- Sam Patel's row here is inert demo data with no password.
-    { name: 'Sam Patel', email: 'admin@clinsync.health', role: 'admin', passwordHash: hashPassword('password') },
-    { name: 'Jamie Ruiz', email: 'crc@clinsync.health', role: 'crc', passwordHash: hashPassword('password') },
-    { name: 'Dr. R. Kunam', email: 'pi@clinsync.health', role: 'pi', passwordHash: hashPassword('password') },
-    { name: 'Taylor Nguyen', email: 'frontdesk@clinsync.health', role: 'frontdesk', passwordHash: hashPassword('password') },
-    { name: 'Robin Shah', email: 'pharmacy@clinsync.health', role: 'pharmacy', passwordHash: hashPassword('password') },
-    { name: 'Alex Billing', email: 'billing@clinsync.health', role: 'billing', passwordHash: hashPassword('password') },
+    // SECURITY: this shared demo password is fine for seed/demo data only --
+    // it must be rotated to unique per-account credentials before any real
+    // patient data is loaded into whatever environment these accounts exist
+    // in (see docs/PRODUCT-AND-ARCHITECTURE.md §4, "known gaps").
+    { name: 'Sam Patel', email: 'admin@clinsync.health', role: 'admin', passwordHash: hashPassword('Pressword@69') },
+    { name: 'Jamie Ruiz', email: 'crc@clinsync.health', role: 'crc', passwordHash: hashPassword('Pressword@69') },
+    { name: 'Dr. R. Kunam', email: 'pi@clinsync.health', role: 'pi', passwordHash: hashPassword('Pressword@69') },
+    { name: 'Taylor Nguyen', email: 'frontdesk@clinsync.health', role: 'frontdesk', passwordHash: hashPassword('Pressword@69') },
+    { name: 'Robin Shah', email: 'pharmacy@clinsync.health', role: 'pharmacy', passwordHash: hashPassword('Pressword@69') },
+    { name: 'Alex Billing', email: 'billing@clinsync.health', role: 'billing', passwordHash: hashPassword('Pressword@69') },
+    { name: 'Morgan Lee', email: 'labs@clinsync.health', role: 'labs', passwordHash: hashPassword('Pressword@69') },
   ])
 
   for (const p of HERO_PATIENTS) {

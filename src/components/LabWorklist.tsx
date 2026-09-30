@@ -64,7 +64,8 @@ function LabRow({
   order,
   showActions,
   canCollect,
-  canResultOrCancel,
+  canResult,
+  canCancel,
   canAttachImaging,
   busyId,
   rowError,
@@ -80,7 +81,8 @@ function LabRow({
   order: WorklistOrder
   showActions: boolean
   canCollect: boolean
-  canResultOrCancel: boolean
+  canResult: boolean
+  canCancel: boolean
   canAttachImaging: boolean
   busyId: number | null
   rowError: RowError | null
@@ -111,10 +113,10 @@ function LabRow({
           {showActions && o.status === 'ordered' && canCollect && (
             <Button size="xs" onClick={() => onMarkCollected(o.id)} disabled={busyId === o.id}>Mark collected</Button>
           )}
-          {showActions && o.status === 'collected' && canResultOrCancel && (
+          {showActions && o.status === 'collected' && canResult && (
             <Button size="xs" onClick={() => onOpenResult(o)} disabled={busyId === o.id}>Enter result</Button>
           )}
-          {showActions && (o.status === 'ordered' || o.status === 'collected') && canResultOrCancel && (
+          {showActions && (o.status === 'ordered' || o.status === 'collected') && canCancel && (
             <Button size="xs" variant="destructive" onClick={() => onStartCancel(o.id)} disabled={busyId === o.id}>Cancel</Button>
           )}
           {showActions && o.category === 'imaging' && o.status !== 'cancelled' && canAttachImaging && (
@@ -149,15 +151,18 @@ export function LabWorklist({ orders, labTests, role }: { orders: WorklistOrder[
   const [resultFor, setResultFor] = useState<WorklistOrder | null>(null)
   const [attachFor, setAttachFor] = useState<WorklistOrder | null>(null)
 
-  // Mark collected: admin/pi/frontdesk (spec §8 -- logistics, not a clinical
-  // judgment). Enter result / cancel: admin/pi only.
-  const canCollect = ['admin', 'pi', 'frontdesk'].includes(role)
-  const canResultOrCancel = ['admin', 'pi'].includes(role)
-  // Same admin/pi tier as canResultOrCancel (the enterResult tier, per POST
+  // Mark collected: admin/pi/frontdesk/labs (spec §8 -- logistics, not a
+  // clinical judgment). Enter result: admin/pi/labs (the lab bench itself).
+  // Cancel an order: admin/pi only -- that's a clinical ordering decision,
+  // not something the lab bench does on its own.
+  const canCollect = ['admin', 'pi', 'frontdesk', 'labs'].includes(role)
+  const canResult = ['admin', 'pi', 'labs'].includes(role)
+  const canCancel = ['admin', 'pi'].includes(role)
+  // Same tier as canResult (the enterResult tier, per POST
   // /api/lab-orders/[id]/imaging's own gate) -- NOT the generic-documents
   // tier (admin/crc/frontdesk), since attaching imaging to an order is a
   // clinical act on the lab lifecycle, not generic document filing.
-  const canAttachImaging = ['admin', 'pi'].includes(role)
+  const canAttachImaging = ['admin', 'pi', 'labs'].includes(role)
 
   const ordered = orders.filter((o) => o.status === 'ordered')
   const collected = orders.filter((o) => o.status === 'collected')
@@ -196,7 +201,8 @@ export function LabWorklist({ orders, labTests, role }: { orders: WorklistOrder[
 
   const rowProps = {
     canCollect,
-    canResultOrCancel,
+    canResult,
+    canCancel,
     canAttachImaging,
     busyId,
     rowError,
