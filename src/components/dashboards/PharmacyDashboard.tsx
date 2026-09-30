@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { AlertTriangle, XCircle, Pill, PackagePlus } from 'lucide-react'
+import { CountUp } from '@/components/CountUp'
 import { Button } from '@/components/ui/button'
 import { DispenseMedicationModal } from '@/components/DispenseMedicationModal'
 import { AddMedicationModal } from '@/components/AddMedicationModal'
@@ -51,7 +52,7 @@ function StatTile({ value, label, icon: Icon, tone }: { value: number; label: st
         <Icon className="h-4.5 w-4.5" />
       </span>
       <div>
-        <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
+        <p className="text-2xl font-bold tabular-nums text-foreground"><CountUp to={value} /></p>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       </div>
     </div>

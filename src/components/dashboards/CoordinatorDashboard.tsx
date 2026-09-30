@@ -6,6 +6,8 @@ import { DashboardAppointmentsTable, type DashboardAppointmentRow } from '@/comp
 import { PatientsByMonthChart } from '@/components/PatientsByMonthChart'
 import { ScreeningBreakdownChart } from '@/components/ScreeningBreakdownChart'
 import { PatientAvatar } from '@/components/PatientAvatar'
+import { PortalTileLink } from '@/components/PortalTileLink'
+import { CountUp } from '@/components/CountUp'
 
 const FORM_STATUS_STYLE: Record<string, string> = {
   sent: 'bg-warning/10 text-warning',
@@ -29,15 +31,15 @@ const CARD_SURFACE = 'rounded-md border border-border bg-card shadow-none'
 
 function MiniStatTile({ value, label, href, icon: Icon }: { value: number; label: string; href: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-md border border-border bg-card p-4 transition-colors duration-200 hover:bg-muted/40">
+    <PortalTileLink href={href} spotlightColor="rgba(61, 79, 143, 0.1)" className="flex items-center gap-3 rounded-md border border-border bg-card p-4 transition-colors duration-200 hover:bg-muted/40">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
         <Icon className="h-4.5 w-4.5" />
       </span>
       <div>
-        <p className="text-2xl font-bold tabular-nums text-primary">{value}</p>
+        <p className="text-2xl font-bold tabular-nums text-primary"><CountUp to={value} /></p>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       </div>
-    </Link>
+    </PortalTileLink>
   )
 }
 
