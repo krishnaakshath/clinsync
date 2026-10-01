@@ -5,6 +5,7 @@ import { LockKeyhole } from 'lucide-react'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
 import { MfaCodeStep } from '@/components/mfa/MfaCodeStep'
 import { MfaEnrollStep } from '@/components/mfa/MfaEnrollStep'
+import Aurora from '@/components/Aurora'
 
 type Step =
   | { kind: 'password' }
@@ -58,7 +59,13 @@ export default function LoginPage() {
   // it matches the plain, utilitarian login every other enterprise/clinical
   // system uses (researched via Mobbin: Xero, n8n, OpenAI Platform).
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-10">
+      {/* A faint, slow wash behind the card -- lightMode + low opacity keeps
+          this a calm backdrop rather than the moving-gradient landing-page
+          feel this page deliberately moved away from. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[500px] opacity-[0.25]">
+        <Aurora colorStops={['#3d4f8f', '#c98a4b', '#3d4f8f']} amplitude={0.5} blend={0.4} lightMode />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
