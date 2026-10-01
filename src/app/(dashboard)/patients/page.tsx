@@ -52,16 +52,21 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
           clinician notes and every other contact field, none of which this
           table shows, but all of which would otherwise ship into the
           client bundle. */}
-      <PatientsTable patients={patients.map((p) => ({
-        id: p.id,
-        overallStatus: p.overallStatus,
-        name: p.name,
-        dob: p.dob,
-        currentProvider: p.currentProvider,
-        referralType: p.referralType,
-        lastCommunication: p.lastCommunication,
-        criteriaSummary: p.criteriaSummary,
-      }))} />
+      <PatientsTable
+        patients={patients.map((p) => ({
+          id: p.id,
+          overallStatus: p.overallStatus,
+          name: p.name,
+          dob: p.dob,
+          currentProvider: p.currentProvider,
+          referralType: p.referralType,
+          lastCommunication: p.lastCommunication,
+          criteriaSummary: p.criteriaSummary,
+        }))}
+        // Front desk sees patients, not charts -- the Medical Record link
+        // would just 403 them (see medical-record/page.tsx's frontdesk gate).
+        showMedicalRecordLink={session.role !== 'frontdesk'}
+      />
     </div>
   )
 }

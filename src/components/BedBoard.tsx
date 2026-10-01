@@ -12,6 +12,9 @@ export interface BoardRoom {
   status: 'available' | 'occupied' | 'dirty' | 'blocked'
   blockedReason: string | null
   occupantName: string | null
+  occupantPatientId: string | null
+  attendingProviderName: string | null
+  admittedAt: Date | null
 }
 
 const STATUS_STYLES: Record<BoardRoom['status'], string> = {
@@ -95,7 +98,23 @@ export function BedBoard({ rooms, canManageFacilities, canBlock, canAdmit }: { r
             </DialogHeader>
             <div className="space-y-3 text-sm">
               <p className="text-muted-foreground">Status: <span className="font-medium text-foreground">{STATUS_LABELS[selected.status]}</span></p>
-              {selected.occupantName && <p className="text-foreground">Occupant: {selected.occupantName}</p>}
+              {selected.occupantName && (
+                <div className="rounded-md border border-border bg-secondary/40 p-3">
+                  <p className="text-foreground">
+                    <span className="font-medium">{selected.occupantName}</span>
+                    {selected.occupantPatientId && <span className="font-mono text-xs text-muted-foreground"> ({selected.occupantPatientId})</span>}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Attending: {selected.attendingProviderName ?? 'Unassigned'}
+                  </p>
+                  {selected.admittedAt && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">Admitted {new Date(selected.admittedAt).toLocaleString()}</p>
+                  )}
+                  {selected.occupantPatientId && (
+                    <a href={`/patients/${selected.occupantPatientId}`} className="mt-1.5 inline-block text-xs font-medium text-primary hover:underline">View patient →</a>
+                  )}
+                </div>
+              )}
               {selected.status === 'blocked' && selected.blockedReason && <p className="text-muted-foreground">Reason: {selected.blockedReason}</p>}
 
               {selected.status === 'dirty' && canManageFacilities && (

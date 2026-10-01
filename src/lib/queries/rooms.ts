@@ -1,5 +1,5 @@
 import { getDb } from '@/db/client'
-import { rooms, patients } from '@/db/schema'
+import { rooms, patients, admissions, providers } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 
 export interface AvailableRoom {
@@ -42,6 +42,9 @@ export interface RoomWithOccupant {
   status: 'available' | 'occupied' | 'dirty' | 'blocked'
   blockedReason: string | null
   occupantName: string | null
+  occupantPatientId: string | null
+  attendingProviderName: string | null
+  admittedAt: Date | null
 }
 
 export async function listAllRoomsWithOccupant(): Promise<RoomWithOccupant[]> {
@@ -54,9 +57,20 @@ export async function listAllRoomsWithOccupant(): Promise<RoomWithOccupant[]> {
       status: rooms.status,
       blockedReason: rooms.blockedReason,
       occupantName: patients.name,
+      occupantPatientId: patients.id,
+      attendingProviderName: providers.name,
+      admittedAt: admissions.admittedAt,
     })
     .from(rooms)
     .leftJoin(patients, eq(rooms.occupiedByPatientId, patients.id))
+    // The room->admission link runs through admissions.currentRoomId, not
+    // the other way around (a room has no admissionId column) -- scoped to
+    // status = 'admitted' so a past, already-discharged admission that used
+    // to point at this room (currentRoomId is never cleared on discharge)
+    // doesn't show a stale "assigned doctor" on a room that's since been
+    // reassigned or is sitting empty.
+    .leftJoin(admissions, and(eq(admissions.currentRoomId, rooms.id), eq(admissions.status, 'admitted')))
+    .leftJoin(providers, eq(providers.id, admissions.attendingProviderId))
   return rows.map((r) => ({
     id: r.id,
     ward: r.ward,
@@ -65,6 +79,9 @@ export async function listAllRoomsWithOccupant(): Promise<RoomWithOccupant[]> {
     status: r.status,
     blockedReason: r.blockedReason,
     occupantName: r.occupantName ?? null,
+    occupantPatientId: r.occupantPatientId ?? null,
+    attendingProviderName: r.attendingProviderName ?? null,
+    admittedAt: r.admittedAt ?? null,
   }))
 }
 

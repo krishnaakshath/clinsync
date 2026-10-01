@@ -71,6 +71,7 @@ function InsuranceField({ label, value }: { label: string; value: string | null 
 export default async function MedicalRecordPage({ params }: { params: Promise<{ anonId: string }> }) {
   // Must be the first statement — see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
+  const { anonId } = await params
   // Pharmacy staff see prescriptions only via their own patient-lookup
   // dispensing flow. Full clinical charts are clinical-only.
   if (session.role === 'pharmacy') {
@@ -84,8 +85,21 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
       </div>
     )
   }
+  // Front desk sees the patient list and identity/registration info (the
+  // Patient Detail overview page) -- not the clinical chart. Explicit
+  // product direction: registration/check-in only, no medical record.
+  if (session.role === 'frontdesk') {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm font-medium text-foreground">Chart access restricted</p>
+        <p className="max-w-xs text-sm text-muted-foreground">
+          Front desk doesn&apos;t have access to clinical charts. You can still view this patient&apos;s{' '}
+          <a href={`/patients/${anonId}`} className="text-primary underline">identity and registration details</a>.
+        </p>
+      </div>
+    )
+  }
 
-  const { anonId } = await params
   const patient = await getPatientDetail(anonId)
   if (!patient) notFound()
   const notes = await listNotesForPatient(anonId)

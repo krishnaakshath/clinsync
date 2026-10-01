@@ -69,7 +69,7 @@ function CriteriaReadout({ summary, status }: { summary?: CriteriaSummaryLike; s
 // filling the card) so the whole surface is clickable; "Medical Record" is a
 // separate, real sibling Link stacked above it (never nested inside another
 // anchor) that opens a dedicated page for that one action.
-function PatientCard({ patient }: { patient: PatientRow }) {
+function PatientCard({ patient, showMedicalRecordLink }: { patient: PatientRow; showMedicalRecordLink: boolean }) {
   const name = patient.name
   const dob = patient.dob
   const status = patient.overallStatus ?? 'yellow'
@@ -97,19 +97,21 @@ function PatientCard({ patient }: { patient: PatientRow }) {
 
       <div className="relative flex items-center justify-between gap-2 border-t border-border pt-3">
         <p className="truncate text-xs text-muted-foreground">{patient.currentProvider ?? 'Unassigned'}</p>
-        <Link
-          href={`/patients/${patient.id}/medical-record`}
-          className="relative inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
-        >
-          <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-          Medical Record
-        </Link>
+        {showMedicalRecordLink && (
+          <Link
+            href={`/patients/${patient.id}/medical-record`}
+            className="relative inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+            Medical Record
+          </Link>
+        )}
       </div>
     </div>
   )
 }
 
-export function PatientsTable({ patients }: { patients: PatientRow[] }) {
+export function PatientsTable({ patients, showMedicalRecordLink = true }: { patients: PatientRow[]; showMedicalRecordLink?: boolean }) {
   const [search, setSearch] = useState('')
 
   const filtered = useMemo(() => {
@@ -150,7 +152,7 @@ export function PatientsTable({ patients }: { patients: PatientRow[] }) {
         <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No patients match &quot;{search}&quot;.</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((p) => <PatientCard key={p.id} patient={p} />)}
+          {filtered.map((p) => <PatientCard key={p.id} patient={p} showMedicalRecordLink={showMedicalRecordLink} />)}
         </div>
       )}
 

@@ -49,7 +49,15 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
   const name = patient.name
 
-  const overviewTab = (
+  // Front desk sees patients, not charts -- not even diagnosis/medication/
+  // allergy counts, and no link into a page they're blocked from anyway
+  // (medical-record/page.tsx's own frontdesk gate).
+  const overviewTab = session.role === 'frontdesk' ? (
+    <section className={SECTION}>
+      <h2 className={SECTION_HEADING}>Medical Record</h2>
+      <p className="text-sm text-muted-foreground">Front desk doesn&apos;t have access to clinical chart information.</p>
+    </section>
+  ) : (
     <section className={SECTION}>
       <h2 className={SECTION_HEADING}>Medical Record Summary</h2>
       <p className="mb-4 text-sm text-muted-foreground">
