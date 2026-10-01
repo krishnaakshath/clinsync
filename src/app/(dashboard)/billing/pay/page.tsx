@@ -27,7 +27,7 @@ export default async function VirtualCardPaymentPage({
     <div className="max-w-xl">
       <h1 className="mb-6 text-2xl font-bold text-foreground">Virtual Card Payment</h1>
       <VirtualCardPaymentForm
-        patients={billablePatients.map((p) => ({ id: p.id, name: p.nameTebra ?? p.nameIntakeq }))}
+        patients={billablePatients.map((p) => ({ id: p.id, name: p.nameTebra ?? p.nameIntakeq ?? p.name }))}
         initialPatientId={patientId}
         initialAmountCents={amountCents ? Number(amountCents) : undefined}
       />

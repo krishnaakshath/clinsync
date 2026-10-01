@@ -37,7 +37,7 @@ export async function listFormSubmissions(filters: FormSubmissionFilters) {
     answers: r.submission.answers,
     templateName: r.template.name,
     diagnosisTag: r.template.diagnosisTag,
-    patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+    patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name,
   }))
 }
 
@@ -60,6 +60,6 @@ export async function getFormSubmission(id: number) {
     answers: row.submission.answers,
     templateName: row.template.name,
     questions: row.template.questions,
-    patientName: row.patient.nameTebra ?? row.patient.nameIntakeq,
+    patientName: row.patient.nameTebra ?? row.patient.nameIntakeq ?? row.patient.name,
   }
 }

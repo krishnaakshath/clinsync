@@ -34,7 +34,7 @@ export async function listCharges() {
       // shows up where, making the table look like it "did nothing" or
       // changed the wrong row. desc(id) breaks ties deterministically.
       .orderBy(desc(charges.dateOfService), desc(charges.id))
-    return rows.map((r) => ({ ...r.charge, patientName: r.patient.nameTebra ?? r.patient.nameIntakeq }))
+    return rows.map((r) => ({ ...r.charge, patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name }))
   })
 }
 
@@ -48,8 +48,8 @@ export async function getCharge(id: number) {
     if (!row) return null
     return {
       ...row.charge,
-      patientName: row.patient.nameTebra ?? row.patient.nameIntakeq,
-      patientDob: row.patient.dobTebra ?? row.patient.dobIntakeq,
+      patientName: row.patient.nameTebra ?? row.patient.nameIntakeq ?? row.patient.name,
+      patientDob: row.patient.dobTebra ?? row.patient.dobIntakeq ?? row.patient.dob,
     }
   })
 }

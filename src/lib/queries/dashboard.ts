@@ -85,7 +85,7 @@ export async function getDashboardData() {
       // only those -- no reason to cache clinician notes or the
       // encrypted-ID columns here. dateAdded also feeds the "patients added
       // by month" chart, so one select covers both needs.
-      db.select({ id: patients.id, nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq, dateAdded: patients.dateAdded }).from(patients),
+      db.select({ id: patients.id, nameTebra: patients.nameTebra, nameIntakeq: patients.nameIntakeq, name: patients.name, dateAdded: patients.dateAdded }).from(patients),
       db.select({ patientId: patientTrialScreenings.patientId, overallStatus: patientTrialScreenings.overallStatus }).from(patientTrialScreenings),
       db.select({ id: formSubmissions.patientId }).from(formSubmissions).where(eq(formSubmissions.status, 'completed')),
       db
@@ -108,7 +108,7 @@ export async function getDashboardData() {
     const completedIntakeIds = new Set(completedIntakeIdRows.map((r) => r.id))
     const pendingClassification = patientRows
       .filter((p) => completedIntakeIds.has(p.id) && !screenedIds.has(p.id))
-      .map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq }))
+      .map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq, name: p.name }))
 
     // Real aggregates for the home dashboard's stat/chart row.
     const patientsByMonth = computePatientsByMonth(patientRows.map((p) => p.dateAdded))
@@ -124,13 +124,13 @@ export async function getDashboardData() {
     // the intake portal, and this dashboard summary never needs it (it also
     // sits in the plaintext Upstash cache, so less PHI/credentials in here
     // is a real reduction in blast radius, not just an unused field).
-    const projectForm = (r: { submission: typeof formSubmissions.$inferSelect; template: { name: string }; patient: { nameTebra: string | null; nameIntakeq: string } }) => ({
+    const projectForm = (r: { submission: typeof formSubmissions.$inferSelect; template: { name: string }; patient: { nameTebra: string | null; nameIntakeq: string; name: string } }) => ({
       id: r.submission.id,
       status: r.submission.status,
       sentDate: r.submission.sentDate,
       completedDate: r.submission.completedDate,
       templateName: r.template.name,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name,
     })
 
     return {

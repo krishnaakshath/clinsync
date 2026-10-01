@@ -26,7 +26,7 @@ export async function regenerateScreeningCriteria(patientId: string, screeningId
     .from(medicationEpisodes)
     .where(eq(medicationEpisodes.patientId, patientId))
 
-  const dob = patient.dobTebra ?? patient.dobIntakeq
+  const dob = patient.dobTebra ?? patient.dobIntakeq ?? patient.dob
   const results = evaluateEligibility(
     {
       ageMin: trial.ageMin,

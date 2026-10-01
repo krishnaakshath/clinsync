@@ -5,7 +5,7 @@ import { SendFormModal } from './SendFormModal'
 
 export function DashboardHomeClient({ templates, patients }: {
   templates: { id: number; name: string }[]
-  patients: { id: string; nameTebra: string | null; nameIntakeq: string }[]
+  patients: { id: string; nameTebra: string | null; nameIntakeq: string; name: string }[]
 }) {
   const [openModal, setOpenModal] = useState<'client' | 'form' | null>(null)
 

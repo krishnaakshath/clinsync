@@ -39,7 +39,7 @@ export async function listScreeningsForTrial(trialId: string): Promise<TrialScre
     if (!entry) {
       entry = {
         id: row.patient.id,
-        name: row.patient.nameTebra ?? row.patient.nameIntakeq,
+        name: row.patient.nameTebra ?? row.patient.nameIntakeq ?? row.patient.name,
         overallStatus: row.screening.overallStatus,
         criteria: [],
       }

@@ -14,7 +14,7 @@ export default async function ChargesPage() {
       <h1 className="mb-6 text-2xl font-bold text-foreground">Charges</h1>
       <ChargesTable
         charges={charges}
-        patients={patients.map((p) => ({ id: p.id, name: p.nameTebra ?? p.nameIntakeq }))}
+        patients={patients.map((p) => ({ id: p.id, name: p.nameTebra ?? p.nameIntakeq ?? p.name }))}
       />
     </div>
   )

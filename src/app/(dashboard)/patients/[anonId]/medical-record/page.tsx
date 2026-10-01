@@ -57,7 +57,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
   if (!patient) notFound()
   await logAudit(session, 'viewed patient medical record', anonId)
 
-  const name = patient.nameTebra ?? patient.nameIntakeq
+  const name = patient.nameTebra ?? patient.nameIntakeq ?? patient.name
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -68,7 +68,7 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
           <PatientAvatar name={name} size="lg" />
           <div>
             <h1 className="text-xl font-bold text-foreground">{name}</h1>
-            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dobTebra ?? patient.dobIntakeq}</p>
+            <p className="font-mono text-xs text-muted-foreground">{patient.id} · DOB {patient.dobTebra ?? patient.dobIntakeq ?? patient.dob}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Chart data as of {new Date(patient.chartDataAsOf).toLocaleString()}</p>
           </div>
         </div>
@@ -84,8 +84,8 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
         <div className="grid grid-cols-4 gap-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Field</span><span>Intake Form</span><span>Clinical Record</span><span>Merged (used)</span>
         </div>
-        <ComparisonRow label="Name" intakeq={patient.nameIntakeq} tebra={patient.nameTebra} merged={patient.nameTebra ?? patient.nameIntakeq} />
-        <ComparisonRow label="DOB" intakeq={patient.dobIntakeq} tebra={patient.dobTebra} merged={patient.dobTebra ?? patient.dobIntakeq} />
+        <ComparisonRow label="Name" intakeq={patient.nameIntakeq} tebra={patient.nameTebra} merged={patient.nameTebra ?? patient.nameIntakeq ?? patient.name} />
+        <ComparisonRow label="DOB" intakeq={patient.dobIntakeq} tebra={patient.dobTebra} merged={patient.dobTebra ?? patient.dobIntakeq ?? patient.dob} />
         <ComparisonRow label="Email" intakeq={patient.emailIntakeq} tebra={patient.emailTebra} merged={patient.emailTebra ?? patient.emailIntakeq} />
       </section>
 

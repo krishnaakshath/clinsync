@@ -70,7 +70,7 @@ export async function listBroadcastRecipientCandidates(filters: BroadcastRecipie
 
   return candidates.map((c) => ({
     id: c.patient.id,
-    name: c.patient.nameTebra ?? c.patient.nameIntakeq,
+    name: c.patient.nameTebra ?? c.patient.nameIntakeq ?? c.patient.name,
     phone: c.patient.phoneTebra ?? c.patient.phoneIntakeq ?? null,
     email: c.patient.emailTebra ?? c.patient.emailIntakeq ?? null,
   }))

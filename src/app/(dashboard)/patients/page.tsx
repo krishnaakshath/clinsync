@@ -48,6 +48,8 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
         nameIntakeq: p.nameIntakeq,
         dobTebra: p.dobTebra,
         dobIntakeq: p.dobIntakeq,
+        name: p.name,
+        dob: p.dob,
         currentProvider: p.currentProvider,
         referralType: p.referralType,
         lastCommunication: p.lastCommunication,

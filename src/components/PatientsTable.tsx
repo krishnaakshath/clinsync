@@ -19,6 +19,8 @@ export interface PatientRow {
   nameIntakeq: string
   dobTebra: string | null
   dobIntakeq: string
+  name: string
+  dob: string
   currentProvider: string | null
   referralType: string | null
   lastCommunication: string | null
@@ -50,8 +52,8 @@ function CriteriaReadout({ summary }: { summary?: CriteriaSummaryLike }) {
 // sibling Link stacked above it (never nested inside another anchor) that
 // opens a dedicated page for that one action.
 function PatientCard({ patient }: { patient: PatientRow }) {
-  const name = patient.nameTebra ?? patient.nameIntakeq
-  const dob = patient.dobTebra ?? patient.dobIntakeq
+  const name = patient.nameTebra ?? patient.nameIntakeq ?? patient.name
+  const dob = patient.dobTebra ?? patient.dobIntakeq ?? patient.dob
 
   return (
     <div className="group relative flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/30">
@@ -95,7 +97,7 @@ export function PatientsTable({ patients }: { patients: PatientRow[] }) {
     const q = search.trim().toLowerCase()
     if (!q) return patients
     return patients.filter((p) => {
-      const name = (p.nameTebra ?? p.nameIntakeq).toLowerCase()
+      const name = (p.nameTebra ?? p.nameIntakeq ?? p.name).toLowerCase()
       return name.includes(q) || p.id.toLowerCase().includes(q)
     })
   }, [search, patients])
