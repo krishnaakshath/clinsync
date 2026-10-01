@@ -1,6 +1,8 @@
 'use client'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Upload, Check } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp'
 
@@ -51,18 +53,25 @@ export function InsuranceCardUpload({ anonId, side, hasImage, canWrite }: { anon
 
   return (
     <div className="flex items-center gap-2">
-      <label className="cursor-pointer text-xs font-medium text-primary hover:underline">
-        {uploading ? 'Uploading…' : hasImage ? 'Uploaded' : 'Upload'}
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED_TYPES}
-          onChange={handleFileChange}
-          disabled={uploading}
-          className="sr-only"
-          aria-label={`Upload ${side} of primary insurance card`}
-        />
-      </label>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+      >
+        {hasImage ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Upload className="h-3.5 w-3.5" aria-hidden="true" />}
+        {uploading ? 'Uploading…' : hasImage ? 'Replace' : 'Upload'}
+      </Button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPTED_TYPES}
+        onChange={handleFileChange}
+        disabled={uploading}
+        className="sr-only"
+        aria-label={`Upload ${side} of primary insurance card`}
+      />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )

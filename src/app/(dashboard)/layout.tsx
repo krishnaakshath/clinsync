@@ -18,7 +18,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="flex h-screen flex-col overflow-hidden">
       <SessionTimeoutWarning />
       <TopBanner userName={session.name} role={session.role} />
-      <div className="flex flex-1 overflow-hidden">
+      {/* min-h-0 for the same reason LeftNav's inner scroll area needs it --
+          a flex item's default min-height is its content's natural height,
+          not 0, so without this a tall child could grow this row past the
+          screen instead of each side scrolling independently within it. */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <LeftNav role={session.role} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>

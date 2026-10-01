@@ -141,13 +141,20 @@ export function LeftNav({ role }: { role: Role }) {
   const isBillingOnly = role === 'billing'
 
   return (
-    <nav className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-card">
+    <nav className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-card">
       {/* Logo / Wordmark */}
       <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
         <ClinsyncLogo className="text-base font-bold tracking-tight text-foreground" />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
+      {/* min-h-0 is load-bearing: a flex item's default min-height is "auto"
+          (its content's natural height), not 0 -- without it, a long nav
+          list just grows this div past the nav's own h-full bound instead of
+          scrolling inside it, and the OUTER <nav> (which used to also carry
+          overflow-y-auto) would scroll the whole sidebar -- logo and role
+          badge included -- as one blob instead of keeping them pinned while
+          only this middle section scrolls. */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {!isBillingOnly && (
           <>
             <GroupLabel>Navigation</GroupLabel>
