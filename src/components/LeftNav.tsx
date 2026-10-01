@@ -60,6 +60,10 @@ export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[
   // Pharmacy — dedicated section; no full patient record access
   { href: '/pharmacy', label: 'Pharmacy', icon: Pill, roles: ['crc', 'pi', 'admin', 'pharmacy'] as Role[] },
   { href: '/pharmacy/patient-lookup', label: 'Patient Lookup', icon: Search, roles: ['pharmacy', 'admin'] as Role[] },
+  // Pharmacy's own billing -- deliberately separate from the Billing role's
+  // practice-wide revenue cycle (NAV_BILLING_ITEMS below): this covers only
+  // charges generated from dispensed medications.
+  { href: '/pharmacy/billing', label: 'Pharmacy Billing', icon: DollarSign, roles: ['pharmacy', 'admin'] as Role[] },
 
   // Labs — clinical + the dedicated Labs role only (NOT billing, NOT pharmacy,
   // NOT frontdesk -- front desk's job is registration/check-in, not lab

@@ -150,3 +150,55 @@ export async function createChargeForDispense(input: DispenseChargeInput): Promi
     throw err
   }
 }
+
+export interface PharmacyBillingRow {
+  dispenseId: number
+  patientId: string
+  patientName: string
+  medicationName: string
+  quantity: number
+  dispensedByName: string
+  dispensedAt: Date
+  charge: { id: number; status: typeof charges.$inferSelect['status']; amountCents: number } | null
+}
+
+/**
+ * Every dispense across every patient, newest first, with its billed charge
+ * if any -- pharmacy's own billing view. Deliberately NOT a slice of the
+ * general `charges` table: that table is every service line across the
+ * whole practice (visits, procedures, everything), and pharmacy should see
+ * only the charges that came from a medication dispense, not the practice's
+ * full revenue cycle (that's the Billing role's job, a completely separate
+ * dashboard).
+ */
+export async function listAllDispensesWithBilling(): Promise<PharmacyBillingRow[]> {
+  const rows = await getDb()
+    .select({
+      dispenseId: medicationDispenses.id,
+      patientId: medicationDispenses.patientId,
+      patientName: sql<string>`patients.name`,
+      medicationName: medications.name,
+      quantity: medicationDispenses.quantity,
+      dispensedByName: medicationDispenses.dispensedByName,
+      dispensedAt: medicationDispenses.dispensedAt,
+      chargeId: charges.id,
+      chargeStatus: charges.status,
+      chargeAmountCents: charges.amountCents,
+    })
+    .from(medicationDispenses)
+    .innerJoin(patients, eq(patients.id, medicationDispenses.patientId))
+    .innerJoin(medications, eq(medications.id, medicationDispenses.medicationId))
+    .leftJoin(charges, eq(charges.id, medicationDispenses.chargeId))
+    .orderBy(desc(medicationDispenses.dispensedAt), desc(medicationDispenses.id))
+
+  return rows.map((r) => ({
+    dispenseId: r.dispenseId,
+    patientId: r.patientId,
+    patientName: r.patientName,
+    medicationName: r.medicationName,
+    quantity: r.quantity,
+    dispensedByName: r.dispensedByName,
+    dispensedAt: r.dispensedAt,
+    charge: r.chargeId != null ? { id: r.chargeId, status: r.chargeStatus!, amountCents: r.chargeAmountCents! } : null,
+  }))
+}
