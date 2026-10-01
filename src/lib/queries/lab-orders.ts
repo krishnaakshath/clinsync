@@ -229,3 +229,36 @@ export async function listWorklist(): Promise<WorklistRow[]> {
   const byOrder = await listImagingForOrders(mapped.map((r) => r.id))
   return mapped.map((r) => ({ ...r, attachments: byOrder.get(r.id) ?? [] }))
 }
+
+export interface LabPatientRosterRow {
+  id: string
+  name: string
+  resultedCount: number
+  pendingCount: number
+}
+
+/**
+ * Every patient with at least one lab order, for the Labs role's
+ * patient-first landing view -- click a patient, see their reports as
+ * cards (listOrdersForPatient already has everything a card needs: result
+ * value/flag, reference range, and any imaging attachments).
+ */
+export async function listPatientsWithLabOrders(): Promise<LabPatientRosterRow[]> {
+  const rows = await getDb()
+    .select({
+      patientId: labOrders.patientId,
+      patientName: sql<string>`patients.name`,
+      status: labOrders.status,
+    })
+    .from(labOrders)
+    .innerJoin(patients, eq(labOrders.patientId, patients.id))
+
+  const byPatient = new Map<string, LabPatientRosterRow>()
+  for (const r of rows) {
+    const existing = byPatient.get(r.patientId) ?? { id: r.patientId, name: r.patientName, resultedCount: 0, pendingCount: 0 }
+    if (r.status === 'resulted') existing.resultedCount += 1
+    else if (r.status === 'ordered' || r.status === 'collected') existing.pendingCount += 1
+    byPatient.set(r.patientId, existing)
+  }
+  return [...byPatient.values()].sort((a, b) => a.name.localeCompare(b.name))
+}

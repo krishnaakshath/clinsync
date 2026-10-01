@@ -1,11 +1,13 @@
 import { redirect } from 'next/navigation'
-import { ClipboardList, Beaker, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { ClipboardList, Beaker, CheckCircle2, AlertTriangle, Users, ListChecks } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { CountUp } from '@/components/CountUp'
 import { logAudit } from '@/lib/audit'
-import { listWorklist } from '@/lib/queries/lab-orders'
+import { listWorklist, listPatientsWithLabOrders } from '@/lib/queries/lab-orders'
 import { listLabTests } from '@/lib/queries/lab-tests'
 import { LabWorklist } from '@/components/LabWorklist'
+import { LabsPatientReports } from '@/components/LabsPatientReports'
+import { Tabs } from '@/components/Tabs'
 
 function StatTile({ value, label, icon: Icon, tone }: { value: number; label: string; icon: React.ComponentType<{ className?: string }>; tone: string }) {
   return (
@@ -27,7 +29,7 @@ export default async function LabsPage() {
   // explicit product direction (registration/check-in only, no lab access).
   if (!['admin', 'pi', 'crc', 'labs'].includes(session.role)) redirect('/')
 
-  const [orders, labTests] = await Promise.all([listWorklist(), listLabTests()])
+  const [orders, labTests, patientRoster] = await Promise.all([listWorklist(), listLabTests(), listPatientsWithLabOrders()])
   await logAudit(session, session.role === 'labs' ? 'viewed labs dashboard' : 'viewed lab worklist', null)
 
   const pending = orders.filter((o) => o.status === 'ordered').length
@@ -64,7 +66,14 @@ export default async function LabsPage() {
         </div>
       )}
 
-      <LabWorklist orders={orders} labTests={labTests} role={session.role} />
+      {/* Patient-first by default (explicit product direction): click a
+          patient, see their reports as cards; the flat worklist (needed to
+          actually process collection/results) stays available as a second
+          tab, not the default landing view. */}
+      <Tabs tabs={[
+        { id: 'by-patient', label: <><Users className="h-4 w-4 text-primary" aria-hidden="true" />By Patient</>, content: <LabsPatientReports roster={patientRoster} /> },
+        { id: 'worklist', label: <><ListChecks className="h-4 w-4 text-primary" aria-hidden="true" />Worklist</>, content: <LabWorklist orders={orders} labTests={labTests} role={session.role} /> },
+      ]} />
     </div>
   )
 }
