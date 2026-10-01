@@ -80,7 +80,10 @@ function ContactDoctorComposer({ patientId, onSent }: { patientId: string; onSen
     const res = await fetch(`/api/messages/${encodeURIComponent(patientId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body, actingAs: 'provider' }),
+      // internal: true -- pharmacy talks to the prescriber about this
+      // patient, never to the patient. Kept out of the patient portal's
+      // view of this same thread (see messages.internal on schema.ts).
+      body: JSON.stringify({ body, actingAs: 'provider', internal: true }),
     })
     setSending(false)
     if (res.ok) { setBody(''); onSent(); return }
@@ -276,8 +279,8 @@ export function PharmacyPatientLookup({ medications, roster }: { medications: Me
               Contact {view.currentProvider ?? 'Prescriber'}
             </h2>
             <p className="mb-3 text-sm text-muted-foreground">
-              Use this to confirm a substitution, a dose question, or anything else before dispensing -- it goes to the
-              same message thread {view.currentProvider ?? 'the prescriber'} sees for this patient.
+              Use this to confirm a substitution, a dose question, or anything else before dispensing -- {view.currentProvider ?? 'the prescriber'} sees
+              it in this patient&apos;s thread, but it is an internal note: the patient never sees it in their portal.
             </p>
             <div className="mb-4 max-h-64 overflow-y-auto rounded-lg border border-border p-3">
               <MessageThreadView messages={messages} viewerRole="provider" />

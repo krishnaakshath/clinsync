@@ -151,17 +151,14 @@ export function LabWorklist({ orders, labTests, role }: { orders: WorklistOrder[
   const [resultFor, setResultFor] = useState<WorklistOrder | null>(null)
   const [attachFor, setAttachFor] = useState<WorklistOrder | null>(null)
 
-  // Mark collected: admin/pi/frontdesk/labs (spec §8 -- logistics, not a
-  // clinical judgment). Enter result: admin/pi/labs (the lab bench itself).
-  // Cancel an order: admin/pi only -- that's a clinical ordering decision,
-  // not something the lab bench does on its own.
-  const canCollect = ['admin', 'pi', 'frontdesk', 'labs'].includes(role)
+  // Mark collected: admin/pi/labs. Enter result: admin/pi/labs (the lab
+  // bench itself). Cancel an order: admin/pi only -- that's a clinical
+  // ordering decision, not something the lab bench does on its own.
+  // frontdesk previously had mark-collected access -- removed per explicit
+  // product direction: front desk's job is registration/check-in, not labs.
+  const canCollect = ['admin', 'pi', 'labs'].includes(role)
   const canResult = ['admin', 'pi', 'labs'].includes(role)
   const canCancel = ['admin', 'pi'].includes(role)
-  // Same tier as canResult (the enterResult tier, per POST
-  // /api/lab-orders/[id]/imaging's own gate) -- NOT the generic-documents
-  // tier (admin/crc/frontdesk), since attaching imaging to an order is a
-  // clinical act on the lab lifecycle, not generic document filing.
   const canAttachImaging = ['admin', 'pi', 'labs'].includes(role)
 
   const ordered = orders.filter((o) => o.status === 'ordered')

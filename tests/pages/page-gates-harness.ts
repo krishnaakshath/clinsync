@@ -178,20 +178,25 @@ export const PAGE_GATES: PageGateCase[] = [
   { route: '/front-desk/assignments', load: () => import('@/app/(dashboard)/front-desk/assignments/page'), allowed: ['frontdesk', 'admin', 'crc'] },
   // LeftNav.tsx:41 — { href: '/inpatient/beds', roles: ['frontdesk', 'admin', 'crc', 'pi'] }
   { route: '/inpatient/beds', load: () => import('@/app/(dashboard)/inpatient/beds/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi'] },
-  // LeftNav.tsx:43 — { href: '/labs', roles: ['frontdesk', 'admin', 'crc', 'pi', 'labs'] }
-  { route: '/labs', load: () => import('@/app/(dashboard)/labs/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi', 'labs'] },
+  // LeftNav.tsx:43 — { href: '/labs', roles: ['admin', 'crc', 'pi', 'labs'] }
+  { route: '/labs', load: () => import('@/app/(dashboard)/labs/page'), allowed: ['admin', 'crc', 'pi', 'labs'] },
   // LeftNav.tsx:45 — { href: '/booking-requests', roles: ['frontdesk', 'admin', 'crc', 'pi'] }
   { route: '/booking-requests', load: () => import('@/app/(dashboard)/booking-requests/page'), allowed: ['frontdesk', 'admin', 'crc', 'pi'] },
   // LeftNav.tsx:65 — { href: '/audit-log', roles: ['admin'] }
   { route: '/audit-log', load: () => import('@/app/(dashboard)/audit-log/page'), allowed: ['admin'] },
   // Missing nav items:
   { route: '/patients', load: () => import('@/app/(dashboard)/patients/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk'] },
-  { route: '/trials', load: () => import('@/app/(dashboard)/trials/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk'] },
+  { route: '/trials', load: () => import('@/app/(dashboard)/trials/page'), allowed: ['crc', 'pi', 'admin'] },
   { route: '/calendar', load: () => import('@/app/(dashboard)/calendar/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk'] },
-  { route: '/client-forms', load: () => import('@/app/(dashboard)/client-forms/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk'] },
-  { route: '/pharmacy', load: () => import('@/app/(dashboard)/pharmacy/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'] },
+  {
+    route: '/client-forms',
+    load: () => import('@/app/(dashboard)/client-forms/page'),
+    props: { searchParams: Promise.resolve({}) },
+    allowed: ['crc', 'pi', 'admin'],
+  },
+  { route: '/pharmacy', load: () => import('@/app/(dashboard)/pharmacy/page'), allowed: ['crc', 'pi', 'admin', 'pharmacy'] },
   { route: '/pharmacy/patient-lookup', load: () => import('@/app/(dashboard)/pharmacy/patient-lookup/page'), allowed: ['pharmacy', 'admin'] },
-  { route: '/staff', load: () => import('@/app/(dashboard)/staff/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk'] },
+  { route: '/staff', load: () => import('@/app/(dashboard)/staff/page'), allowed: ['crc', 'admin'] },
   { route: '/messages', load: () => import('@/app/(dashboard)/messages/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'] },
-  { route: '/settings', load: () => import('@/app/(dashboard)/settings/page'), allowed: ['admin', 'crc', 'pi', 'frontdesk', 'pharmacy'] },
+  { route: '/settings', load: () => import('@/app/(dashboard)/settings/page'), allowed: ['admin', 'pi'] },
 ]

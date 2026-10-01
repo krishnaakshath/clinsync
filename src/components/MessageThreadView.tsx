@@ -4,6 +4,10 @@ export interface MessageRow {
   senderName: string
   body: string
   createdAt: string | Date
+  // Staff-to-staff note (e.g. pharmacy confirming with the prescriber) --
+  // the patient-facing query/API paths never return a row with this true,
+  // so it only ever renders in a staff-side thread view.
+  internal?: boolean
 }
 
 /**
@@ -35,7 +39,12 @@ export function MessageThreadView({ messages, viewerRole }: { messages: MessageR
         const isOwn = m.senderRole === viewerRole
         return (
           <div key={m.id} className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${isOwn ? 'ml-auto bg-primary/10 text-foreground' : 'bg-secondary text-foreground'}`}>
-            <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{m.senderName}</p>
+            <p className="mb-0.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {m.senderName}
+              {m.internal && (
+                <span className="rounded-full border border-warning/30 bg-warning/10 px-1.5 py-0 text-[9px] font-semibold normal-case tracking-normal text-warning">Internal — not visible to patient</span>
+              )}
+            </p>
             <p className="whitespace-pre-wrap">{m.body}</p>
             <p className="mt-1 text-[10px] text-muted-foreground">{new Date(m.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
           </div>

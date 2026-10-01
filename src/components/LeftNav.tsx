@@ -61,10 +61,10 @@ export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[
   { href: '/pharmacy', label: 'Pharmacy', icon: Pill, roles: ['crc', 'pi', 'admin', 'pharmacy'] as Role[] },
   { href: '/pharmacy/patient-lookup', label: 'Patient Lookup', icon: Search, roles: ['pharmacy', 'admin'] as Role[] },
 
-  // Labs — clinical + front-desk + the dedicated Labs role (NOT billing, NOT pharmacy).
-  // frontdesk was previously missing here despite role-capabilities.ts and the
-  // page/API gates already granting it worklist view + mark-collected access.
-  { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['admin', 'crc', 'pi', 'frontdesk', 'labs'] as Role[] },
+  // Labs — clinical + the dedicated Labs role only (NOT billing, NOT pharmacy,
+  // NOT frontdesk -- front desk's job is registration/check-in, not lab
+  // results; explicit product direction removed their prior worklist access).
+  { href: '/labs', label: 'Labs', icon: TestTube2, roles: ['admin', 'crc', 'pi', 'labs'] as Role[] },
 
   // Staff directory — admin/crc only (NOT frontdesk, NOT billing, NOT pharmacy)
   { href: '/staff', label: 'Staff', icon: IdCard, roles: ['crc', 'admin'] as Role[] },
@@ -94,8 +94,8 @@ export const NAV_TRAILING_ITEMS: { href: string; label: string; icon: Icon; role
   { href: '/experience-surveys', label: 'Experience Surveys', icon: Star, roles: ['admin', 'crc'] as Role[] },
   { href: '/pipeline-dashboard', label: 'Pipeline Dashboard', icon: Activity, roles: ['admin', 'crc'] as Role[] },
   { href: '/audit-log', label: 'Audit Log', icon: History, roles: ['admin'] as Role[] },
-  // Settings: NOT visible to billing role
-  { href: '/settings', label: 'Settings', icon: Settings, roles: ['admin', 'crc', 'pi', 'frontdesk', 'pharmacy'] as Role[] },
+  // Settings: admin and the PI only, no other role -- explicit product direction.
+  { href: '/settings', label: 'Settings', icon: Settings, roles: ['admin', 'pi'] as Role[] },
 ]
 
 function isActive(pathname: string | null, href: string): boolean {

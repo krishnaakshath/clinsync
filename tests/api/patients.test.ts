@@ -24,7 +24,11 @@ import { GET as getPatient, DELETE as deletePatientRoute } from '@/app/api/patie
 // regardless of order.)
 vi.mock('@/lib/auth', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth')>('@/lib/auth')
-  return { ...actual, requireSession: vi.fn(async () => ({ role: 'crc' as const, name: 'Test CRC' })) }
+  // frontdesk, not crc -- POST /api/patients (patient registration) is now
+  // admin/frontdesk exclusively, crc removed per explicit product direction.
+  // GET routes below have no role restriction, so this default is fine for
+  // them too.
+  return { ...actual, requireSession: vi.fn(async () => ({ role: 'frontdesk' as const, name: 'Test Frontdesk' })) }
 })
 
 describe('GET /api/patients', () => {
@@ -150,8 +154,14 @@ describe('POST /api/patients', () => {
     expect(response.status).toBe(400)
   })
 
-  it('rejects a pi session -- patient creation (which can carry insurance fields) is admin/crc/frontdesk only, matching the insurance-card route', async () => {
+  it('rejects a pi session -- patient creation is admin/frontdesk exclusively', async () => {
     vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Test PI', userId: null })
+    const response = await createPatient(req({ name: 'Test Patient', dob: '1990-01-01' }))
+    expect(response.status).toBe(403)
+  })
+
+  it('rejects a crc session -- registration moved to front desk exclusively (admin kept as override)', async () => {
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC', userId: null })
     const response = await createPatient(req({ name: 'Test Patient', dob: '1990-01-01' }))
     expect(response.status).toBe(403)
   })

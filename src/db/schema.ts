@@ -783,6 +783,12 @@ export const messages = pgTable('messages', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   readByPatientAt: timestamp('read_by_patient_at'),
   readByProviderAt: timestamp('read_by_provider_at'),
+  // Staff-to-staff note about this patient (e.g. pharmacy confirming a
+  // dispense with the prescriber) -- senderRole is still 'provider' (the
+  // sender genuinely is staff), but `internal` keeps it out of every
+  // patient-facing read of this thread. Pharmacy must be able to contact the
+  // prescriber without that note ever reaching the patient portal.
+  internal: boolean('internal').default(false).notNull(),
 })
 
 export const labOrderStatusEnum = pgEnum('lab_order_status', ['ordered', 'collected', 'resulted', 'cancelled'])
@@ -872,4 +878,84 @@ export const carePlanGoals = pgTable('care_plan_goals', {
   status: carePlanGoalStatusEnum('status').default('active').notNull(),
   statusUpdatedAt: timestamp('status_updated_at'),
   statusUpdatedByName: text('status_updated_by_name'),
+})
+
+// -- Trial regulatory-compliance tables --------------------------------
+// A real CRC's job is not just pre-screening: they're the site's
+// operational owner of trial execution, which includes reporting adverse
+// events to the sponsor/IRB on a clock, keeping a drug accountability log
+// (separate from routine clinical dispensing -- this tracks the STUDY
+// drug's chain of custody: lot numbers, what was received/dispensed/
+// returned/destroyed), and maintaining the regulatory binder (1572s,
+// delegation log, IRB approvals, protocol versions). All three are scoped
+// to a trial, not a patient alone, so they live under
+// /trials/[trialId] rather than as a patient-chart tab.
+
+export const adverseEventSeverityEnum = pgEnum('adverse_event_severity', ['mild', 'moderate', 'severe'])
+// Standard 5-point causality assessment used across real trial AE forms --
+// "how likely is it this was caused by the study drug, not something else".
+export const adverseEventCausalityEnum = pgEnum('adverse_event_causality', ['unrelated', 'unlikely', 'possibly', 'probably', 'definitely'])
+export const adverseEventOutcomeEnum = pgEnum('adverse_event_outcome', ['resolved', 'resolving', 'ongoing', 'fatal', 'unknown'])
+
+export const adverseEvents = pgTable('adverse_events', {
+  id: serial('id').primaryKey(),
+  trialId: text('trial_id').notNull().references(() => trials.id),
+  patientId: text('patient_id').notNull().references(() => patients.id),
+  description: text('description').notNull(),
+  severity: adverseEventSeverityEnum('severity').notNull(),
+  // A Serious Adverse Event (SAE) is a distinct regulatory category from
+  // "severe" -- a mild event can still be serious (e.g. any hospitalization
+  // counts, regardless of how severe the symptom itself was) -- so this is
+  // its own flag, not derived from severity.
+  serious: boolean('serious').default(false).notNull(),
+  causality: adverseEventCausalityEnum('causality').notNull(),
+  outcome: adverseEventOutcomeEnum('outcome').default('ongoing').notNull(),
+  onsetDate: date('onset_date').notNull(),
+  reportedDate: date('reported_date').notNull(),
+  reportedByName: text('reported_by_name').notNull(),
+  // Null until actually notified -- an SAE with reportedDate more than a
+  // day in the past and still null here is overdue (real sites must notify
+  // sponsors within ~24 hours of becoming aware of an SAE).
+  sponsorNotifiedAt: timestamp('sponsor_notified_at'),
+  irbNotifiedAt: timestamp('irb_notified_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const drugAccountabilityActionEnum = pgEnum('drug_accountability_action', ['received', 'dispensed', 'returned', 'destroyed'])
+
+export const drugAccountabilityEntries = pgTable('drug_accountability_entries', {
+  id: serial('id').primaryKey(),
+  trialId: text('trial_id').notNull().references(() => trials.id),
+  // Null for a site-level entry (e.g. a shipment "received" from the
+  // sponsor, which isn't about any one patient yet) -- non-null once study
+  // drug is dispensed to, or returned by, a specific participant.
+  patientId: text('patient_id').references(() => patients.id),
+  lotNumber: text('lot_number').notNull(),
+  expirationDate: date('expiration_date').notNull(),
+  action: drugAccountabilityActionEnum('action').notNull(),
+  quantity: integer('quantity').notNull(),
+  performedByName: text('performed_by_name').notNull(),
+  date: date('date').notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const regulatoryDocumentTypeEnum = pgEnum('regulatory_document_type', [
+  'form_1572', 'delegation_log', 'irb_approval', 'informed_consent_template', 'protocol', 'investigator_brochure', 'other',
+])
+export const regulatoryDocumentStatusEnum = pgEnum('regulatory_document_status', ['current', 'expired', 'superseded'])
+
+export const regulatoryDocuments = pgTable('regulatory_documents', {
+  id: serial('id').primaryKey(),
+  trialId: text('trial_id').notNull().references(() => trials.id),
+  documentType: regulatoryDocumentTypeEnum('document_type').notNull(),
+  title: text('title').notNull(),
+  version: text('version'),
+  effectiveDate: date('effective_date').notNull(),
+  // IRB approvals in particular expire annually and must be renewed -- null
+  // means this document type doesn't expire (e.g. a signed 1572).
+  expirationDate: date('expiration_date'),
+  status: regulatoryDocumentStatusEnum('status').default('current').notNull(),
+  uploadedByName: text('uploaded_by_name').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
 })

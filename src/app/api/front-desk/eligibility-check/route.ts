@@ -13,7 +13,10 @@ const eligibilitySchema = z.object({
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['frontdesk', 'admin', 'crc'].includes(session.role)) {
+  // Insurance verification moved fully to billing -- front desk previously
+  // ran eligibility checks at check-in, removed per explicit product
+  // direction: billing now owns insurance end-to-end.
+  if (!['billing', 'admin', 'crc'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

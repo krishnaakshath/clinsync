@@ -35,6 +35,9 @@ import {
   staffMembers,
   staffCredentials,
   policyDocuments,
+  adverseEvents,
+  drugAccountabilityEntries,
+  regulatoryDocuments,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -344,6 +347,54 @@ async function seedDocumentsAndFaxes() {
     { faxDate: new Date('2026-08-16T13:40:00'), subject: 'Telehealth Consent Confirmation', documentsIncluded: 'Telehealth Consent.pdf', deliveryStatus: 'delivered', sender: 'Jamie Ruiz (CRC)', sentToFaxNumber: '(555) 010-2207', patientId: 'RD-0006' },
     { faxDate: new Date('2026-08-17T09:55:00'), subject: 'Insurance Verification', documentsIncluded: 'Insurance Card Copy.pdf', deliveryStatus: 'delivered', sender: 'Sam Patel (Admin)', sentToFaxNumber: '(555) 010-2208', patientId: 'RD-0002' },
   ])
+}
+
+// Demo data for the CRC's regulatory-compliance tabs on the trial detail
+// page (adverse events, drug accountability, regulatory binder) -- a real
+// CRC's job, not just pre-screening (see the schema comment on these three
+// tables). Guarded per-table, same convention as seedMedications, so this
+// is safe to call on a re-run against an already-seeded DB.
+async function seedTrialCompliance() {
+  const db = getDb()
+
+  const [{ count: aeCount }] = await db.select({ count: sql<number>`count(*)::int` }).from(adverseEvents)
+  if (aeCount === 0) {
+    await db.insert(adverseEvents).values([
+      {
+        trialId: 'nct06911112', patientId: 'RD-0001',
+        description: 'Mild nausea for two days after dose increase.',
+        severity: 'mild', serious: false, causality: 'possibly', outcome: 'resolved',
+        onsetDate: '2026-08-15', reportedDate: '2026-08-16', reportedByName: 'Jamie Ruiz',
+      },
+      {
+        trialId: 'nct06911112', patientId: 'RD-0002',
+        description: 'Emergency room visit for chest pain, ruled cardiac-unrelated; admitted overnight for observation.',
+        severity: 'severe', serious: true, causality: 'unlikely', outcome: 'resolved',
+        onsetDate: '2026-09-20', reportedDate: '2026-09-20', reportedByName: 'Jamie Ruiz',
+        sponsorNotifiedAt: new Date('2026-09-20T18:00:00'), irbNotifiedAt: new Date('2026-09-22T09:00:00'),
+      },
+    ])
+  }
+
+  const [{ count: daCount }] = await db.select({ count: sql<number>`count(*)::int` }).from(drugAccountabilityEntries)
+  if (daCount === 0) {
+    await db.insert(drugAccountabilityEntries).values([
+      { trialId: 'nct06911112', patientId: null, lotNumber: 'LOT-SER-2026-04', expirationDate: '2027-04-30', action: 'received', quantity: 500, performedByName: 'Jamie Ruiz', date: '2026-07-01', notes: 'Initial shipment from sponsor' },
+      { trialId: 'nct06911112', patientId: 'RD-0001', lotNumber: 'LOT-SER-2026-04', expirationDate: '2027-04-30', action: 'dispensed', quantity: 30, performedByName: 'Jamie Ruiz', date: '2026-08-01' },
+      { trialId: 'nct06911112', patientId: 'RD-0002', lotNumber: 'LOT-SER-2026-04', expirationDate: '2027-04-30', action: 'dispensed', quantity: 30, performedByName: 'Jamie Ruiz', date: '2026-08-03' },
+      { trialId: 'nct06911112', patientId: 'RD-0001', lotNumber: 'LOT-SER-2026-04', expirationDate: '2027-04-30', action: 'returned', quantity: 6, performedByName: 'Jamie Ruiz', date: '2026-08-29', notes: 'Participant missed 2 doses' },
+    ])
+  }
+
+  const [{ count: regCount }] = await db.select({ count: sql<number>`count(*)::int` }).from(regulatoryDocuments)
+  if (regCount === 0) {
+    await db.insert(regulatoryDocuments).values([
+      { trialId: 'nct06911112', documentType: 'form_1572', title: 'Statement of Investigator (Form FDA 1572)', effectiveDate: '2026-06-01', uploadedByName: 'Jamie Ruiz' },
+      { trialId: 'nct06911112', documentType: 'delegation_log', title: 'Site Delegation of Authority Log', version: 'v3', effectiveDate: '2026-07-15', uploadedByName: 'Jamie Ruiz' },
+      { trialId: 'nct06911112', documentType: 'irb_approval', title: 'IRB Continuing Review Approval', effectiveDate: '2025-10-01', expirationDate: '2026-10-01', uploadedByName: 'Jamie Ruiz' },
+      { trialId: 'nct06911112', documentType: 'protocol', title: 'Study Protocol', version: 'Amendment 2', effectiveDate: '2026-03-01', uploadedByName: 'Jamie Ruiz' },
+    ])
+  }
 }
 
 // Payer reference directory -- 14 major US health plans covering the
@@ -963,6 +1014,7 @@ export async function seed() {
   await seedRooms()
   await seedBilling()
   await seedDocumentsAndFaxes()
+  await seedTrialCompliance()
 
   // Demo-only prescribed episodes (prescribedAt IS NOT NULL) for the first
   // hero patient only, added after providers exist so prescribedByProviderId

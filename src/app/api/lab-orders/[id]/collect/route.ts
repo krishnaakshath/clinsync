@@ -6,10 +6,10 @@ import { markCollected } from '@/lib/queries/lab-orders'
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  // Asymmetric role gate vs. order/result/cancel: marking a sample
-  // collected is a logistics step, not a clinical judgment, so `frontdesk`
-  // is allowed here (spec §8) but not on the other three write routes.
-  if (!['admin', 'pi', 'frontdesk', 'labs'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // frontdesk previously had mark-collected access (a logistics step, not a
+  // clinical judgment) -- removed per explicit product direction: front
+  // desk's job is registration/check-in, not touching lab results at all.
+  if (!['admin', 'pi', 'labs'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
   const orderId = Number(id)

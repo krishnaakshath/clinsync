@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listStaffMembers } from '@/lib/queries/staff-members'
@@ -9,6 +10,10 @@ import { StaffDirectoryList } from '@/components/StaffDirectoryList'
 export default async function StaffPage() {
   // Must be the first statement -- see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
+  // Matches LeftNav's roles for this route -- previously nav-hidden only,
+  // with no actual server-side check, so a role the nav hides this from
+  // (e.g. pi, frontdesk) could still reach the staff directory by URL.
+  if (!['crc', 'admin'].includes(session.role)) redirect('/')
 
   const [staffMembers, expiringCredentials, users, providers] = await Promise.all([
     listStaffMembers(),

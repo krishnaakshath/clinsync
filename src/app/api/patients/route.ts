@@ -43,12 +43,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  // This route accepts the same primary-insurance fields (payer, member ID,
-  // group number, etc.) as PATCH .../insurance-card, which already restricts
-  // writes to admin/crc/frontdesk -- pi is a read-only role for insurance
-  // data per spec. Gated at the route level (not per-field) to match that
-  // sibling route's precedent.
-  if (!['admin', 'crc', 'frontdesk'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // Patient registration (inpatient and outpatient) is front desk's job
+  // exclusively, admin kept as the practice-wide override -- crc previously
+  // had this too, removed per explicit product direction.
+  if (!['admin', 'frontdesk'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = addClientSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid new-client payload', details: parsed.error.flatten() }, { status: 400 })

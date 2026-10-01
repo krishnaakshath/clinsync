@@ -24,7 +24,11 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Patients</h1>
         <div className="flex items-center gap-3">
-          <AddPatientButton />
+          {/* Same dead-button reasoning as the export link just below --
+              POST /api/patients now restricts registration to admin/frontdesk
+              exclusively (explicit product direction), so crc/pi must not see
+              a button that would just 403. */}
+          {['admin', 'frontdesk'].includes(session.role) && <AddPatientButton />}
           {/* The export link is scoped to the same allowlist as the route it
               points at (LeftNav.tsx:33 / workbook/export/route.ts) -- /patients
               itself stays open to every role (spec §6.1, §10), but leaving

@@ -1,12 +1,15 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { FlaskConical, CheckCircle2, XCircle, Users } from 'lucide-react'
+import { FlaskConical, CheckCircle2, XCircle, Users, AlertTriangle, Pill, FileCheck2 } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { listAllTrials } from '@/lib/queries/trials'
 import { listScreeningsForTrial } from '@/lib/queries/trial-screenings'
+import { listPatientNameOptions } from '@/lib/queries/patients'
+import { listAdverseEvents, listDrugAccountability, listRegulatoryDocuments } from '@/lib/queries/trial-compliance'
 import { Tabs } from '@/components/Tabs'
 import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
+import { AdverseEventsPanel, DrugAccountabilityPanel, RegulatoryDocumentsPanel } from '@/components/TrialCompliancePanels'
 
 const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 const HEADING = 'mb-2 border-l-2 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -30,12 +33,20 @@ function CriterionRow({ criterion }: { criterion: { criterionText: string; evide
 
 export default async function TrialDetailPage({ params }: { params: Promise<{ trialId: string }> }) {
   // Must be the first statement — see the comment in patients/page.tsx.
-  await requireSessionOrRedirect()
+  const session = await requireSessionOrRedirect()
 
   const { trialId } = await params
   const trials = await listAllTrials()
   const trial = trials.find((t) => t.id === trialId)
   if (!trial) notFound()
+
+  const canWriteCompliance = ['crc', 'pi', 'admin'].includes(session.role)
+  const [adverseEvents, drugAccountability, regulatoryDocuments, patientOptions] = await Promise.all([
+    listAdverseEvents(trial.id),
+    listDrugAccountability(trial.id),
+    listRegulatoryDocuments(trial.id),
+    listPatientNameOptions(),
+  ])
 
   const requiredStableMeds = trial.medicationClasses.filter((m) => m.ruleType === 'required_stable')
   const washoutMeds = trial.medicationClasses.filter((m) => m.ruleType === 'washout_exclusion')
@@ -216,6 +227,21 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
         { id: 'inclusion', label: <><CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />Inclusion criteria</>, content: inclusionTab },
         { id: 'exclusion', label: <><XCircle className="h-4 w-4 text-red-700" aria-hidden="true" />Exclusion criteria</>, content: exclusionTab },
         { id: 'patients', label: <><Users className="h-4 w-4 text-primary" aria-hidden="true" />Screening results ({screenedPatients.length})</>, content: patientsTab },
+        {
+          id: 'adverse-events',
+          label: <><AlertTriangle className="h-4 w-4 text-destructive" aria-hidden="true" />Adverse Events ({adverseEvents.length})</>,
+          content: <AdverseEventsPanel trialId={trial.id} events={adverseEvents} patients={patientOptions} canWrite={canWriteCompliance} />,
+        },
+        {
+          id: 'drug-accountability',
+          label: <><Pill className="h-4 w-4 text-primary" aria-hidden="true" />Drug Accountability</>,
+          content: <DrugAccountabilityPanel trialId={trial.id} entries={drugAccountability} patients={patientOptions} canWrite={canWriteCompliance} />,
+        },
+        {
+          id: 'regulatory-documents',
+          label: <><FileCheck2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />Regulatory Binder ({regulatoryDocuments.length})</>,
+          content: <RegulatoryDocumentsPanel trialId={trial.id} documents={regulatoryDocuments} canWrite={canWriteCompliance} />,
+        },
       ]} />
     </div>
   )

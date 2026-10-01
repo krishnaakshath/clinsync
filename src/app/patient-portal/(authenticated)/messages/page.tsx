@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalIdentity } from '@/lib/queries/patient-portal'
-import { listMessagesForPatient, markReadByPatient } from '@/lib/queries/messages'
+import { listPatientVisibleMessages, markReadByPatient } from '@/lib/queries/messages'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { MessageThreadView } from '@/components/MessageThreadView'
 import { MessageComposer } from '@/components/MessageComposer'
@@ -16,7 +16,7 @@ export default async function PatientPortalMessagesPage() {
 
   await logPatientPortalAction('viewed patient portal messages', session.patientId)
 
-  const messages = await listMessagesForPatient(session.patientId)
+  const messages = await listPatientVisibleMessages(session.patientId)
   await markReadByPatient(session.patientId)
 
   return (

@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listFormSubmissions } from '@/lib/queries/form-submissions'
@@ -9,6 +10,10 @@ const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 
 export default async function ClientFormsPage({ searchParams }: { searchParams: Promise<{ status?: string; diagnosisTag?: string }> }) {
   const session = await requireSessionOrRedirect()
+  // Matches LeftNav's roles for this route -- previously nav-hidden only,
+  // with no actual server-side check, so a role the nav hides this from
+  // could still reach it by URL.
+  if (!['crc', 'pi', 'admin'].includes(session.role)) redirect('/')
   const { status, diagnosisTag } = await searchParams
   const submissions = await listFormSubmissions({ status: status as 'sent' | 'partial' | 'completed' | undefined, diagnosisTag })
   await logAudit(session, 'viewed client forms', null)

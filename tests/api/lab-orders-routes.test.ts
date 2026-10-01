@@ -102,12 +102,15 @@ describe('lab order lifecycle routes — role gating (asymmetric collect gate)',
     })
   })
 
-  describe('POST /api/lab-orders/[id]/collect (asymmetric: frontdesk allowed here)', () => {
-    it('allows frontdesk (Review Focus #5)', async () => {
+  describe('POST /api/lab-orders/[id]/collect', () => {
+    // frontdesk previously had mark-collected access here -- removed per
+    // explicit product direction: front desk's job is registration/
+    // check-in only, no lab access at all (not labs, not pharmacy).
+    it('rejects frontdesk with 403', async () => {
       const order = await seedOrder('ordered')
       sessionRole = 'frontdesk'
       const res = await collectOrder(new Request('http://localhost', { method: 'POST' }) as never, { params: Promise.resolve({ id: String(order.id) }) })
-      expect([200, 204]).toContain(res.status)
+      expect(res.status).toBe(403)
     })
 
     it('allows admin', async () => {

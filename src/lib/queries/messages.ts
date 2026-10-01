@@ -14,8 +14,19 @@ export async function listMessagesForPatient(patientId: string) {
   return getDb().select().from(messages).where(eq(messages.patientId, patientId)).orderBy(asc(messages.createdAt))
 }
 
-export async function sendMessage(patientId: string, senderRole: SenderRole, senderName: string, body: string) {
-  const [created] = await getDb().insert(messages).values({ patientId, senderRole, senderName, body }).returning()
+/**
+ * Same thread, minus internal (staff-to-staff) notes -- the only version of
+ * a patient's thread the patient portal, or anything deriving a
+ * patient-facing count from it, may ever read.
+ */
+export async function listPatientVisibleMessages(patientId: string) {
+  return getDb().select().from(messages)
+    .where(and(eq(messages.patientId, patientId), eq(messages.internal, false)))
+    .orderBy(asc(messages.createdAt))
+}
+
+export async function sendMessage(patientId: string, senderRole: SenderRole, senderName: string, body: string, internal = false) {
+  const [created] = await getDb().insert(messages).values({ patientId, senderRole, senderName, body, internal }).returning()
   return created
 }
 
@@ -37,7 +48,7 @@ export async function markReadByPatient(patientId: string): Promise<void> {
   await getDb()
     .update(messages)
     .set({ readByPatientAt: new Date() })
-    .where(and(eq(messages.patientId, patientId), inArray(messages.senderRole, ['provider', 'system']), isNull(messages.readByPatientAt)))
+    .where(and(eq(messages.patientId, patientId), inArray(messages.senderRole, ['provider', 'system']), eq(messages.internal, false), isNull(messages.readByPatientAt)))
 }
 
 /** Total unread (by staff) patient-authored messages across every thread -- for a nav badge. */
@@ -59,7 +70,7 @@ export async function getUnreadCountForPatient(patientId: string): Promise<numbe
   const [row] = await getDb()
     .select({ count: sql<number>`count(*)::int` })
     .from(messages)
-    .where(and(eq(messages.patientId, patientId), inArray(messages.senderRole, ['provider', 'system']), isNull(messages.readByPatientAt)))
+    .where(and(eq(messages.patientId, patientId), inArray(messages.senderRole, ['provider', 'system']), eq(messages.internal, false), isNull(messages.readByPatientAt)))
   return row?.count ?? 0
 }
 

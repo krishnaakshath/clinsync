@@ -6,7 +6,9 @@ import { logAudit } from '@/lib/audit'
 import { getArDashboardData } from '@/lib/queries/ar-dashboard'
 import { listCharges } from '@/lib/queries/charges'
 import { listPatientCollections } from '@/lib/queries/patient-collections'
+import { countEligibilityFollowUps } from '@/lib/queries/insurance-eligibility'
 import { ArAgingChart } from '@/components/ArAgingChart'
+import { EligibilityCheckButton } from '@/components/EligibilityCheckButton'
 import { formatCents } from '@/lib/format'
 
 const SECTION = 'overflow-hidden rounded-md border border-border bg-card'
@@ -26,10 +28,11 @@ export default async function BillingHomePage() {
   const session = await requireSessionOrRedirect()
   if (!['admin', 'crc', 'billing'].includes(session.role)) redirect('/')
 
-  const [arData, charges, collections] = await Promise.all([
+  const [arData, charges, collections, eligibilityFollowUpCount] = await Promise.all([
     getArDashboardData(),
     listCharges(),
     listPatientCollections(),
+    countEligibilityFollowUps(),
   ])
 
   await logAudit(session, 'viewed billing dashboard home', null)
@@ -51,6 +54,9 @@ export default async function BillingHomePage() {
           <h1 className="text-xl font-bold text-foreground">Billing Dashboard</h1>
           <p className="text-sm text-muted-foreground">Revenue cycle — from registration to discharge</p>
         </div>
+        {/* Insurance verification lives entirely in billing now -- front
+            desk previously ran eligibility checks at check-in. */}
+        <EligibilityCheckButton />
       </div>
 
       {/* KPI Row — Mobbin-inspired: compact, data-dense tiles */}
@@ -101,6 +107,13 @@ export default async function BillingHomePage() {
           <div>
             <p className="text-lg font-bold tabular-nums text-foreground">{pendingCharges.length}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Pending Approval</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-md border border-border bg-card p-4">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10"><ShieldCheck className="h-4 w-4 text-destructive" /></span>
+          <div>
+            <p className="text-lg font-bold tabular-nums text-foreground">{eligibilityFollowUpCount}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Eligibility Follow-ups</p>
           </div>
         </div>
       </div>

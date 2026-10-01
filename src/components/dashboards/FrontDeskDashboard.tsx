@@ -1,16 +1,14 @@
 import Link from 'next/link'
-import { ClipboardCheck, BedDouble, ShieldCheck, CalendarClock, IdCard, ArrowRight } from 'lucide-react'
+import { ClipboardCheck, BedDouble, CalendarClock, IdCard, ArrowRight } from 'lucide-react'
 import type { Session } from '@/lib/auth'
 import { PortalTileLink } from '@/components/PortalTileLink'
 import { CountUp } from '@/components/CountUp'
 import { listAvailableRooms } from '@/lib/queries/rooms'
 import { listTodaysAssignments } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
-import { countEligibilityFollowUps } from '@/lib/queries/insurance-eligibility'
 import { listBookingRequests } from '@/lib/queries/booking-requests'
 import { listExpiringOrExpiredCredentials } from '@/lib/queries/staff-credentials'
 import { CheckInButton } from '@/components/CheckInButton'
-import { EligibilityCheckButton } from '@/components/EligibilityCheckButton'
 import { AssignmentStatusChip } from '@/components/AssignmentStatusChip'
 import { PatientAvatar } from '@/components/PatientAvatar'
 
@@ -44,11 +42,10 @@ export async function FrontDeskDashboard({ session }: { session: Session }) {
   // Today's assignments only -- listAllAssignments() (used by the full
   // /front-desk/assignments history page) would count and list every
   // assignment ever created, not just what actually happened today.
-  const [rooms, assignments, providers, eligibilityFollowUpCount, bookingRequests, expiringCredentials] = await Promise.all([
+  const [rooms, assignments, providers, bookingRequests, expiringCredentials] = await Promise.all([
     listAvailableRooms(),
     listTodaysAssignments(),
     listActiveProviders(),
-    countEligibilityFollowUps(),
     listBookingRequests(),
     listExpiringOrExpiredCredentials(),
   ])
@@ -66,7 +63,6 @@ export async function FrontDeskDashboard({ session }: { session: Session }) {
         </div>
         <div className="flex gap-3">
           <CheckInButton providers={providers} rooms={rooms} />
-          <EligibilityCheckButton />
         </div>
       </div>
 
@@ -149,15 +145,6 @@ export async function FrontDeskDashboard({ session }: { session: Session }) {
                 ))}
               </ul>
             )}
-          </section>
-
-          <section className={`${CARD_SURFACE} p-5`}>
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Eligibility Follow-ups</span>
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning" aria-hidden="true"><ShieldCheck className="h-4 w-4" /></span>
-            </div>
-            <p className="text-2xl font-bold tabular-nums text-foreground">{eligibilityFollowUpCount}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Insurance eligibility checks needing a follow-up</p>
           </section>
         </div>
       </div>

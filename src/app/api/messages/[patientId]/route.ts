@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import {
   listMessagesForPatient,
+  listPatientVisibleMessages,
   sendMessage,
   markReadByProvider,
   markReadByPatient,
@@ -17,6 +18,10 @@ const sendMessageSchema = z.object({
   // See resolveActor() below -- a disambiguation hint only, never trusted
   // on its own.
   actingAs: z.enum(['provider', 'patient']).optional(),
+  // Staff-to-staff note about this patient (e.g. pharmacy confirming a
+  // dispense with the prescriber) -- never honored for a patient actor
+  // below, only staff can mark their own message internal.
+  internal: z.boolean().optional(),
 }).strict()
 
 type Actor = { kind: 'staff'; session: Session } | { kind: 'patient'; session: PatientSession }
@@ -68,16 +73,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const actor = await resolveActor(patientId, actingAs)
   if (actor instanceof NextResponse) return actor
 
-  const thread = await listMessagesForPatient(patientId)
-
   if (actor.kind === 'staff') {
+    const thread = await listMessagesForPatient(patientId)
     await markReadByProvider(patientId)
     await logAudit(actor.session, 'viewed patient messages', patientId)
-  } else {
-    await markReadByPatient(patientId)
-    await logPatientPortalAction('viewed messages', patientId)
+    return NextResponse.json(thread)
   }
 
+  // Patient-facing read: internal (staff-to-staff) notes are never included.
+  const thread = await listPatientVisibleMessages(patientId)
+  await markReadByPatient(patientId)
+  await logPatientPortalAction('viewed messages', patientId)
   return NextResponse.json(thread)
 }
 
@@ -91,8 +97,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (actor instanceof NextResponse) return actor
 
   if (actor.kind === 'staff') {
-    const created = await sendMessage(patientId, 'provider', actor.session.name, parsed.data.body)
-    await logAudit(actor.session, 'sent patient message', patientId)
+    const created = await sendMessage(patientId, 'provider', actor.session.name, parsed.data.body, parsed.data.internal ?? false)
+    await logAudit(actor.session, parsed.data.internal ? 'sent internal note about patient' : 'sent patient message', patientId)
     return NextResponse.json(created, { status: 201 })
   }
 

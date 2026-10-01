@@ -18,9 +18,12 @@ export default async function DashboardHomePage() {
   // a real separate route rather than a conditional render here avoids
   // duplicating /doctor's assignment-matching logic in two places.
   if (session.role === 'pi') redirect('/doctor')
-  // Same reasoning as PI above: pharmacy has its own dedicated route
-  // (Patient Lookup) rather than a conditional render here.
-  if (session.role === 'pharmacy') redirect('/pharmacy/patient-lookup')
+  // Same reasoning as PI above: pharmacy has its own dedicated dashboard
+  // route. Previously redirected straight to Patient Lookup (a bare search
+  // box) instead of the actual dashboard -- "Home" landed pharmacy on a
+  // search screen with no overview, while "Pharmacy" (a separate nav item)
+  // was the real dashboard.
+  if (session.role === 'pharmacy') redirect('/pharmacy')
   if (session.role === 'billing') redirect('/billing')
   // Labs has its own dedicated route (the worklist doubles as its home dashboard).
   if (session.role === 'labs') redirect('/labs')

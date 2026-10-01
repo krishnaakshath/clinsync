@@ -74,17 +74,14 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
   },
   frontdesk: {
     label: 'Front Desk / Reception',
-    summary: 'Handles walk-in and phone patient traffic at the point of check-in: rooming, doctor assignment, insurance eligibility, and billing visibility -- not the clinical evidence-review or practice-administration tools used by other roles.',
+    summary: 'Owns patient registration and check-in, for both inpatient and outpatient visits -- rooming and doctor assignment, not the clinical evidence-review, lab, or insurance tools used by other roles (insurance is billing\'s domain end-to-end).',
     bullets: [
+      'Register new patients -- inpatient and outpatient -- exclusively',
       'Check patients in and assign rooms',
       'Route patients to a provider for inpatient or outpatient visits',
-      'Record insurance eligibility checks',
       'Receive, file, and re-file incoming documents (including insurance cards, EOBs, and authorizations) to a patient',
       'View and manage the live bed/ward status board',
-      'View the Lab worklist and mark samples collected',
-      'View the Staff Directory and credential expiry status',
       'Confirm or decline public booking requests into real appointments',
-      'Register a new patient',
       'Transfer an admitted patient between rooms',
     ],
   },
@@ -102,11 +99,12 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
   },
   billing: {
     label: 'Billing / Revenue Cycle',
-    summary: 'Handles claims, collections, and charges. No clinical access.',
+    summary: 'Handles claims, collections, charges, and insurance verification end-to-end. No clinical access.',
     bullets: [
       'View AR Dashboard',
       'Manage Patient Collections',
       'Manage Insurance Collections',
+      'Verify patient insurance eligibility',
       'View Charges and Payments'
     ],
   },

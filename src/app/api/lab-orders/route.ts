@@ -6,7 +6,7 @@ import { listWorklist } from '@/lib/queries/lab-orders'
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'pi', 'crc', 'frontdesk', 'labs'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'pi', 'crc', 'labs'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const worklist = await listWorklist()
 

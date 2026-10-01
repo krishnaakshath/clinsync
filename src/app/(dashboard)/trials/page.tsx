@@ -1,11 +1,16 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { FlaskConical, Users } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { listAllTrials } from '@/lib/queries/trials'
 
 export default async function TrialsPage() {
   // Must be the first statement — see the comment in patients/page.tsx.
-  await requireSessionOrRedirect()
+  const session = await requireSessionOrRedirect()
+  // Matches LeftNav's roles for this route -- previously nav-hidden only,
+  // with no actual server-side check, so a role the nav hides this from
+  // could still reach it by URL.
+  if (!['crc', 'pi', 'admin'].includes(session.role)) redirect('/')
   const trials = await listAllTrials()
 
   return (

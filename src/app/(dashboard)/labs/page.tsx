@@ -23,8 +23,9 @@ function StatTile({ value, label, icon: Icon, tone }: { value: number; label: st
 
 export default async function LabsPage() {
   const session = await requireSessionOrRedirect()
-  // Matches GET /api/lab-orders's own role gate.
-  if (!['admin', 'pi', 'crc', 'frontdesk', 'labs'].includes(session.role)) redirect('/')
+  // Matches GET /api/lab-orders's own role gate. frontdesk removed per
+  // explicit product direction (registration/check-in only, no lab access).
+  if (!['admin', 'pi', 'crc', 'labs'].includes(session.role)) redirect('/')
 
   const [orders, labTests] = await Promise.all([listWorklist(), listLabTests()])
   await logAudit(session, session.role === 'labs' ? 'viewed labs dashboard' : 'viewed lab worklist', null)
