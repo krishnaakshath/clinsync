@@ -35,7 +35,6 @@ export function StaffLoginForm({ portal }: { portal: StaffPortal }) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [step, setStep] = useState<Step>({ kind: 'password' })
-  const Icon = portal.icon
 
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -101,9 +100,6 @@ export function StaffLoginForm({ portal }: { portal: StaffPortal }) {
                 All portals
               </Link>
               <div className="mb-8 text-center">
-                <span className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${portal.iconBg} ${portal.iconText}`}>
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                </span>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sign in to</p>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">{portal.label}</h1>
                 <p className="mt-2 text-sm text-muted-foreground">{portal.description}</p>
