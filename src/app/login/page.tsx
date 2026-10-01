@@ -60,14 +60,18 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <ClinsyncLogo className="text-xl font-bold tracking-tight text-foreground" />
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <ClinsyncLogo className="h-5 w-5" />
+          </span>
+          <span className="text-lg font-bold tracking-tight text-foreground">Clinsync</span>
         </div>
         <div className="rounded-xl border border-border bg-card p-7 shadow-sm">
           {step.kind === 'password' && (
             <>
               <div className="mb-6 text-center">
                 <h1 className="text-xl font-bold text-foreground">Sign in</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Welcome back to your workspace.</p>
               </div>
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 <div>
