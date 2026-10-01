@@ -346,6 +346,41 @@ export async function getPatientPharmacyView(patientId: string): Promise<Pharmac
   }
 }
 
+export interface PharmacyRosterRow {
+  id: string
+  name: string
+  currentProvider: string | null
+  activeMedicationCount: number
+}
+
+/**
+ * The counter view at /pharmacy/patient-lookup used to be a bare search box
+ * -- useless unless a pharmacist already had a patient's RD-#### id memorized
+ * or written down. This gives them something to actually look at: every
+ * patient who currently has at least one active prescription, so the common
+ * case (pulling up today's dispensing queue) is a click, not blind data
+ * entry. The by-id search box stays for the less common case of a specific
+ * id in hand. Deliberately NOT the full patient roster (pharmacy has no
+ * patients-page access at all, see LeftNav) -- only patients pharmacy would
+ * plausibly need to dispense for.
+ */
+export async function listPharmacyPatientRoster(): Promise<PharmacyRosterRow[]> {
+  const db = getDb()
+  const rows = await db
+    .select({
+      id: patients.id,
+      name: patients.name,
+      currentProvider: patients.currentProvider,
+      activeMedicationCount: sql<number>`count(${medicationEpisodes.id}) filter (where ${medicationEpisodes.status} = 'active')::int`,
+    })
+    .from(patients)
+    .innerJoin(medicationEpisodes, eq(medicationEpisodes.patientId, patients.id))
+    .where(eq(medicationEpisodes.status, 'active'))
+    .groupBy(patients.id, patients.name, patients.currentProvider)
+    .orderBy(patients.name)
+  return rows
+}
+
 /**
  * Permanently removes a patient and every row that references it -- for
  * correcting a real mistake (a duplicate chart, a wrong entry), not a

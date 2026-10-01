@@ -2,8 +2,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
-import { patients } from '@/db/schema'
-import { findLikelyDuplicatePatients } from '@/lib/queries/patients'
+import { patients, medicationEpisodes } from '@/db/schema'
+import { findLikelyDuplicatePatients, listPharmacyPatientRoster } from '@/lib/queries/patients'
 
 // findLikelyDuplicatePatients used to check both the Tebra- and
 // IntakeQ-sourced name/dob column pairs (pre-unified-patient-record). These
@@ -21,6 +21,44 @@ beforeAll(async () => {
 afterAll(async () => {
   await getDb().delete(patients).where(eq(patients.id, TEST_ID_A))
   await getDb().delete(patients).where(eq(patients.id, TEST_ID_B))
+})
+
+describe('listPharmacyPatientRoster', () => {
+  const ROSTER_ACTIVE_ID = 'RD-ROSTER-TEST-ACTIVE'
+  const ROSTER_INACTIVE_ID = 'RD-ROSTER-TEST-INACTIVE'
+
+  beforeAll(async () => {
+    await getDb().insert(patients).values([
+      { id: ROSTER_ACTIVE_ID, name: 'Roster Test Active', dob: '1990-01-01', currentProvider: 'Dr. Roster Test' },
+      { id: ROSTER_INACTIVE_ID, name: 'Roster Test Inactive', dob: '1990-01-01' },
+    ])
+    await getDb().insert(medicationEpisodes).values([
+      { patientId: ROSTER_ACTIVE_ID, name: 'Sertraline', medicationClass: 'SSRI', dose: '50mg daily', startDate: '2026-01-01', status: 'active' },
+      { patientId: ROSTER_ACTIVE_ID, name: 'Trazodone', medicationClass: 'Atypical antidepressant', dose: '50mg at bedtime', startDate: '2026-01-01', status: 'active' },
+      { patientId: ROSTER_INACTIVE_ID, name: 'Bupropion', medicationClass: 'Atypical antidepressant', dose: '150mg daily', startDate: '2025-01-01', stopDate: '2025-06-01', status: 'inactive' },
+    ])
+  })
+
+  afterAll(async () => {
+    await getDb().delete(medicationEpisodes).where(eq(medicationEpisodes.patientId, ROSTER_ACTIVE_ID))
+    await getDb().delete(medicationEpisodes).where(eq(medicationEpisodes.patientId, ROSTER_INACTIVE_ID))
+    await getDb().delete(patients).where(eq(patients.id, ROSTER_ACTIVE_ID))
+    await getDb().delete(patients).where(eq(patients.id, ROSTER_INACTIVE_ID))
+  })
+
+  it('includes a patient with an active medication episode, with the correct active count', async () => {
+    const roster = await listPharmacyPatientRoster()
+    const row = roster.find((r) => r.id === ROSTER_ACTIVE_ID)
+    expect(row).toBeDefined()
+    expect(row?.name).toBe('Roster Test Active')
+    expect(row?.currentProvider).toBe('Dr. Roster Test')
+    expect(row?.activeMedicationCount).toBe(2)
+  })
+
+  it('excludes a patient whose only medication episodes are inactive', async () => {
+    const roster = await listPharmacyPatientRoster()
+    expect(roster.some((r) => r.id === ROSTER_INACTIVE_ID)).toBe(false)
+  })
 })
 
 describe('findLikelyDuplicatePatients', () => {

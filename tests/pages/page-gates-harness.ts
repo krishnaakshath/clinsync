@@ -192,6 +192,6 @@ export const PAGE_GATES: PageGateCase[] = [
   { route: '/pharmacy', load: () => import('@/app/(dashboard)/pharmacy/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'] },
   { route: '/pharmacy/patient-lookup', load: () => import('@/app/(dashboard)/pharmacy/patient-lookup/page'), allowed: ['pharmacy', 'admin'] },
   { route: '/staff', load: () => import('@/app/(dashboard)/staff/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk'] },
-  { route: '/messages', load: () => import('@/app/(dashboard)/messages/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk'] },
+  { route: '/messages', load: () => import('@/app/(dashboard)/messages/page'), allowed: ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy'] },
   { route: '/settings', load: () => import('@/app/(dashboard)/settings/page'), allowed: ['admin', 'crc', 'pi', 'frontdesk', 'pharmacy'] },
 ]

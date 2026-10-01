@@ -23,7 +23,7 @@ type Icon = React.ComponentType<{ className?: string }>
 // Per RBAC spec:
 //  frontdesk  — check-in, assignments, beds, booking; NO billing, NO labs, NO messages, NO trials, NO staff
 //  billing    — billing section only; NO clinical routes whatsoever
-//  pharmacy   — pharmacy routes only; NO patients page, NO messages, NO labs, NO staff
+//  pharmacy   — pharmacy routes + Messages (to confirm a dispense with the prescriber); NO patients page, NO labs, NO staff
 //  pi/doctor  — clinical workflow: My Patients, Patients, Calendar, Client Forms, Labs; NO billing
 //  crc/admin  — full operational access
 
@@ -72,8 +72,9 @@ export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[
   // Booking requests — frontdesk / admin / crc
   { href: '/booking-requests', label: 'Booking Requests', icon: CalendarClock, roles: ['frontdesk', 'admin', 'crc', 'pi'] as Role[] },
 
-  // Messages — clinical comms (NOT billing, NOT frontdesk)
-  { href: '/messages', label: 'Messages', icon: MessageSquare, roles: ['crc', 'pi', 'admin'] as Role[] },
+  // Messages — clinical comms, plus pharmacy (to confirm a dispense with the
+  // prescriber -- see PharmacyPatientLookup's own inline thread) (NOT billing, NOT frontdesk)
+  { href: '/messages', label: 'Messages', icon: MessageSquare, roles: ['crc', 'pi', 'admin', 'pharmacy'] as Role[] },
 ]
 
 export const NAV_BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [

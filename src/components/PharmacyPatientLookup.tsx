@@ -1,13 +1,15 @@
 'use client'
 import { useState } from 'react'
+import { Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { DispenseMedicationModal } from '@/components/DispenseMedicationModal'
 import { LogDispenseBillModal } from '@/components/LogDispenseBillModal'
+import { MessageThreadView, type MessageRow } from '@/components/MessageThreadView'
 import { CHARGE_STATUS_LABELS } from '@/lib/charge-status'
 import type { MedicationWithInventory } from '@/lib/queries/medications'
-import type { PharmacyPatientView, PharmacyEpisode } from '@/lib/queries/patients'
+import type { PharmacyPatientView, PharmacyEpisode, PharmacyRosterRow } from '@/lib/queries/patients'
 
 // The view arrives via `fetch().json()`, not as a Server Component prop, so
 // `dispensedAt` (typed `Date` on the server-side PharmacyPatientView) is
@@ -61,26 +63,85 @@ function EpisodeTable({ episodes, medicationById, onDispense }: {
   )
 }
 
-export function PharmacyPatientLookup({ medications }: { medications: MedicationWithInventory[] }) {
+// Minimal inline composer, not the shared MessageComposer -- that one calls
+// router.refresh() to pick up a new message, which works on pages where the
+// thread is server-rendered. This page's whole patient view (including the
+// thread) is client-fetched on demand, so sending needs to re-fetch this
+// component's own messages state instead.
+function ContactDoctorComposer({ patientId, onSent }: { patientId: string; onSent: () => void }) {
+  const [body, setBody] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function send() {
+    if (!body.trim()) return
+    setSending(true)
+    setError(null)
+    const res = await fetch(`/api/messages/${encodeURIComponent(patientId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body, actingAs: 'provider' }),
+    })
+    setSending(false)
+    if (res.ok) { setBody(''); onSent(); return }
+    const data = await res.json().catch(() => null)
+    setError(data?.error ?? 'Could not send this message.')
+  }
+
+  return (
+    <div>
+      {error && <p className="mb-2 text-xs text-destructive">{error}</p>}
+      <div className="flex items-end gap-2">
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+          rows={2}
+          placeholder="Ask the prescriber to confirm…"
+          className="flex-1 rounded-md border border-border px-3 py-2 text-sm"
+        />
+        <button
+          onClick={send}
+          disabled={sending || !body.trim()}
+          className="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          <Send className="h-4 w-4" aria-hidden="true" />
+          Send
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function PharmacyPatientLookup({ medications, roster }: { medications: MedicationWithInventory[]; roster: PharmacyRosterRow[] }) {
   const [patientId, setPatientId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<PharmacyPatientViewClient | null>(null)
   const [dispensingEpisode, setDispensingEpisode] = useState<{ medication: MedicationWithInventory; episode: PharmacyEpisode } | null>(null)
   const [billingDispense, setBillingDispense] = useState<PharmacyDispense | null>(null)
+  const [messages, setMessages] = useState<MessageRow[]>([])
 
   const medicationById = new Map(medications.map((m) => [m.id, m]))
 
-  async function lookup() {
-    const id = patientId.trim()
+  async function refreshMessages(forPatientId: string) {
+    const res = await fetch(`/api/messages/${encodeURIComponent(forPatientId)}?actingAs=provider`)
+    if (res.ok) setMessages(await res.json())
+  }
+
+  async function lookup(idOverride?: string) {
+    const id = (idOverride ?? patientId).trim()
     if (!id) return
+    setPatientId(id)
     setLoading(true)
     setError(null)
     setView(null)
+    setMessages([])
     const res = await fetch(`/api/pharmacy/patients/${encodeURIComponent(id)}`)
     setLoading(false)
     if (res.ok) {
       setView(await res.json())
+      refreshMessages(id)
       return
     }
     const body = await res.json().catch(() => null)
@@ -101,6 +162,29 @@ export function PharmacyPatientLookup({ medications }: { medications: Medication
 
   return (
     <div className="space-y-5">
+      <Card className="p-5">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Patients with Active Prescriptions ({roster.length})
+        </h2>
+        {roster.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No patients currently have an active prescription on file.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {roster.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => lookup(r.id)}
+                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                  view?.id === r.id ? 'border-primary bg-primary/10 text-primary' : 'border-border text-foreground hover:bg-secondary'
+                }`}
+              >
+                {r.name} <span className="text-xs text-muted-foreground">· {r.activeMedicationCount} active</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Card>
+
       <div className="flex items-end gap-2">
         <div className="flex-1">
           <label htmlFor="pharmacy-lookup-id" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient ID</label>
@@ -114,7 +198,7 @@ export function PharmacyPatientLookup({ medications }: { medications: Medication
             className="w-full rounded-md border border-border px-3 py-2 text-sm"
           />
         </div>
-        <Button onClick={lookup} disabled={!patientId.trim() || loading}>{loading ? 'Looking up…' : 'Look up'}</Button>
+        <Button onClick={() => lookup()} disabled={!patientId.trim() || loading}>{loading ? 'Looking up…' : 'Look up'}</Button>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -185,6 +269,20 @@ export function PharmacyPatientLookup({ medications }: { medications: Medication
                 </table>
               </div>
             )}
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Contact {view.currentProvider ?? 'Prescriber'}
+            </h2>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Use this to confirm a substitution, a dose question, or anything else before dispensing -- it goes to the
+              same message thread {view.currentProvider ?? 'the prescriber'} sees for this patient.
+            </p>
+            <div className="mb-4 max-h-64 overflow-y-auto rounded-lg border border-border p-3">
+              <MessageThreadView messages={messages} viewerRole="provider" />
+            </div>
+            <ContactDoctorComposer patientId={view.id} onSent={() => refreshMessages(view.id)} />
           </Card>
         </div>
       )}
