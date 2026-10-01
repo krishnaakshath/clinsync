@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 
 export function SendFormModal({ templates, patients, onClose }: {
   templates: { id: number; name: string }[]
-  patients: { id: string; nameTebra: string | null; nameIntakeq: string }[]
+  patients: { id: string; nameTebra: string | null; nameIntakeq: string; name: string }[]
   onClose: () => void
 }) {
   const router = useRouter()
@@ -30,7 +30,7 @@ export function SendFormModal({ templates, patients, onClose }: {
         <div className="space-y-3">
           <select value={patientId} onChange={(e) => setPatientId(e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm">
             <option value="">Select a client…</option>
-            {patients.map((p) => <option key={p.id} value={p.id}>{p.nameTebra ?? p.nameIntakeq} ({p.id})</option>)}
+            {patients.map((p) => <option key={p.id} value={p.id}>{p.nameTebra ?? p.nameIntakeq ?? p.name} ({p.id})</option>)}
           </select>
           <select value={templateId} onChange={(e) => setTemplateId(Number(e.target.value))} className="w-full rounded-md border border-border px-3 py-2 text-sm">
             <option value="">Select a form…</option>

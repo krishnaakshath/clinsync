@@ -88,7 +88,7 @@ export default async function DashboardHomePage() {
           <h1 className="text-2xl font-bold text-foreground">Hello, {session.name}!</h1>
           <p className="text-sm text-muted-foreground">Here&apos;s what&apos;s happening across the pre-screening workbook today.</p>
         </div>
-        <DashboardHomeClient templates={templates.map((t) => ({ id: t.id, name: t.name }))} patients={patients.map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq }))} />
+        <DashboardHomeClient templates={templates.map((t) => ({ id: t.id, name: t.name }))} patients={patients.map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq, name: p.name }))} />
       </div>
 
       {/* Reference-inspired stat row: a text stat with a trend affordance, a
@@ -208,7 +208,7 @@ export default async function DashboardHomePage() {
           {data.pendingClassification.length === 0 ? <EmptyRow text="Everything's been classified." /> : (
             <ul className="divide-y divide-border">
               {data.pendingClassification.map((p) => {
-                const name = p.nameTebra ?? p.nameIntakeq
+                const name = p.nameTebra ?? p.nameIntakeq ?? p.name
                 return (
                   <li key={p.id}>
                     <Link href={`/patients/${p.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:bg-secondary/40 -mx-2 px-2 rounded-lg">

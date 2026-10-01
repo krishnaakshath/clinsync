@@ -13,8 +13,8 @@ export default async function PatientsReportPage() {
 
   const rows = patients.map((p) => ({
     id: p.id,
-    displayName: p.nameTebra ?? p.nameIntakeq,
-    dob: p.dobTebra ?? p.dobIntakeq,
+    displayName: p.nameTebra ?? p.nameIntakeq ?? p.name,
+    dob: p.dobTebra ?? p.dobIntakeq ?? p.dob,
     currentProvider: p.currentProvider,
     overallStatus: p.overallStatus,
     trialName: p.trialId ? (trialNameById.get(p.trialId) ?? p.trialId) : null,

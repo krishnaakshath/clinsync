@@ -62,12 +62,12 @@ export async function listWorkbookRows(): Promise<WorkbookRow[]> {
     return allPatients.map((p): WorkbookRow => {
       const dx = allDx.filter((d) => d.patientId === p.id)
       const meds = allMeds.filter((m) => m.patientId === p.id)
-      const dob = p.dobTebra ?? p.dobIntakeq
+      const dob = p.dobTebra ?? p.dobIntakeq ?? p.dob
 
       return {
         id: p.id,
         dateAdded: p.dateAdded.toISOString().slice(0, 10),
-        patientName: p.nameTebra ?? p.nameIntakeq,
+        patientName: p.nameTebra ?? p.nameIntakeq ?? p.name,
         currentProvider: p.currentProvider,
         ratingScales: (p.ratingScales ?? []).map((r) => `${r.name}: ${r.score} (${r.date})`).join('; '),
         dob,

@@ -19,8 +19,8 @@ export async function listDocuments() {
 
     return rows.map((r) => ({
       ...r.document,
-      patientName: r.patient ? (r.patient.nameTebra ?? r.patient.nameIntakeq) : null,
-      patientDob: r.patient ? (r.patient.dobTebra ?? r.patient.dobIntakeq) : null,
+      patientName: r.patient ? (r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name) : null,
+      patientDob: r.patient ? (r.patient.dobTebra ?? r.patient.dobIntakeq ?? r.patient.dob) : null,
     }))
   })
 }

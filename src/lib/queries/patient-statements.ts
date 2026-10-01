@@ -21,7 +21,7 @@ export async function listPatientStatements() {
     return rows.map((r) => ({
       ...r.statement,
       sentDate: r.statement.sentDate.toISOString(),
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name,
     }))
   })
 }

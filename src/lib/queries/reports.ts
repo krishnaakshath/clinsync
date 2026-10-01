@@ -55,8 +55,8 @@ export async function listAllAppointmentsReport() {
       apptTime: formatTime(r.appointment.startsAt),
       status: r.appointment.status,
       patientId: r.patient.id,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
-      dob: r.patient.dobTebra ?? r.patient.dobIntakeq,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name,
+      dob: r.patient.dobTebra ?? r.patient.dobIntakeq ?? r.patient.dob,
       homePhone: r.patient.phoneTebra ?? '—',
       mobilePhone: r.patient.phoneIntakeq ?? '—',
       providerName: r.provider?.name ?? r.patient.currentProvider ?? '—',
@@ -90,7 +90,7 @@ export async function listUnsignedNotesReport() {
     return rows.map((r) => ({
       noteId: r.submission.id,
       patientId: r.patient.id,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name,
       // completedDate is a `timestamp` column -- a real Date on a cache miss
       // but a plain string after this function's own getOrSetCache Redis
       // round-trip on a cache hit (the same hazard already fixed once for
@@ -137,7 +137,7 @@ export async function listAllEncountersReport() {
         encounterId: `ENC-${r.appointment.id}`,
         dateOfService: apptDate,
         patientId: r.patient.id,
-        patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+        patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name,
         renderingProvider: r.provider?.name ?? r.patient.currentProvider ?? '—',
         payerScenario: hasClaim ? 'Insurance' : 'Self-Pay',
         encounterStatus: matchingCharge ? 'Billed' : 'Completed — Not Billed',
@@ -159,7 +159,7 @@ export async function listInsuranceCollectionsReport() {
     return rows.map((r) => ({
       id: r.claim.id,
       patientId: r.patient.id,
-      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq,
+      patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name,
       payerName: r.claim.payerName,
       status: r.claim.status,
       billedAmountCents: r.claim.billedAmountCents,

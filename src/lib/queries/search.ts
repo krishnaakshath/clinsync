@@ -35,11 +35,11 @@ export async function searchAll(rawQuery: string): Promise<SearchResults> {
 
   const patients: SearchResult[] = allPatients
     .filter((p) => {
-      const name = (p.nameTebra ?? p.nameIntakeq).toLowerCase()
+      const name = (p.nameTebra ?? p.nameIntakeq ?? p.name).toLowerCase()
       return name.includes(q) || p.id.toLowerCase().includes(q)
     })
     .slice(0, MAX_RESULTS_PER_CATEGORY)
-    .map((p) => ({ id: p.id, label: p.nameTebra ?? p.nameIntakeq, detail: p.id, href: `/patients/${p.id}` }))
+    .map((p) => ({ id: p.id, label: p.nameTebra ?? p.nameIntakeq ?? p.name, detail: p.id, href: `/patients/${p.id}` }))
 
   const trials: SearchResult[] = allTrials
     .filter((t) => t.name.toLowerCase().includes(q) || t.condition.toLowerCase().includes(q) || t.nctNumber.toLowerCase().includes(q))

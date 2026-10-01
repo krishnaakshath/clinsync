@@ -74,6 +74,8 @@ export default async function DoctorPortalPage() {
         nameIntakeq: p.nameIntakeq,
         dobTebra: p.dobTebra,
         dobIntakeq: p.dobIntakeq,
+        name: p.name,
+        dob: p.dob,
         currentProvider: p.currentProvider,
         referralType: p.referralType,
         lastCommunication: p.lastCommunication,
