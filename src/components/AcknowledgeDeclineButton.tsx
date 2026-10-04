@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+const FALLBACK_ERROR = 'Could not mark this decline handled.'
+
 export function AcknowledgeDeclineButton({ assignmentId }: { assignmentId: number }) {
   const router = useRouter()
   const [running, setRunning] = useState(false)
@@ -10,17 +12,23 @@ export function AcknowledgeDeclineButton({ assignmentId }: { assignmentId: numbe
   async function run() {
     setRunning(true)
     setError(null)
-    const res = await fetch(`/api/front-desk/assignments/${assignmentId}/acknowledge-decline`, { method: 'POST' })
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/front-desk/assignments/${assignmentId}/acknowledge-decline`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setError(body?.error ?? FALLBACK_ERROR)
+        return
+      }
+      // The nav badge (computed in the dashboard layout) and this row's
+      // "Handled by" label both come from server data, so refresh re-renders
+      // them without a full page reload.
+      router.refresh()
+    } catch {
+      // Network failure: fetch itself rejected.
+      setError(FALLBACK_ERROR)
+    } finally {
       setRunning(false)
-      const body = await res.json().catch(() => null)
-      setError(body?.error ?? 'Could not mark this decline handled.')
-      return
     }
-    // The nav badge (computed in the dashboard layout) and this row's
-    // "Handled by" label both come from server data, so refresh re-renders
-    // them without a full page reload.
-    router.refresh()
   }
 
   return (

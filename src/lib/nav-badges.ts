@@ -9,8 +9,21 @@ const DECLINE_BADGE_ROLES: Session['role'][] = ['frontdesk', 'admin', 'crc']
  *  session resolves to no provider gets no /doctor key at all, so the badge
  *  is suppressed rather than shown as a misleading 0 (the /doctor page shows
  *  the explicit "couldn't match" warning instead). Roles with no badge run
- *  no query. */
+ *  no query.
+ *
+ *  Never throws: this runs in the dashboard layout, where an error would
+ *  500 every dashboard page (an error.tsx below the layout can't catch it).
+ *  On failure the badge is simply absent -- never a guessed number. */
 export async function getNavBadges(session: Session): Promise<NavBadges> {
+  try {
+    return await computeNavBadges(session)
+  } catch (err) {
+    console.error('Failed to compute nav badges', err)
+    return {}
+  }
+}
+
+async function computeNavBadges(session: Session): Promise<NavBadges> {
   if (session.role === 'pi') {
     const provider = await resolveDoctorQueueProvider(session)
     if (!provider) return {}

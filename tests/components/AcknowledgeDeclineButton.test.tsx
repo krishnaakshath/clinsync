@@ -37,4 +37,14 @@ describe('AcknowledgeDeclineButton', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('This decline has already been marked handled.')
     expect(refresh).not.toHaveBeenCalled()
   })
+
+  it('on a rejected fetch shows the fallback error and re-enables the button', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
+    render(<AcknowledgeDeclineButton assignmentId={42} />)
+    const button = screen.getByRole('button', { name: 'Mark handled' })
+    fireEvent.click(button)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not mark this decline handled.')
+    await waitFor(() => expect(button).not.toBeDisabled())
+    expect(refresh).not.toHaveBeenCalled()
+  })
 })
