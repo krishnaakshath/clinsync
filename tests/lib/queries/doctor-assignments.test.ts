@@ -76,6 +76,32 @@ describe('scheduleAssignment', () => {
 })
 
 describe('declineAssignment', () => {
+  it('returns null and leaves a scheduled row unchanged', async () => {
+    const providers = await listActiveProviders()
+    const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId: providers[0].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(assignment.id)
+    const [appointment] = await getDb().insert(appointments).values({ patientId: 'RD-0001', providerId: providers[0].id, startsAt: new Date('2026-11-02T13:00:00'), endsAt: new Date('2026-11-02T13:30:00'), visitReason: 'Test' }).returning()
+    createdAppointmentIds.push(appointment.id)
+    await scheduleAssignment(assignment.id, appointment.id)
+
+    expect(await declineAssignment(assignment.id, 'Too late')).toBeNull()
+    const [row] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, assignment.id))
+    expect(row.status).toBe('scheduled')
+    expect(row.appointmentId).toBe(appointment.id)
+    expect(row.declineReason).toBeNull()
+  })
+
+  it('returns null on an already-declined row and keeps the original reason', async () => {
+    const providers = await listActiveProviders()
+    const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId: providers[0].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(assignment.id)
+    expect((await declineAssignment(assignment.id, 'First reason'))?.declineReason).toBe('First reason')
+    expect(await declineAssignment(assignment.id, 'Second reason')).toBeNull()
+    const [row] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, assignment.id))
+    expect(row.status).toBe('declined')
+    expect(row.declineReason).toBe('First reason')
+  })
+
   it('sets status to declined and records the reason, leaving it visible', async () => {
     const providers = await listActiveProviders()
     const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId: providers[0].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })

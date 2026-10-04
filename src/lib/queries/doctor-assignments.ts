@@ -77,11 +77,15 @@ export async function scheduleAssignment(assignmentId: number, appointmentId: nu
   return updated ?? null
 }
 
+/** Transitions a PENDING assignment to declined. The status condition is in
+ *  the UPDATE itself, so a schedule that commits between a caller's read and
+ *  this write wins: this returns null and the scheduled row (and its
+ *  appointment and patient confirmation) stays intact. */
 export async function declineAssignment(assignmentId: number, reason: string): Promise<DoctorAssignmentRow | null> {
   const [updated] = await getDb()
     .update(doctorAssignments)
     .set({ status: 'declined', declineReason: reason })
-    .where(eq(doctorAssignments.id, assignmentId))
+    .where(and(eq(doctorAssignments.id, assignmentId), eq(doctorAssignments.status, 'pending')))
     .returning()
   return updated ?? null
 }

@@ -33,12 +33,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const alreadyHandled = { error: 'This assignment has already been scheduled or declined.' }
   if (assignmentRow.status !== 'pending') {
-    return NextResponse.json({ error: 'This assignment has already been scheduled or declined.' }, { status: 409 })
+    return NextResponse.json(alreadyHandled, { status: 409 })
   }
 
+  // Null means the row stopped being pending after our read (e.g. a
+  // concurrent schedule committed); a missing row already 404'd above.
   const updated = await declineAssignment(assignmentId, parsed.data.reason)
-  if (!updated) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
+  if (!updated) return NextResponse.json(alreadyHandled, { status: 409 })
 
   await logAudit(session, 'declined assignment', updated.patientId)
   return NextResponse.json(updated, { status: 200 })

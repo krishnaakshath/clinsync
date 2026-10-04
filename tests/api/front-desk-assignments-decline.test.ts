@@ -5,6 +5,14 @@ import { getDb } from '@/db/client'
 import { doctorAssignments, appointments, messages } from '@/db/schema'
 import { createDoctorAssignment, scheduleAssignment, declineAssignment } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
+import { resolveDoctorQueueProvider } from '@/lib/doctor-queue-provider'
+
+// Pass-through spy: the route resolves the provider AFTER reading the
+// assignment's status, so the race test can schedule the row in between.
+vi.mock('@/lib/doctor-queue-provider', async () => {
+  const a = await vi.importActual<typeof import('@/lib/doctor-queue-provider')>('@/lib/doctor-queue-provider')
+  return { resolveDoctorQueueProvider: vi.fn(a.resolveDoctorQueueProvider) }
+})
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'pi', name: 'Dr. R. Kunam' })) }))
 
@@ -87,6 +95,33 @@ describe('POST /api/front-desk/assignments/[id]/decline -- status guard', () => 
     const row = await getRow(a.id)
     expect(row.status).toBe('declined')
     expect(row.declineReason).toBe('First reason')
+  })
+
+  it('a schedule that commits after the route read the row as pending -> 409, row stays scheduled', async () => {
+    const a = await newAssignment()
+    const actual = (await vi.importActual<typeof import('@/lib/doctor-queue-provider')>('@/lib/doctor-queue-provider')).resolveDoctorQueueProvider
+    let apptId: number | null = null
+    vi.mocked(resolveDoctorQueueProvider).mockImplementationOnce(async (session) => {
+      // The route has already read status 'pending'; a concurrent schedule commits now.
+      const [appt] = await getDb().insert(appointments).values({
+        patientId: 'RD-0001', providerId: a.providerId,
+        startsAt: new Date('2026-12-02T09:00:00'), endsAt: new Date('2026-12-02T09:30:00'),
+        visitReason: 'Follow-up', status: 'scheduled',
+      }).returning()
+      appointmentIds.push(appt.id)
+      apptId = appt.id
+      await scheduleAssignment(a.id, appt.id)
+      return actual(session)
+    })
+
+    const res = await post(a.id, 'Too late')
+    expect(apptId).not.toBeNull()
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual(CONFLICT)
+    const row = await getRow(a.id)
+    expect(row.status).toBe('scheduled')
+    expect(row.appointmentId).toBe(apptId)
+    expect(row.declineReason).toBeNull()
   })
 
   it('still returns 403 for a different provider\'s assignment', async () => {
