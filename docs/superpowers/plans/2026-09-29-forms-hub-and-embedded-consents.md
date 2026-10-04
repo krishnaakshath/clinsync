@@ -997,3 +997,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
+
+## Ledger
+
+- Spec §10's three open questions (IP/user-agent capture on `signatures`, role-gating the two pre-existing `/api/form-templates` write routes, and retiring the `category = 'Consent Forms'` gate) were deliberately not addressed by this plan and remain open.
