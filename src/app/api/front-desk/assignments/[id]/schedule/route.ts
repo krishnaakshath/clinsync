@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import { appointments, doctorAssignments } from '@/db/schema'
 import { hasSchedulingConflict } from '@/lib/queries/appointments'
-import { scheduleAssignment } from '@/lib/queries/doctor-assignments'
+import { scheduleAssignment, notifyPatientOfScheduledAssignment } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
 
 const scheduleSchema = z.object({
@@ -48,6 +48,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  if (assignmentRow.status !== 'pending') {
+    return NextResponse.json({ error: 'This assignment has already been scheduled or declined.' }, { status: 409 })
+  }
+
   if (await hasSchedulingConflict(assignmentRow.providerId, startsAt, endsAt)) {
     return NextResponse.json({ error: 'You already have an appointment during that time.' }, { status: 409 })
   }
@@ -62,6 +66,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }).returning()
 
   const updated = await scheduleAssignment(assignmentId, appointment.id)
-  await logAudit(session, 'scheduled assignment into appointment', assignmentRow.patientId)
+  try {
+    await notifyPatientOfScheduledAssignment(updated ?? assignmentRow, appointment, providerMatch.name)
+  } catch (err) {
+    // The appointment is already committed; only the patient message failed.
+    console.error('Failed to notify patient of scheduled assignment', err)
+    await logAudit(session, 'scheduled assignment into appointment; patient notification FAILED', assignmentRow.patientId)
+    return NextResponse.json(
+      { error: 'The appointment was scheduled, but the confirmation message to the patient could not be sent. Please message the patient manually.' },
+      { status: 500 },
+    )
+  }
+  await logAudit(session, 'scheduled assignment into appointment and notified patient', assignmentRow.patientId)
   return NextResponse.json(updated, { status: 200 })
 }

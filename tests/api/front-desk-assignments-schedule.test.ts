@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { eq, and, gt, desc, inArray } from 'drizzle-orm'
 import { POST as schedule } from '@/app/api/front-desk/assignments/[id]/schedule/route'
 import { POST as decline } from '@/app/api/front-desk/assignments/[id]/decline/route'
 import { getDb } from '@/db/client'
-import { doctorAssignments, appointments } from '@/db/schema'
-import { createDoctorAssignment } from '@/lib/queries/doctor-assignments'
+import { doctorAssignments, appointments, messages, auditLog } from '@/db/schema'
+import { createDoctorAssignment, declineAssignment } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
+import { sendMessage } from '@/lib/queries/messages'
+
+vi.mock('@/lib/queries/messages', async () => {
+  const a = await vi.importActual<typeof import('@/lib/queries/messages')>('@/lib/queries/messages')
+  return { ...a, sendMessage: vi.fn(a.sendMessage) }
+})
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'pi', name: 'Dr. R. Kunam' })) }))
 
@@ -28,13 +34,49 @@ async function otherProviderId(): Promise<number> {
 
 const createdAssignmentIds: number[] = []
 const createdAppointmentIds: number[] = []
+const createdMessageIds: number[] = []
+const createdAuditIds: number[] = []
+
+async function maxMessageId(): Promise<number> {
+  const [row] = await getDb().select({ id: messages.id }).from(messages).orderBy(desc(messages.id)).limit(1)
+  return row?.id ?? 0
+}
+async function maxAuditId(): Promise<number> {
+  const [row] = await getDb().select({ id: auditLog.id }).from(auditLog).orderBy(desc(auditLog.id)).limit(1)
+  return row?.id ?? 0
+}
+// System messages for a patient created after a high-water mark; tracked for cleanup.
+async function systemMsgs(patientId: string, afterId: number) {
+  const rows = await getDb().select().from(messages)
+    .where(and(eq(messages.patientId, patientId), eq(messages.senderRole, 'system'), gt(messages.id, afterId)))
+  for (const r of rows) if (!createdMessageIds.includes(r.id)) createdMessageIds.push(r.id)
+  return rows
+}
+async function getRow(id: number) {
+  const [row] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, id))
+  return row
+}
+function post(id: number, startsAt: string, endsAt: string) {
+  const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt, endsAt, visitReason: 'Follow-up' }) })
+  return schedule(req as never, { params: Promise.resolve({ id: String(id) }) })
+}
+async function newAssignment() {
+  const providerId = await kunamProviderId()
+  const a = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+  createdAssignmentIds.push(a.id)
+  return a
+}
+
 afterEach(async () => {
+  if (createdMessageIds.length > 0) await getDb().delete(messages).where(inArray(messages.id, createdMessageIds.splice(0)))
+  if (createdAuditIds.length > 0) await getDb().delete(auditLog).where(inArray(auditLog.id, createdAuditIds.splice(0)))
   while (createdAssignmentIds.length > 0) await getDb().delete(doctorAssignments).where(eq(doctorAssignments.id, createdAssignmentIds.pop()!))
   while (createdAppointmentIds.length > 0) await getDb().delete(appointments).where(eq(appointments.id, createdAppointmentIds.pop()!))
 })
 
 describe('POST /api/front-desk/assignments/[id]/schedule', () => {
   it('creates the appointment and marks the assignment scheduled', async () => {
+    const before = await maxMessageId()
     const providerId = await kunamProviderId()
     const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
     createdAssignmentIds.push(assignment.id)
@@ -45,6 +87,7 @@ describe('POST /api/front-desk/assignments/[id]/schedule', () => {
     const body = await res.json()
     createdAppointmentIds.push(body.appointmentId)
     expect(body.status).toBe('scheduled')
+    await systemMsgs('RD-0001', before)
   })
 
   it('returns 403 for a frontdesk session (only the assigned doctor schedules)', async () => {
@@ -69,6 +112,73 @@ describe('POST /api/front-desk/assignments/[id]/schedule', () => {
     const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt: '2026-11-03T11:00:00', endsAt: '2026-11-03T11:30:00', visitReason: 'Follow-up' }) })
     const res = await schedule(req as never, { params: Promise.resolve({ id: String(assignment.id) }) })
     expect(res.status).toBe(403)
+  })
+})
+
+describe('POST /api/front-desk/assignments/[id]/schedule -- notification and status guard', () => {
+  it('success inserts exactly one system message for that patient and sets patientNotifiedAt', async () => {
+    const before = await maxMessageId()
+    const a = await newAssignment()
+    const res = await post(a.id, '2026-11-04T09:00:00', '2026-11-04T09:30:00')
+    expect(res.status).toBe(200)
+    createdAppointmentIds.push((await res.json()).appointmentId)
+    expect(await systemMsgs('RD-0001', before)).toHaveLength(1)
+    expect(await systemMsgs('RD-0002', before)).toHaveLength(0)
+    expect((await getRow(a.id)).patientNotifiedAt).not.toBeNull()
+  })
+
+  it('second POST on a scheduled assignment -> 409, no second appointment, still one message', async () => {
+    const before = await maxMessageId()
+    const a = await newAssignment()
+    const first = await post(a.id, '2026-11-05T09:00:00', '2026-11-05T09:30:00')
+    expect(first.status).toBe(200)
+    const apptId = (await first.json()).appointmentId
+    createdAppointmentIds.push(apptId)
+
+    const second = await post(a.id, '2026-11-05T10:00:00', '2026-11-05T10:30:00')
+    expect(second.status).toBe(409)
+    expect(await second.json()).toEqual({ error: 'This assignment has already been scheduled or declined.' })
+    const providerId = await kunamProviderId()
+    const stray = await getDb().select().from(appointments)
+      .where(and(eq(appointments.providerId, providerId), eq(appointments.startsAt, new Date('2026-11-05T10:00:00'))))
+    for (const r of stray) createdAppointmentIds.push(r.id)
+    expect(stray).toHaveLength(0)
+    expect(await systemMsgs('RD-0001', before)).toHaveLength(1)
+    expect((await getRow(a.id)).appointmentId).toBe(apptId)
+  })
+
+  it('POST on a declined assignment -> 409', async () => {
+    const before = await maxMessageId()
+    const a = await newAssignment()
+    await declineAssignment(a.id, 'Fully booked')
+    const res = await post(a.id, '2026-11-06T09:00:00', '2026-11-06T09:30:00')
+    expect(res.status).toBe(409)
+    expect((await getRow(a.id)).status).toBe('declined')
+    expect(await systemMsgs('RD-0001', before)).toHaveLength(0)
+  })
+
+  it('send failure -> 500, patientNotifiedAt null, still scheduled, no message, failure audited', async () => {
+    const before = await maxMessageId()
+    const auditBefore = await maxAuditId()
+    const a = await newAssignment()
+    vi.mocked(sendMessage).mockRejectedValueOnce(new Error('boom'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await post(a.id, '2026-11-07T09:00:00', '2026-11-07T09:30:00')
+    errSpy.mockRestore()
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'The appointment was scheduled, but the confirmation message to the patient could not be sent. Please message the patient manually.' })
+    const row = await getRow(a.id)
+    expect(row.status).toBe('scheduled')
+    expect(row.patientNotifiedAt).toBeNull()
+    expect(row.appointmentId).not.toBeNull()
+    createdAppointmentIds.push(row.appointmentId!)
+    const [appt] = await getDb().select().from(appointments).where(eq(appointments.id, row.appointmentId!))
+    expect(appt).toBeDefined()
+    expect(await systemMsgs('RD-0001', before)).toHaveLength(0)
+    const audits = await getDb().select().from(auditLog)
+      .where(and(gt(auditLog.id, auditBefore), eq(auditLog.action, 'scheduled assignment into appointment; patient notification FAILED'), eq(auditLog.patientId, 'RD-0001')))
+    for (const r of audits) createdAuditIds.push(r.id)
+    expect(audits.length).toBeGreaterThanOrEqual(1)
   })
 })
 
