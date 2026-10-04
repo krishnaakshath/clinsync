@@ -123,7 +123,7 @@ export function IntakePortalForm({ token, questions, existingAnswers, autofill, 
             <span>{progressLabel}</span>
             <span className="tabular-nums text-primary">{progressPercent}%</span>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Form completion progress" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
             <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
           </div>
         </div>
@@ -148,7 +148,7 @@ export function IntakePortalForm({ token, questions, existingAnswers, autofill, 
         />
       )}
 
-      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2 pt-2">
         <button onClick={() => submit(false)} disabled={submitting} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50">Save and finish later</button>
         <div className="flex gap-2">
@@ -163,7 +163,7 @@ export function IntakePortalForm({ token, questions, existingAnswers, autofill, 
         </div>
       </div>
       {isLastPage && submitBlockedReason && (
-        <p className="mt-2 text-right text-xs text-muted-foreground" data-testid="submit-blocked-reason">{submitBlockedReason}</p>
+        <p role="alert" className="mt-2 text-right text-xs text-muted-foreground" data-testid="submit-blocked-reason">{submitBlockedReason}</p>
       )}
     </div>
   )
@@ -183,7 +183,7 @@ function ConsentPage({ consent, signing, error, onSign }: {
           character the signer attests to appear literally. */}
       <div tabIndex={0} role="region" aria-label={consent.name} className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-4 text-sm text-foreground">{consent.renderedText}</div>
       {consent.signedAt ? (
-        <p className="text-sm font-medium text-foreground">
+        <p className="text-sm font-medium text-foreground" suppressHydrationWarning>
           Signed by {consent.signerTypedName} on {new Date(consent.signedAt).toLocaleDateString()}
         </p>
       ) : (
