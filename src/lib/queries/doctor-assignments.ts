@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
-import { doctorAssignments } from '@/db/schema'
-import { and, desc, eq, gte } from 'drizzle-orm'
+import { doctorAssignments, patients } from '@/db/schema'
+import { and, asc, desc, eq, getTableColumns, gte, isNull, sql } from 'drizzle-orm'
 import { getNextQueueTicketNumberForToday } from './queue-tickets'
 
 export interface CreateDoctorAssignmentInput {
@@ -21,11 +21,44 @@ export async function createDoctorAssignment(input: CreateDoctorAssignmentInput)
   return created
 }
 
-export async function listPendingAssignmentsForProvider(providerId: number): Promise<DoctorAssignmentRow[]> {
+export type PendingAssignmentRow = DoctorAssignmentRow & { patientName: string }
+
+export async function listPendingAssignmentsForProvider(providerId: number): Promise<PendingAssignmentRow[]> {
   return getDb()
-    .select()
+    .select({ ...getTableColumns(doctorAssignments), patientName: patients.name })
+    .from(doctorAssignments)
+    .innerJoin(patients, eq(patients.id, doctorAssignments.patientId))
+    .where(and(eq(doctorAssignments.providerId, providerId), eq(doctorAssignments.status, 'pending')))
+    .orderBy(
+      sql`CASE ${doctorAssignments.urgency} WHEN 'emergency' THEN 0 WHEN 'urgent' THEN 1 ELSE 2 END`,
+      asc(doctorAssignments.createdAt),
+      asc(doctorAssignments.id),
+    )
+}
+
+export async function countPendingAssignmentsForProvider(providerId: number): Promise<number> {
+  const [row] = await getDb()
+    .select({ count: sql<number>`count(*)::int` })
     .from(doctorAssignments)
     .where(and(eq(doctorAssignments.providerId, providerId), eq(doctorAssignments.status, 'pending')))
+  return row?.count ?? 0
+}
+
+export async function countUnacknowledgedDeclines(): Promise<number> {
+  const [row] = await getDb()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(doctorAssignments)
+    .where(and(eq(doctorAssignments.status, 'declined'), isNull(doctorAssignments.declineAcknowledgedAt)))
+  return row?.count ?? 0
+}
+
+export async function acknowledgeDecline(assignmentId: number, acknowledgedByName: string): Promise<DoctorAssignmentRow | null> {
+  const [updated] = await getDb()
+    .update(doctorAssignments)
+    .set({ declineAcknowledgedAt: new Date(), declineAcknowledgedByName: acknowledgedByName })
+    .where(and(eq(doctorAssignments.id, assignmentId), eq(doctorAssignments.status, 'declined'), isNull(doctorAssignments.declineAcknowledgedAt)))
+    .returning()
+  return updated ?? null
 }
 
 export async function scheduleAssignment(assignmentId: number, appointmentId: number): Promise<DoctorAssignmentRow | null> {
@@ -47,7 +80,13 @@ export async function declineAssignment(assignmentId: number, reason: string): P
 }
 
 export async function listAllAssignments(): Promise<DoctorAssignmentRow[]> {
-  return getDb().select().from(doctorAssignments).orderBy(desc(doctorAssignments.createdAt))
+  return getDb()
+    .select()
+    .from(doctorAssignments)
+    .orderBy(
+      sql`CASE WHEN ${doctorAssignments.status} = 'declined' AND ${doctorAssignments.declineAcknowledgedAt} IS NULL THEN 0 ELSE 1 END`,
+      desc(doctorAssignments.createdAt),
+    )
 }
 
 /**
