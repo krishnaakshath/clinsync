@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
-import { patients, diagnoses, medicationEpisodes, appointments, providers, formSubmissions, formTemplates } from '@/db/schema'
-import { eq, desc, asc, gte, lt, and } from 'drizzle-orm'
+import { patients, diagnoses, medicationEpisodes, appointments, providers, formSubmissions, formTemplates, formSubmissionConsents } from '@/db/schema'
+import { eq, desc, asc, gte, lt, and, sql } from 'drizzle-orm'
 import { hashPassword, verifyPassword } from '@/lib/password'
 import { getUnreadCountForPatient } from '@/lib/queries/messages'
 
@@ -45,10 +45,12 @@ export async function getPatientPortalData(patientId: string) {
   // lost or never received that link had no way to find or fill a form
   // they'd been sent. Surface every submission by access token instead.
   const forms = await getDb()
-    .select({ id: formSubmissions.id, status: formSubmissions.status, sentDate: formSubmissions.sentDate, accessToken: formSubmissions.accessToken, templateName: formTemplates.name, category: formTemplates.category })
+    .select({ id: formSubmissions.id, status: formSubmissions.status, sentDate: formSubmissions.sentDate, accessToken: formSubmissions.accessToken, templateName: formTemplates.name, category: formTemplates.category, hasAttachedConsents: sql<boolean>`count(${formSubmissionConsents.id}) > 0` })
     .from(formSubmissions)
     .innerJoin(formTemplates, eq(formSubmissions.templateId, formTemplates.id))
+    .leftJoin(formSubmissionConsents, eq(formSubmissionConsents.formSubmissionId, formSubmissions.id))
     .where(eq(formSubmissions.patientId, patientId))
+    .groupBy(formSubmissions.id, formTemplates.name, formTemplates.category)
     .orderBy(desc(formSubmissions.sentDate))
 
   const unreadMessageCount = await getUnreadCountForPatient(patientId)

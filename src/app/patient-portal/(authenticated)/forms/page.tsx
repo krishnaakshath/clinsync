@@ -61,8 +61,10 @@ export default async function PatientPortalFormsPage() {
                     permanently kill the token (via isSubmissionTokenValid) before they
                     ever got to answer the form's real questions. The sign route enforces
                     this same rule independently -- this client-side gate is UX, not the
-                    security boundary. */}
-                {f.category === 'Consent Forms' && f.status === 'partial' && (
+                    security boundary. Also suppressed when the submission has attached
+                    consents: those are signed inside the form itself (the Continue link
+                    above), and the sign route 409s for them. */}
+                {f.category === 'Consent Forms' && f.status === 'partial' && !f.hasAttachedConsents && (
                   <SignConsentFormAction patientId={session.patientId} formSubmissionId={f.id} />
                 )}
               </li>
