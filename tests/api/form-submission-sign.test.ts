@@ -96,6 +96,12 @@ describe('POST /api/patients/[anonId]/form-submissions/[id]/sign', () => {
     expect(res.status).toBe(409)
   })
 
+  it('rejects a 201-character typedName with 400', async () => {
+    const submission = await makeSubmission('Consent Forms', 'partial', PATIENT_ID, { q1: 'yes' })
+    const res = await POST(req({ typedName: 'a'.repeat(201) }) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })
+    expect(res.status).toBe(400)
+  })
+
   it('rejects a missing typedName', async () => {
     const submission = await makeSubmission('Consent Forms')
     const res = await POST(req({}) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })

@@ -57,10 +57,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // Insert the signature FIRST, then a conditional UPDATE guarded by
-  // status != 'completed' -- same sequential, non-transactional two-write
-  // posture already established for admissions.ts's transferAdmission/
-  // dischargeAdmission (this driver doesn't support multi-statement
-  // transactions). If two sign calls race, at most one UPDATE succeeds (the
+  // status != 'completed' -- sequential, non-transactional two-write posture
+  // (the driver does support transactions, see src/db/client.ts, but this
+  // legacy route is deliberately left as-is). If two sign calls race, at most one UPDATE succeeds (the
   // WHERE guard); the loser gets a 409 below. A signature row is never
   // deleted or rolled back once inserted -- same append-only posture as the
   // rest of this table -- so the astronomically rare raced duplicate
