@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   if (session instanceof NextResponse) return session
   if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const parsed = createSchema.safeParse(await request.json())
+  const parsed = createSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid consent document payload', details: parsed.error.flatten() }, { status: 400 })
 
   const created = await createConsentDocument(parsed.data)

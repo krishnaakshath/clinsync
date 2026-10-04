@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (result.reason === 'no_such_document') return NextResponse.json({ error: 'No such consent document' }, { status: 400 })
     return NextResponse.json({ error: 'This consent document is already attached to this form' }, { status: 409 })
   }
-  await logAudit(session, `attached consent document to form template ${templateId}`, null)
   await invalidateFormTemplatesList()
+  await logAudit(session, `attached consent document to form template ${templateId}`, null)
   return NextResponse.json({ formTemplateConsentId: result.formTemplateConsentId }, { status: 201 })
 }

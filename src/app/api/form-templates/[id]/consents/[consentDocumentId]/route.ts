@@ -15,7 +15,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
 
   const ok = await detachConsentFromTemplate(templateId, docId)
   if (!ok) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  await logAudit(session, `detached consent document from form template ${templateId}`, null)
   await invalidateFormTemplatesList()
+  await logAudit(session, `detached consent document from form template ${templateId}`, null)
   return NextResponse.json({ ok: true })
 }

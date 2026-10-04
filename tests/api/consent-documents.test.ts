@@ -201,6 +201,17 @@ describe('.strict() validation', () => {
     expect(res.status).toBe(400)
   })
 
+  it('POST with a malformed JSON body is 400, not 500', async () => {
+    const res = await POST(new Request('http://localhost', { method: 'POST', body: '{not json', headers: { 'Content-Type': 'application/json' } }) as never)
+    expect(res.status).toBe(400)
+  })
+
+  it('PUT with a malformed JSON body is 400, not 500', async () => {
+    const { body } = await createDoc()
+    const res = await PUT(new Request('http://localhost', { method: 'PUT', body: '{not json', headers: { 'Content-Type': 'application/json' } }) as never, ctx(body.id))
+    expect(res.status).toBe(400)
+  })
+
   it('PUT with a non-enum legalReviewStatus is 400', async () => {
     const { body } = await createDoc()
     expect((await PUT(json('PUT', { legalReviewStatus: 'pending' }), ctx(body.id))).status).toBe(400)

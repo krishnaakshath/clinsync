@@ -140,6 +140,25 @@ describe('attach / detach consent documents', () => {
     expect(rows).toEqual([])
   })
 
+  it('400 for a malformed JSON body', async () => {
+    const t = await makeTemplate()
+    const res = await POST(new Request('http://localhost', { method: 'POST', body: '{not json', headers: { 'Content-Type': 'application/json' } }) as never, listCtx(t))
+    expect(res.status).toBe(400)
+  })
+
+  it('sortOrder does not collide after detaching a middle document and attaching another', async () => {
+    const t = await makeTemplate()
+    const a = await makeDoc()
+    const b = await makeDoc()
+    const c = await makeDoc()
+    await POST(json('POST', { consentDocumentId: a }), listCtx(t))
+    await POST(json('POST', { consentDocumentId: b }), listCtx(t))
+    await DELETE(bare(), itemCtx(t, a))
+    await POST(json('POST', { consentDocumentId: c }), listCtx(t))
+    const orders = (await list(t)).rows.map((r: { sortOrder: number }) => r.sortOrder)
+    expect(new Set(orders).size).toBe(orders.length)
+  })
+
   it('rejects unknown fields (.strict())', async () => {
     const t = await makeTemplate()
     const d = await makeDoc()

@@ -18,6 +18,7 @@ export type AttachResult =
   | { ok: false; reason: 'duplicate' | 'no_such_document' | 'no_such_template' }
 
 const POSTGRES_UNIQUE_VIOLATION = '23505'
+const POSTGRES_FK_VIOLATION = '23503'
 const PREVIEW_MAX = 80
 
 function isUniqueViolation(error: unknown): boolean {
@@ -25,6 +26,11 @@ function isUniqueViolation(error: unknown): boolean {
   // wrapped with the original on `.cause`.
   const e = error as { code?: string; cause?: { code?: string } }
   return e?.code === POSTGRES_UNIQUE_VIOLATION || e?.cause?.code === POSTGRES_UNIQUE_VIOLATION
+}
+
+function isForeignKeyViolation(error: unknown): boolean {
+  const e = error as { code?: string; cause?: { code?: string } }
+  return e?.code === POSTGRES_FK_VIOLATION || e?.cause?.code === POSTGRES_FK_VIOLATION
 }
 
 // UI preview only -- never the signed text (that is renderConsentText).
@@ -68,7 +74,12 @@ export async function attachConsentToTemplate(formTemplateId: number, consentDoc
   const [doc] = await getDb().select({ id: consentDocuments.id }).from(consentDocuments).where(eq(consentDocuments.id, consentDocumentId))
   if (!doc) return { ok: false, reason: 'no_such_document' }
 
-  const sortOrder = await countConsentsForTemplate(formTemplateId)
+  // max+1, not count: after a detach the count can collide with a remaining row.
+  const [maxRow] = await getDb()
+    .select({ m: sql<number>`coalesce(max(${formTemplateConsents.sortOrder}), -1)::int` })
+    .from(formTemplateConsents)
+    .where(eq(formTemplateConsents.formTemplateId, formTemplateId))
+  const sortOrder = (maxRow?.m ?? -1) + 1
   try {
     const [created] = await getDb()
       .insert(formTemplateConsents)
@@ -79,6 +90,11 @@ export async function attachConsentToTemplate(formTemplateId: number, consentDoc
     // The unique index (template, document) is the real boundary; losing a
     // race to it is a duplicate, not a 500.
     if (isUniqueViolation(error)) return { ok: false, reason: 'duplicate' }
+    // Template or document deleted between the existence checks and the insert.
+    if (isForeignKeyViolation(error)) {
+      const constraint = String((error as { constraint?: string; cause?: { constraint?: string } }).constraint ?? (error as { cause?: { constraint?: string } }).cause?.constraint ?? '')
+      return { ok: false, reason: constraint.includes('document') ? 'no_such_document' : 'no_such_template' }
+    }
     throw error
   }
 }
