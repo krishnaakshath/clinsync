@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { LeftNav } from '@/components/LeftNav'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/patients' }))
@@ -53,5 +53,18 @@ describe('LeftNav', () => {
       expect(screen.queryByRole('link', { name: /consent documents/i })).not.toBeInTheDocument()
       unmount()
     }
+  })
+
+  it('shows a count pill on My Patients when badges["/doctor"] > 0', () => {
+    render(<LeftNav role="pi" badges={{ '/doctor': 3 }} />)
+    expect(within(screen.getByRole('link', { name: /my patients/i })).getByText('3')).toBeInTheDocument()
+  })
+  it('renders no pill for a 0 or missing badge', () => {
+    render(<LeftNav role="pi" badges={{ '/doctor': 0 }} />)
+    expect(screen.getByRole('link', { name: /my patients/i }).textContent).toBe('My Patients')
+  })
+  it('shows the decline pill on Assignments for frontdesk', () => {
+    render(<LeftNav role="frontdesk" badges={{ '/front-desk/assignments': 2 }} />)
+    expect(within(screen.getByRole('link', { name: /assignments/i })).getByText('2')).toBeInTheDocument()
   })
 })

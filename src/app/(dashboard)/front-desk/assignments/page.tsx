@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit'
 import { listAllAssignments } from '@/lib/queries/doctor-assignments'
 import { listAllProviders } from '@/lib/queries/providers'
 import { AssignmentStatusChip } from '@/components/AssignmentStatusChip'
+import { AcknowledgeDeclineButton } from '@/components/AcknowledgeDeclineButton'
 
 export default async function FrontDeskAssignmentsPage() {
   const session = await requireSessionOrRedirect()
@@ -34,6 +35,7 @@ export default async function FrontDeskAssignmentsPage() {
                 <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Visit Type</th>
                 <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reason</th>
                 <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                <th className="p-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -44,6 +46,12 @@ export default async function FrontDeskAssignmentsPage() {
                   <td className="p-3 text-foreground capitalize">{a.visitType}</td>
                   <td className="p-3 text-foreground">{a.reason}</td>
                   <td className="p-3"><AssignmentStatusChip status={a.status} declineReason={a.declineReason} /></td>
+                  <td className="p-3">
+                    {a.status === 'declined' && !a.declineAcknowledgedAt && <AcknowledgeDeclineButton assignmentId={a.id} />}
+                    {a.status === 'declined' && a.declineAcknowledgedAt && (
+                      <span className="text-xs text-muted-foreground">Handled by {a.declineAcknowledgedByName}</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -116,7 +116,9 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function NavLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: Icon; active: boolean }) {
+export type NavBadges = Partial<Record<string, number>>
+
+function NavLink({ href, label, icon: Icon, active, badge }: { href: string; label: string; icon: Icon; active: boolean; badge?: number }) {
   return (
     <Link
       href={href}
@@ -129,13 +131,16 @@ function NavLink({ href, label, icon: Icon, active }: { href: string; label: str
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
       <span className="truncate">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-semibold text-accent-foreground">{badge}</span>
+      )}
     </Link>
   )
 }
 
 export const BILLING_ROLES: Role[] = ['admin', 'crc', 'billing']
 
-export function LeftNav({ role }: { role: Role }) {
+export function LeftNav({ role, badges }: { role: Role; badges?: NavBadges }) {
   const pathname = usePathname()
   const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
   const trailingItems = NAV_TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
@@ -167,7 +172,7 @@ export function LeftNav({ role }: { role: Role }) {
             <ul className="space-y-0.5">
               {items.map((item) => (
                 <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
+                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
                 </li>
               ))}
             </ul>
@@ -197,7 +202,7 @@ export function LeftNav({ role }: { role: Role }) {
               <ul className={`mt-0.5 space-y-0.5 ${!isBillingOnly ? 'ps-3' : ''}`}>
                 {NAV_BILLING_ITEMS.map((item) => (
                   <li key={item.href}>
-                    <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
+                    <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
                   </li>
                 ))}
               </ul>
@@ -211,7 +216,7 @@ export function LeftNav({ role }: { role: Role }) {
             <ul className="space-y-0.5">
               {trailingItems.map((item) => (
                 <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />
+                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
                 </li>
               ))}
             </ul>

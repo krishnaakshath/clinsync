@@ -585,6 +585,11 @@ export const doctorAssignments = pgTable('doctor_assignments', {
   // number explicitly from the ticket-generation code (see Task 2), which
   // never relies on this default.
   queueTicketNumber: integer('queue_ticket_number').notNull().default(0),
+  // Notification columns -- added by scripts/migrations/2026-10-04-assignment-notifications.sql
+  // (nullable, additive). patientNotifiedAt is NEVER cleared once set (spec §8).
+  patientNotifiedAt: timestamp('patient_notified_at'),
+  declineAcknowledgedAt: timestamp('decline_acknowledged_at'),
+  declineAcknowledgedByName: text('decline_acknowledged_by_name'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

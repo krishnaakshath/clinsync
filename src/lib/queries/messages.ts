@@ -25,8 +25,19 @@ export async function listPatientVisibleMessages(patientId: string) {
     .orderBy(asc(messages.createdAt))
 }
 
-export async function sendMessage(patientId: string, senderRole: SenderRole, senderName: string, body: string, internal = false) {
-  const [created] = await getDb().insert(messages).values({ patientId, senderRole, senderName, body, internal }).returning()
+// `db` is the shared client by default; a caller that must commit the message
+// atomically with another write (notifyPatientOfScheduledAssignment) passes
+// its transaction handle instead -- same executor pattern as
+// copyTemplateConsentsToSubmission in form-submission-consents.ts.
+export async function sendMessage(
+  patientId: string,
+  senderRole: SenderRole,
+  senderName: string,
+  body: string,
+  internal = false,
+  db: Pick<ReturnType<typeof getDb>, 'insert'> = getDb(),
+) {
+  const [created] = await db.insert(messages).values({ patientId, senderRole, senderName, body, internal }).returning()
   return created
 }
 

@@ -2,14 +2,14 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, AlertCircle, Activity } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
-import { resolveSessionProvider } from '@/lib/provider-identity'
+import { resolveDoctorQueueProvider } from '@/lib/doctor-queue-provider'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
-import { listActiveProviders } from '@/lib/queries/providers'
 import { listPendingAssignmentsForProvider } from '@/lib/queries/doctor-assignments'
 import { listAppointmentsInRange } from '@/lib/queries/appointments'
 import { listWorklist } from '@/lib/queries/lab-orders'
 import { listFormSubmissions } from '@/lib/queries/form-submissions'
+import { AssignmentUrgencyChip } from '@/components/AssignmentUrgencyChip'
 import { AssignmentScheduleModalTrigger } from '@/components/AssignmentScheduleModal'
 import { DashboardAppointmentsTable, type DashboardAppointmentRow } from '@/components/DashboardAppointmentsTable'
 import { PatientsTable } from '@/components/PatientsTable'
@@ -24,8 +24,7 @@ export default async function DoctorPortalPage() {
   const lastName = session.name.trim().split(/\s+/).pop() ?? session.name
   const myPatients = patients.filter((p) => (p.currentProvider ?? '').toLowerCase().includes(lastName.toLowerCase()))
 
-  const resolvedProvider = await resolveSessionProvider(session)
-  const providerMatch = resolvedProvider ?? (await listActiveProviders()).find((p) => p.name.toLowerCase().includes(lastName.toLowerCase()))
+  const providerMatch = await resolveDoctorQueueProvider(session)
   const pendingAssignments = providerMatch ? await listPendingAssignmentsForProvider(providerMatch.id) : []
 
   const now = new Date()
@@ -78,7 +77,7 @@ export default async function DoctorPortalPage() {
           </div>
           <div className="flex flex-col items-end border-r border-border pr-6">
             <span className="text-2xl font-bold tabular-nums text-foreground">{todaysCheckups.length}</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today's Visits</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today&apos;s Visits</span>
           </div>
           <div className="flex flex-col items-end">
             <span className={`text-2xl font-bold tabular-nums ${highAcuityCount > 0 ? 'text-destructive' : 'text-foreground'}`}>{highAcuityCount}</span>
@@ -100,24 +99,32 @@ export default async function DoctorPortalPage() {
                 <AlertCircle className="h-4 w-4 text-warning" />
                 <h3 className="text-sm font-semibold text-foreground">Triage Queue</h3>
               </div>
-              <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-bold text-warning-foreground">{pendingAssignments.length}</span>
+              {providerMatch && (
+                <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-bold text-warning-foreground">{pendingAssignments.length}</span>
+              )}
             </div>
             <div className="p-0">
-              {pendingAssignments.length === 0 ? (
+              {!providerMatch ? (
+                <p role="alert" className="p-4 text-sm text-destructive">We couldn&apos;t match your account to a provider record, so your assignment queue can&apos;t be shown. Ask an administrator to check your provider record.</p>
+              ) : pendingAssignments.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">Queue clear.</div>
               ) : (
                 <ul className="divide-y divide-border">
                   {pendingAssignments.map((a) => (
                     <li key={a.id} className="flex flex-col gap-2 p-4 transition-colors hover:bg-muted/20">
-                      <div className="flex items-start justify-between">
-                        <span className="font-medium text-foreground">{a.patientId}</span>
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${a.urgency === 'emergency' ? 'bg-destructive/10 text-destructive' : a.urgency === 'urgent' ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground'}`}>
-                          {a.urgency}
-                        </span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-baseline gap-x-2">
+                          <span className="font-bold text-foreground">{a.patientName}</span>
+                          <span className="text-xs text-muted-foreground">{a.patientId}</span>
+                          {a.queueTicketNumber > 0 && <span className="text-xs text-muted-foreground">#{a.queueTicketNumber}</span>}
+                        </div>
+                        <AssignmentUrgencyChip urgency={a.urgency} />
                       </div>
                       <p className="text-xs text-foreground/80">{a.reason}</p>
-                      <div className="mt-1 flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">{a.visitType}</span>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {a.visitType} · Assigned by {a.assignedByName} · {a.createdAt.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                        </span>
                         <AssignmentScheduleModalTrigger assignment={a} />
                       </div>
                     </li>
@@ -173,7 +180,7 @@ export default async function DoctorPortalPage() {
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
-                <h3 className="text-base font-semibold text-foreground">Today's Schedule</h3>
+                <h3 className="text-base font-semibold text-foreground">Today&apos;s Schedule</h3>
               </div>
               <Link href="/calendar" className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">
                 Full Calendar

@@ -17,7 +17,7 @@ vi.mock('@/lib/queries/doctor-assignments', () => ({ listPendingAssignmentsForPr
 vi.mock('@/lib/queries/appointments', () => ({ listAppointmentsInRange: vi.fn(async () => []) }))
 vi.mock('@/lib/queries/lab-orders', () => ({ listWorklist: vi.fn(async () => []) }))
 vi.mock('@/lib/queries/form-submissions', () => ({ listFormSubmissions: vi.fn(async () => []) }))
-vi.mock('@/lib/provider-identity', () => ({ resolveSessionProvider: vi.fn(async () => null) }))
+vi.mock('@/lib/doctor-queue-provider', () => ({ resolveDoctorQueueProvider: vi.fn(async () => null) }))
 
 describe('PI dashboard (/doctor)', () => {
   it('keeps the panel stat tiles (content parity)', async () => {
@@ -42,13 +42,13 @@ describe('PI dashboard (/doctor)', () => {
     vi.doMock('@/lib/queries/providers', () => ({ listActiveProviders: vi.fn(async () => [{ id: 1, name: 'Dr. R. Kunam' }]) }))
     vi.doMock('@/lib/queries/doctor-assignments', () => ({
       listPendingAssignmentsForProvider: vi.fn(async () => [
-        { id: 1, patientId: 'RD-0001', providerId: 1, visitType: 'outpatient', urgency: 'urgent', reason: 'New patient intake', status: 'pending', roomId: null, assignedByName: 'Taylor Nguyen', appointmentId: null, declineReason: null, createdAt: new Date() },
+        { id: 1, patientId: 'RD-0001', providerId: 1, visitType: 'outpatient', urgency: 'urgent', reason: 'New patient intake', status: 'pending', roomId: null, assignedByName: 'Taylor Nguyen', appointmentId: null, declineReason: null, createdAt: new Date(), patientName: 'Jane Doe', queueTicketNumber: 7, patientNotifiedAt: null, declineAcknowledgedAt: null, declineAcknowledgedByName: null },
       ]),
     }))
     vi.doMock('@/lib/queries/appointments', () => ({ listAppointmentsInRange: vi.fn(async () => []) }))
     vi.doMock('@/lib/queries/lab-orders', () => ({ listWorklist: vi.fn(async () => []) }))
     vi.doMock('@/lib/queries/form-submissions', () => ({ listFormSubmissions: vi.fn(async () => []) }))
-    vi.doMock('@/lib/provider-identity', () => ({ resolveSessionProvider: vi.fn(async () => null) }))
+    vi.doMock('@/lib/doctor-queue-provider', () => ({ resolveDoctorQueueProvider: vi.fn(async () => ({ id: 1, name: 'Dr. R. Kunam' })) }))
     const { default: DoctorPortalPageWithAssignments } = await import('@/app/(dashboard)/doctor/page')
     const jsx = await DoctorPortalPageWithAssignments()
     const { render, screen } = await import('@testing-library/react')
@@ -72,7 +72,7 @@ describe('PI dashboard (/doctor)', () => {
     vi.doMock('@/lib/queries/doctor-assignments', () => ({ listPendingAssignmentsForProvider: vi.fn(async () => []) }))
     vi.doMock('@/lib/queries/lab-orders', () => ({ listWorklist: vi.fn(async () => []) }))
     vi.doMock('@/lib/queries/form-submissions', () => ({ listFormSubmissions: vi.fn(async () => []) }))
-    vi.doMock('@/lib/provider-identity', () => ({ resolveSessionProvider: vi.fn(async () => null) }))
+    vi.doMock('@/lib/doctor-queue-provider', () => ({ resolveDoctorQueueProvider: vi.fn(async () => ({ id: 7, name: 'Dr. R. Kunam' })) }))
     const listAppointmentsInRange = vi.fn(async () => [{
       id: 501, patientId: 'RD-0001', patientName: 'Jane Doe', providerId: 7, providerName: 'Dr. R. Kunam',
       providerColorTag: 'chart-1', startsAt: new Date('2026-01-15T10:00:00Z'), endsAt: new Date('2026-01-15T10:30:00Z'),
@@ -103,7 +103,7 @@ describe('PI dashboard (/doctor)', () => {
     vi.doMock('@/lib/queries/doctor-assignments', () => ({ listPendingAssignmentsForProvider: vi.fn(async () => []) }))
     vi.doMock('@/lib/queries/lab-orders', () => ({ listWorklist: vi.fn(async () => []) }))
     vi.doMock('@/lib/queries/form-submissions', () => ({ listFormSubmissions: vi.fn(async () => []) }))
-    vi.doMock('@/lib/provider-identity', () => ({ resolveSessionProvider: vi.fn(async () => null) }))
+    vi.doMock('@/lib/doctor-queue-provider', () => ({ resolveDoctorQueueProvider: vi.fn(async () => null) }))
     const listAppointmentsInRange = vi.fn(async () => [{
       id: 502, patientId: 'RD-0001', patientName: 'Jane Doe', providerId: 7, providerName: 'Dr. R. Kunam',
       providerColorTag: 'chart-1', startsAt: new Date('2026-01-15T10:00:00Z'), endsAt: new Date('2026-01-15T10:30:00Z'),
@@ -118,5 +118,52 @@ describe('PI dashboard (/doctor)', () => {
     expect(screen.getByText(/my appointments/i)).toBeInTheDocument()
     expect(listAppointmentsInRange).toHaveBeenCalledWith(expect.any(Date), expect.any(Date), [])
     expect(screen.queryByRole('button', { name: /start telemedicine visit/i })).not.toBeInTheDocument()
+  })
+
+  it('unmatched provider shows the explicit warning, not an empty queue', async () => {
+    vi.resetModules()
+    vi.doMock('@/lib/auth', () => ({ requireSessionOrRedirect: vi.fn(async () => ({ role: 'pi', name: 'Dr. Nobody', userId: null })) }))
+    vi.doMock('@/lib/audit', () => ({ logAudit: vi.fn(async () => undefined) }))
+    vi.doMock('@/lib/queries/patients', () => ({ listPatientsWithStatus: vi.fn(async () => []) }))
+    const listPendingAssignmentsForProvider = vi.fn(async () => [])
+    vi.doMock('@/lib/queries/doctor-assignments', () => ({ listPendingAssignmentsForProvider }))
+    vi.doMock('@/lib/queries/appointments', () => ({ listAppointmentsInRange: vi.fn(async () => []) }))
+    vi.doMock('@/lib/queries/lab-orders', () => ({ listWorklist: vi.fn(async () => []) }))
+    vi.doMock('@/lib/queries/form-submissions', () => ({ listFormSubmissions: vi.fn(async () => []) }))
+    vi.doMock('@/lib/doctor-queue-provider', () => ({ resolveDoctorQueueProvider: vi.fn(async () => null) }))
+    const { default: Page } = await import('@/app/(dashboard)/doctor/page')
+    const jsx = await Page()
+    const { render, screen } = await import('@testing-library/react')
+    render(jsx)
+    expect(screen.getByText("We couldn't match your account to a provider record, so your assignment queue can't be shown. Ask an administrator to check your provider record.")).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByText(/queue clear/i)).toBeNull()
+    const header = screen.getByRole('heading', { name: /triage queue/i }).parentElement!.parentElement!
+    expect(header.textContent).not.toMatch(/0/)
+    expect(listPendingAssignmentsForProvider).not.toHaveBeenCalled()
+  })
+
+  it('row shows patient name, ticket, assigned-by and an urgency chip', async () => {
+    vi.resetModules()
+    vi.doMock('@/lib/auth', () => ({ requireSessionOrRedirect: vi.fn(async () => ({ role: 'pi', name: 'Dr. R. Kunam', userId: null })) }))
+    vi.doMock('@/lib/audit', () => ({ logAudit: vi.fn(async () => undefined) }))
+    vi.doMock('@/lib/queries/patients', () => ({ listPatientsWithStatus: vi.fn(async () => []) }))
+    vi.doMock('@/lib/queries/doctor-assignments', () => ({
+      listPendingAssignmentsForProvider: vi.fn(async () => [
+        { id: 1, patientId: 'RD-0001', providerId: 1, visitType: 'outpatient', urgency: 'urgent', reason: 'New patient intake', status: 'pending', roomId: null, assignedByName: 'Taylor Nguyen', appointmentId: null, declineReason: null, createdAt: new Date(), patientName: 'Jane Doe', queueTicketNumber: 7, patientNotifiedAt: null, declineAcknowledgedAt: null, declineAcknowledgedByName: null },
+      ]),
+    }))
+    vi.doMock('@/lib/queries/appointments', () => ({ listAppointmentsInRange: vi.fn(async () => []) }))
+    vi.doMock('@/lib/queries/lab-orders', () => ({ listWorklist: vi.fn(async () => []) }))
+    vi.doMock('@/lib/queries/form-submissions', () => ({ listFormSubmissions: vi.fn(async () => []) }))
+    vi.doMock('@/lib/doctor-queue-provider', () => ({ resolveDoctorQueueProvider: vi.fn(async () => ({ id: 1, name: 'Dr. R. Kunam' })) }))
+    const { default: Page } = await import('@/app/(dashboard)/doctor/page')
+    const jsx = await Page()
+    const { render, screen } = await import('@testing-library/react')
+    render(jsx)
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument()
+    expect(screen.getByText('#7')).toBeInTheDocument()
+    expect(screen.getByText(/Taylor Nguyen/)).toBeInTheDocument()
+    expect(screen.getByText('Urgent')).toBeInTheDocument()
   })
 })
