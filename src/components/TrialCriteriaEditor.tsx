@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface CodeRow { code: string; description: string }
@@ -38,6 +38,29 @@ export function TrialCriteriaEditor({ trialId, initial }: { trialId: string; ini
   const [form, setForm] = useState<TrialCriteria>(initial)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  const wasOpen = useRef(false)
+
+  // Move focus into the dialog on open; restore it to the trigger on close.
+  useEffect(() => {
+    if (open) {
+      dialogRef.current?.focus()
+    } else if (wasOpen.current) {
+      triggerRef.current?.focus()
+    }
+    wasOpen.current = open
+  }, [open])
+
+  // Keep the error visible without scrolling the (scrollable) dialog.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [error])
+
+  function requestClose() {
+    if (!saving) setOpen(false)
+  }
 
   function openModal() {
     setForm(initial)
@@ -99,7 +122,7 @@ export function TrialCriteriaEditor({ trialId, initial }: { trialId: string; ini
 
   if (!open) {
     return (
-      <button type="button" onClick={openModal} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
+      <button ref={triggerRef} type="button" onClick={openModal} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
         Edit criteria
       </button>
     )
@@ -124,10 +147,17 @@ export function TrialCriteriaEditor({ trialId, initial }: { trialId: string; ini
   )
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-foreground/20 p-4">
-      <div role="dialog" aria-modal="true" aria-label="Edit eligibility criteria" className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg border border-border bg-card p-6 shadow-lg">
+    <div
+      className="fixed inset-0 z-30 flex items-center justify-center bg-foreground/20 p-4"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) requestClose() }}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); requestClose() } }}
+        role="dialog" aria-modal="true" aria-label="Edit eligibility criteria" className="max-h-[90vh] w-full outline-none max-w-2xl overflow-auto rounded-lg border border-border bg-card p-6 shadow-lg">
         <h2 className="mb-4 text-lg font-bold text-foreground">Edit eligibility criteria</h2>
-        {error && <p role="alert" className="mb-3 text-sm font-medium text-destructive">{error}</p>}
+        {error && <p ref={errorRef} role="alert" className="mb-3 text-sm font-medium text-destructive">{error}</p>}
 
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div>
@@ -185,8 +215,9 @@ export function TrialCriteriaEditor({ trialId, initial }: { trialId: string; ini
           </div>
         </div>
 
+        {error && <p aria-hidden="true" className="mb-2 text-right text-sm font-medium text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => setOpen(false)} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">Cancel</button>
+          <button type="button" onClick={requestClose} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">Cancel</button>
           <button type="button" onClick={save} disabled={saving} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
             {saving ? 'Saving...' : 'Save criteria'}
           </button>

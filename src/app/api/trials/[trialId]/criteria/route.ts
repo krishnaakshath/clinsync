@@ -10,14 +10,16 @@ import { requireSession } from '@/lib/auth'
 // `.strict()` rejects any other key outright (e.g. `id`, `createdAt`, or a
 // column this route was never meant to touch) rather than silently ignoring
 // it, so a caller gets a clear 400 instead of an unnoticed no-op.
+const str = z.string().trim().min(1)
+
 const criteriaUpdateSchema = z
   .object({
-    diagnosisCodes: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
-    ratingScales: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
+    diagnosisCodes: z.array(z.object({ code: str, description: str })).optional(),
+    ratingScales: z.array(z.object({ name: str, description: str })).optional(),
     medicationClasses: z
-      .array(z.object({ className: z.string(), washoutDays: z.number(), rule: z.string(), ruleType: z.enum(['washout_exclusion', 'required_stable']) }))
+      .array(z.object({ className: str, washoutDays: z.number().int().min(0), rule: str, ruleType: z.enum(['washout_exclusion', 'required_stable']) }))
       .optional(),
-    exclusionDiagnoses: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
+    exclusionDiagnoses: z.array(z.object({ code: str, description: str })).optional(),
     minRatingScaleScore: z.number().int().positive().nullable().optional(),
     ageMin: z.number().int().positive().optional(),
     ageMax: z.number().int().positive().optional(),
@@ -39,7 +41,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const { trialId } = await params
 
-  const parsed = criteriaUpdateSchema.safeParse(await request.json())
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+  const parsed = criteriaUpdateSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid criteria payload', details: parsed.error.flatten() }, { status: 400 })
   }
