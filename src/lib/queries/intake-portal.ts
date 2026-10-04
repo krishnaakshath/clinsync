@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { formSubmissions, formTemplates, patients } from '@/db/schema'
 import { eq } from 'drizzle-orm'
+import { listConsentsForSubmission, type SubmissionConsent } from '@/lib/queries/form-submission-consents'
 
 export type IntakePortalState = 'active' | 'expired' | 'completed' | 'not_found'
 
@@ -10,6 +11,9 @@ export interface IntakePortalData {
   questions?: { id: string; label: string; type: 'text' | 'textarea' | 'date' | 'select' | 'checkbox'; options?: string[]; required: boolean }[]
   existingAnswers?: Record<string, string>
   autofill?: Record<string, string>
+  // Present on 'active' only. Empty for a template with no attached consents,
+  // so the intake flow for such a form is unchanged.
+  consents?: SubmissionConsent[]
 }
 
 const AUTOFILL_SOURCE = {
@@ -54,6 +58,7 @@ export async function getIntakePortalData(token: string): Promise<IntakePortalDa
     questions: row.template.questions.map((q) => ({ id: q.id, label: q.label, type: q.type, options: q.options, required: q.required })),
     existingAnswers: row.submission.answers ?? {},
     autofill,
+    consents: await listConsentsForSubmission(row.submission.id),
   }
 }
 

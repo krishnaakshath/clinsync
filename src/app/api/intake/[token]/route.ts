@@ -8,6 +8,7 @@ import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
 import { recordFormChartDiscrepancies } from '@/lib/queries/discrepancies'
 import { recordFormSubmissionScore } from '@/lib/queries/form-submission-scoring'
+import { countUnsignedConsentsByToken } from '@/lib/queries/form-submission-consents'
 
 // Deliberately NOT requireSession()-gated -- a referred patient has no staff
 // account. Authorization here is possession of the unguessable token itself,
@@ -36,6 +37,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const parsed = submitSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid submission', details: parsed.error.flatten() }, { status: 400 })
+
+  // Completion gate: every attached consent must be signed before the packet
+  // can be marked completed. Partial saves (complete: false) are unaffected --
+  // a patient can answer half the questions and come back before signing
+  // anything (spec §6). Re-run on every completion attempt; the conditional
+  // UPDATE below remains the separate write-time race guard.
+  if (parsed.data.complete && (await countUnsignedConsentsByToken(token)) > 0) {
+    return NextResponse.json({ error: 'This form has unsigned consent documents' }, { status: 400 })
+  }
 
   const status = parsed.data.complete ? 'completed' : 'partial'
   const completedDate = parsed.data.complete ? new Date() : null

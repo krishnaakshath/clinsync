@@ -7,8 +7,9 @@ import { requirePatientSession } from '@/lib/patient-session'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { getFormSubmission } from '@/lib/queries/form-submissions'
 import { createSignature } from '@/lib/queries/signatures'
+import { hasAttachedConsents } from '@/lib/queries/form-submission-consents'
 
-const signSchema = z.object({ typedName: z.string().trim().min(1) }).strict()
+const signSchema = z.object({ typedName: z.string().trim().min(1).max(200) }).strict()
 
 const CONSENT_ATTESTATION = 'I attest that the information in this form is accurate and I consent to the terms described above.'
 
@@ -31,6 +32,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!submission || submission.patientId !== anonId) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (submission.category !== 'Consent Forms') return NextResponse.json({ error: 'This form does not require a signature' }, { status: 400 })
   if (submission.status === 'completed') return NextResponse.json({ error: 'This form has already been completed' }, { status: 409 })
+  // Precedence rule: if a submission has one or more formSubmissionConsents
+  // rows, the inline path (POST /api/intake/[token]/consents/.../sign plus
+  // the completion gate) governs, and this legacy route refuses rather than
+  // completing the submission behind the inline gate's back -- otherwise a
+  // 'Consent Forms'-category template with attached consent documents would
+  // offer two ways to complete the same submission, one of which skips the
+  // consents entirely. The category = 'Consent Forms' gate above stays as
+  // it is: it is still the live gate for every submission already in flight,
+  // and no retirement date is set for it.
+  if (await hasAttachedConsents(submissionId)) {
+    return NextResponse.json({ error: "This form's consents are signed within the form itself" }, { status: 409 })
+  }
   // The actual security boundary against signing a form the patient never
   // opened (the client-side gate in forms/page.tsx that only offers this
   // action for status 'partial' is UX, not enforcement -- a direct POST here
@@ -44,10 +57,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // Insert the signature FIRST, then a conditional UPDATE guarded by
-  // status != 'completed' -- same sequential, non-transactional two-write
-  // posture already established for admissions.ts's transferAdmission/
-  // dischargeAdmission (this driver doesn't support multi-statement
-  // transactions). If two sign calls race, at most one UPDATE succeeds (the
+  // status != 'completed' -- sequential, non-transactional two-write posture
+  // (the driver does support transactions, see src/db/client.ts, but this
+  // legacy route is deliberately left as-is). If two sign calls race, at most one UPDATE succeeds (the
   // WHERE guard); the loser gets a 409 below. A signature row is never
   // deleted or rolled back once inserted -- same append-only posture as the
   // rest of this table -- so the astronomically rare raced duplicate

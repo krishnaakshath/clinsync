@@ -10,6 +10,7 @@ import { maybeAutoClassify } from '@/lib/auto-classify'
 import { recordFormChartDiscrepancies } from '@/lib/queries/discrepancies'
 import { getLatestSignatureForSignable } from '@/lib/queries/signatures'
 import { recordFormSubmissionScore } from '@/lib/queries/form-submission-scoring'
+import { countUnsignedConsentsBySubmissionId } from '@/lib/queries/form-submission-consents'
 
 const updateSubmissionSchema = z.object({
   status: z.enum(['sent', 'partial', 'completed']),
@@ -47,6 +48,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (parsed.data.status === 'completed' && existing.category === 'Consent Forms') {
     const signature = await getLatestSignatureForSignable('form_submission', Number(id))
     if (!signature) return NextResponse.json({ error: 'This consent form must be signed before it can be marked completed' }, { status: 400 })
+  }
+
+  // Same gate as PUT /api/intake/[token]: every consent document attached to
+  // this packet at send time must be signed before staff can mark it
+  // completed -- otherwise this route would bypass the patient-side gate.
+  if (parsed.data.status === 'completed' && (await countUnsignedConsentsBySubmissionId(Number(id))) > 0) {
+    return NextResponse.json({ error: 'This form has unsigned consent documents' }, { status: 400 })
   }
 
   const completedDate = parsed.data.status === 'completed' ? new Date() : null

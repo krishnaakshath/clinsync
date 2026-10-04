@@ -5,6 +5,7 @@ import { formTemplates } from '@/db/schema'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listFormTemplates, invalidateFormTemplatesList } from '@/lib/queries/form-templates'
+import { getFormTemplateFolder } from '@/lib/queries/form-template-folders'
 
 const questionSchema = z.object({
   id: z.string(),
@@ -28,6 +29,7 @@ const createTemplateSchema = z.object({
     questionIds: z.array(z.string()),
     bands: z.array(z.object({ min: z.number(), max: z.number(), label: z.string() })),
   }).nullable().optional(),
+  folderId: z.number().int().positive().nullable().optional(),
 }).strict()
 
 export async function GET() {
@@ -43,6 +45,13 @@ export async function POST(request: NextRequest) {
 
   const parsed = createTemplateSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid template payload', details: parsed.error.flatten() }, { status: 400 })
+
+  // A raw FK violation on a bad folderId would surface as an opaque 500;
+  // check it explicitly so the client can tell "you sent a bad folder" from
+  // "the server broke".
+  if (typeof parsed.data.folderId === 'number' && !(await getFormTemplateFolder(parsed.data.folderId))) {
+    return NextResponse.json({ error: 'No such folder' }, { status: 400 })
+  }
 
   const [created] = await getDb().insert(formTemplates).values(parsed.data).returning()
   await invalidateFormTemplatesList()

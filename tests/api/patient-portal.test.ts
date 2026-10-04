@@ -6,10 +6,11 @@
 // plain Node here too.
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import * as auth from '@/lib/auth'
 import { getDb } from '@/db/client'
-import { patients } from '@/db/schema'
+import { patients, formTemplates, formSubmissions, consentDocuments, formSubmissionConsents } from '@/db/schema'
+import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { POST as portalLogin } from '@/app/api/patient-portal/login/route'
 import { POST as generatePortalPassword, DELETE as revokePortalPassword } from '@/app/api/patients/[anonId]/portal-password/route'
 
@@ -102,5 +103,37 @@ describe('POST /api/patient-portal/login', () => {
   it('rejects a malformed payload', async () => {
     const res = await portalLogin(loginReq({ patientId: '' }))
     expect(res.status).toBe(400)
+  })
+})
+
+describe('getPatientPortalData forms hasAttachedConsents', () => {
+  const created: { fsc: number[]; submissions: number[]; templates: number[]; docs: number[] } = { fsc: [], submissions: [], templates: [], docs: [] }
+
+  afterEach(async () => {
+    const db = getDb()
+    if (created.fsc.length) await db.delete(formSubmissionConsents).where(inArray(formSubmissionConsents.id, created.fsc))
+    if (created.submissions.length) await db.delete(formSubmissions).where(inArray(formSubmissions.id, created.submissions))
+    if (created.templates.length) await db.delete(formTemplates).where(inArray(formTemplates.id, created.templates))
+    if (created.docs.length) await db.delete(consentDocuments).where(inArray(consentDocuments.id, created.docs))
+    created.fsc = []; created.submissions = []; created.templates = []; created.docs = []
+  })
+
+  it('is true for a submission with a form_submission_consents row and false for one without', { timeout: 30000 }, async () => {
+    const db = getDb()
+    const [template] = await db.insert(formTemplates).values({ name: `Portal HAC Test ${Date.now()}`, category: 'Uncategorized', diagnosisTag: 'test', questions: [] }).returning()
+    created.templates.push(template.id)
+    const [doc] = await db.insert(consentDocuments).values({ name: `Portal HAC Test ${Date.now()}`, bodyText: 'x' }).returning()
+    created.docs.push(doc.id)
+    const [withConsent] = await db.insert(formSubmissions).values({ templateId: template.id, patientId: TEST_PATIENT_ID, status: 'sent' }).returning()
+    const [without] = await db.insert(formSubmissions).values({ templateId: template.id, patientId: TEST_PATIENT_ID, status: 'sent' }).returning()
+    created.submissions.push(withConsent.id, without.id)
+    const [fsc] = await db.insert(formSubmissionConsents).values({ formSubmissionId: withConsent.id, consentDocumentId: doc.id }).returning()
+    created.fsc.push(fsc.id)
+
+    const data = await getPatientPortalData(TEST_PATIENT_ID)
+    const withRow = data!.forms.find((f) => f.id === withConsent.id)
+    const withoutRow = data!.forms.find((f) => f.id === without.id)
+    expect(withRow?.hasAttachedConsents).toBe(true)
+    expect(withoutRow?.hasAttachedConsents).toBe(false)
   })
 })

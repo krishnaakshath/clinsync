@@ -3,7 +3,7 @@ import { signatures } from '@/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
 
 export type Signature = typeof signatures.$inferSelect
-export type SignableType = 'form_submission' | 'admission_discharge'
+export type SignableType = 'form_submission' | 'admission_discharge' | 'form_submission_consent'
 
 export interface CreateSignatureInput {
   signableType: SignableType

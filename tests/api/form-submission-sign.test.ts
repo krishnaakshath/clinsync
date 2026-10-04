@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { POST } from '@/app/api/patients/[anonId]/form-submissions/[id]/sign/route'
 import { getDb } from '@/db/client'
-import { formTemplates, formSubmissions, signatures } from '@/db/schema'
+import { formTemplates, formSubmissions, signatures, consentDocuments, formSubmissionConsents } from '@/db/schema'
 
 const PATIENT_ID = 'RD-0001' // seeded real patient
 
@@ -20,6 +20,7 @@ vi.mock('@/lib/patient-session', async () => {
 
 const createdTemplateIds: number[] = []
 const createdSubmissionIds: number[] = []
+const createdConsentDocIds: number[] = []
 afterEach(async () => {
   sessionPatientId = PATIENT_ID
   while (createdSubmissionIds.length > 0) {
@@ -29,8 +30,10 @@ afterEach(async () => {
     // integer id (plausible from a concurrent worktree run) would otherwise
     // get deleted by this suite's cleanup.
     await getDb().delete(signatures).where(and(eq(signatures.signableType, 'form_submission'), eq(signatures.signableId, id)))
+    await getDb().delete(formSubmissionConsents).where(eq(formSubmissionConsents.formSubmissionId, id))
     await getDb().delete(formSubmissions).where(eq(formSubmissions.id, id))
   }
+  while (createdConsentDocIds.length > 0) await getDb().delete(consentDocuments).where(eq(consentDocuments.id, createdConsentDocIds.pop()!))
   while (createdTemplateIds.length > 0) await getDb().delete(formTemplates).where(eq(formTemplates.id, createdTemplateIds.pop()!))
 })
 
@@ -93,6 +96,12 @@ describe('POST /api/patients/[anonId]/form-submissions/[id]/sign', () => {
     expect(res.status).toBe(409)
   })
 
+  it('rejects a 201-character typedName with 400', async () => {
+    const submission = await makeSubmission('Consent Forms', 'partial', PATIENT_ID, { q1: 'yes' })
+    const res = await POST(req({ typedName: 'a'.repeat(201) }) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })
+    expect(res.status).toBe(400)
+  })
+
   it('rejects a missing typedName', async () => {
     const submission = await makeSubmission('Consent Forms')
     const res = await POST(req({}) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })
@@ -120,5 +129,31 @@ describe('POST /api/patients/[anonId]/form-submissions/[id]/sign', () => {
 
     const [unchanged] = await getDb().select().from(formSubmissions).where(eq(formSubmissions.id, submission.id))
     expect(unchanged.status).toBe('partial')
+  })
+
+  it('returns 409 for a submission that has formSubmissionConsents rows, and neither completes it nor signs it', async () => {
+    const submission = await makeSubmission('Consent Forms', 'partial', PATIENT_ID, { q1: 'yes' })
+    const [doc] = await getDb().insert(consentDocuments).values({ name: `Test consent ${Date.now()}`, bodyText: 'Test body' }).returning()
+    createdConsentDocIds.push(doc.id)
+    await getDb().insert(formSubmissionConsents).values({ formSubmissionId: submission.id, consentDocumentId: doc.id, sortOrder: 0 })
+
+    const res = await POST(req({ typedName: 'Maria Alvarez' }) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toBe("This form's consents are signed within the form itself")
+
+    const [unchanged] = await getDb().select().from(formSubmissions).where(eq(formSubmissions.id, submission.id))
+    expect(unchanged.status).not.toBe('completed')
+    const sigRows = await getDb().select().from(signatures).where(and(eq(signatures.signableType, 'form_submission'), eq(signatures.signableId, submission.id)))
+    expect(sigRows).toHaveLength(0)
+  })
+
+  it('still signs and completes a submission with zero formSubmissionConsents rows', async () => {
+    const submission = await makeSubmission('Consent Forms', 'partial', PATIENT_ID, { q1: 'yes' })
+    const rows = await getDb().select().from(formSubmissionConsents).where(eq(formSubmissionConsents.formSubmissionId, submission.id))
+    expect(rows).toHaveLength(0)
+    const res = await POST(req({ typedName: 'Maria Alvarez' }) as never, { params: Promise.resolve({ anonId: PATIENT_ID, id: String(submission.id) }) })
+    expect(res.status).toBe(200)
+    const [updated] = await getDb().select().from(formSubmissions).where(eq(formSubmissions.id, submission.id))
+    expect(updated.status).toBe('completed')
   })
 })

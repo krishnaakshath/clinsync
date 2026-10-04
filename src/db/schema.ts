@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const verdictEnum = pgEnum('verdict', ['green', 'yellow', 'red'])
 export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin', 'frontdesk', 'pharmacy', 'billing', 'labs'])
@@ -268,10 +268,40 @@ export const formSubmissionStatusEnum = pgEnum('form_submission_status', ['sent'
 export const idTypeEnum = pgEnum('id_type', ['drivers_license', 'state_id', 'passport', 'military_id', 'green_card'])
 export const severityEnum = pgEnum('severity', ['mild', 'moderate', 'severe'])
 
+export const formTemplateFolders = pgTable('form_template_folders', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const legalReviewStatusEnum = pgEnum('legal_review_status', ['draft', 'reviewed'])
+
+// The wording here is deliberately NOT copied into formSubmissionConsents --
+// signatures.attestationText is the one verbatim record of what was actually
+// agreed to, and a second copy would be a second source of truth that can
+// silently disagree with the first.
+export const consentDocuments = pgTable('consent_documents', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  bodyText: text('body_text').notNull(),
+  legalReviewStatus: legalReviewStatusEnum('legal_review_status').default('draft').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 export const formTemplates = pgTable('form_templates', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
   category: text('category').notNull(),          // folder grouping in the library UI, e.g. "Trial Intake", "Consent Forms", "Screening Questionnaires"
+  // Where the template sits in the /forms library UI -- deliberately a
+  // separate column from `category`, not a repurposing of it. `category` is
+  // the live gate in the sign route and in the patient portal's decision to
+  // render SignConsentFormAction, so reusing it as a folder name would break
+  // consent signing for every existing submission the moment a folder was
+  // renamed (spec §2). Nullable: an un-foldered template is a first-class
+  // case, shown as its own card.
+  folderId: integer('folder_id').references(() => formTemplateFolders.id),
   diagnosisTag: text('diagnosis_tag').notNull(),
   questions: jsonb('questions').$type<{
     id: string
@@ -307,6 +337,27 @@ export const formSubmissions = pgTable('form_submissions', {
   answers: jsonb('answers').$type<Record<string, string>>().default({}),
   accessToken: text('access_token').unique(),
   tokenExpiresAt: timestamp('token_expires_at'),
+})
+
+// Which consent documents are attached to which template. UNIQUE on
+// (formTemplateId, consentDocumentId) as a real DB unique index -- attaching
+// the same document twice is a mistake, not a supported configuration, and
+// an app-level check alone would let two concurrent attaches through.
+export const formTemplateConsents = pgTable('form_template_consents', {
+  id: serial('id').primaryKey(),
+  formTemplateId: integer('form_template_id').notNull().references(() => formTemplates.id),
+  consentDocumentId: integer('consent_document_id').notNull().references(() => consentDocuments.id),
+  sortOrder: integer('sort_order').default(0).notNull(),
+}, (t) => [uniqueIndex('form_template_consents_template_document_unique').on(t.formTemplateId, t.consentDocumentId)])
+
+// The per-submission instance of an attached consent -- created when a form
+// is sent, one row per consent document attached to the template at that
+// moment. This is the row a signature points at.
+export const formSubmissionConsents = pgTable('form_submission_consents', {
+  id: serial('id').primaryKey(),
+  formSubmissionId: integer('form_submission_id').notNull().references(() => formSubmissions.id),
+  consentDocumentId: integer('consent_document_id').notNull().references(() => consentDocuments.id),
+  sortOrder: integer('sort_order').default(0).notNull(),
 })
 
 // Dual verification between what a patient self-reports on an intake form
@@ -588,7 +639,7 @@ export const encounterNotes = pgTable('encounter_notes', {
   signedAt: timestamp('signed_at'),
 })
 
-export const signableTypeEnum = pgEnum('signable_type', ['form_submission', 'admission_discharge', 'policy_acceptance'])
+export const signableTypeEnum = pgEnum('signable_type', ['form_submission', 'admission_discharge', 'policy_acceptance', 'form_submission_consent'])
 
 export const policyDocumentTypeEnum = pgEnum('policy_document_type', ['npp', 'tos'])
 

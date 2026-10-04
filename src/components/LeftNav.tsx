@@ -8,7 +8,7 @@ import {
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
   ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard, CalendarClock, Search,
-  Syringe, DollarSign,
+  Syringe, DollarSign, ScrollText,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
@@ -48,6 +48,8 @@ export const NAV_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[
 
   // Form Templates — admin/crc/pi
   { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc', 'pi'] as Role[] },
+
+  { href: '/consent-documents', label: 'Consent Documents', icon: ScrollText, roles: ['admin', 'crc', 'pi'] as Role[] },
 
   // Client Forms — clinical review (NOT billing, NOT pharmacy)
   { href: '/client-forms', label: 'Client Forms', icon: FileSignature, roles: ['crc', 'pi', 'admin'] as Role[] },

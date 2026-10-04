@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client'
 import {
   patients, patientTrialScreenings, screeningCriteriaResults, diagnoses, medicationEpisodes, allergies, identityVerifications,
-  formSubmissions, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
+  formSubmissions, formSubmissionConsents, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
   rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes, medicationAdministrations,
   medicationDispenses, carePlans, carePlanGoals, labOrders, labResults, medications,
   adverseEvents, drugAccountabilityEntries, signatures,
@@ -429,6 +429,15 @@ export async function deletePatient(anonId: string): Promise<boolean> {
   await db.delete(medicationDispenses).where(eq(medicationDispenses.patientId, anonId))
   await db.delete(medicationEpisodes).where(eq(medicationEpisodes.patientId, anonId))
   await db.delete(diagnoses).where(eq(diagnoses.patientId, anonId))
+  // form_submission_consents.form_submission_id references form_submissions
+  // with no ON DELETE action, so this patient's consent rows must go before
+  // the submissions themselves (same children-before-parents discipline as
+  // above). Signatures are polymorphic with no FK and are not touched here,
+  // matching how form_submission signatures were already treated.
+  const patientSubmissionIds = (await db.select({ id: formSubmissions.id }).from(formSubmissions).where(eq(formSubmissions.patientId, anonId))).map((s) => s.id)
+  if (patientSubmissionIds.length > 0) {
+    await db.delete(formSubmissionConsents).where(inArray(formSubmissionConsents.formSubmissionId, patientSubmissionIds))
+  }
   await db.delete(formSubmissions).where(eq(formSubmissions.patientId, anonId))
   await db.delete(allergies).where(eq(allergies.patientId, anonId))
   await db.delete(identityVerifications).where(eq(identityVerifications.patientId, anonId))
