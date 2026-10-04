@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { and, eq, inArray } from 'drizzle-orm'
 import { POST as acknowledge } from '@/app/api/front-desk/assignments/[id]/acknowledge-decline/route'
 import { getDb } from '@/db/client'
 import { doctorAssignments, appointments, messages, auditLog } from '@/db/schema'
-import { createDoctorAssignment, scheduleAssignment, declineAssignment } from '@/lib/queries/doctor-assignments'
+import { createDoctorAssignment, scheduleAssignment, declineAssignment, countUnacknowledgedDeclines } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
 
 let sessionRole: string | null = 'frontdesk'
@@ -42,9 +42,17 @@ async function ackAuditIds() {
   return rows.map((r) => r.id)
 }
 
+// Snapshot before EVERY test, so cleanup removes only the audit rows created
+// during that test -- never a pre-existing row.
+beforeEach(async () => {
+  auditIdsBefore.clear()
+  for (const id of await ackAuditIds()) auditIdsBefore.add(id)
+})
+
 afterEach(async () => {
   sessionRole = 'frontdesk'
-  for (const id of await ackAuditIds()) if (!auditIdsBefore.has(id)) await getDb().delete(auditLog).where(eq(auditLog.id, id))
+  const created = (await ackAuditIds()).filter((id) => !auditIdsBefore.has(id))
+  if (created.length > 0) await getDb().delete(auditLog).where(inArray(auditLog.id, created))
   auditIdsBefore.clear()
   while (assignmentIds.length > 0) await getDb().delete(doctorAssignments).where(eq(doctorAssignments.id, assignmentIds.pop()!))
   if (appointmentIds.length > 0) await getDb().delete(appointments).where(inArray(appointments.id, appointmentIds.splice(0)))
@@ -104,8 +112,8 @@ describe('POST /api/front-desk/assignments/[id]/acknowledge-decline', () => {
     sessionRole = role
     const a = await newAssignment()
     await declineAssignment(a.id, 'Fully booked')
-    for (const id of await ackAuditIds()) auditIdsBefore.add(id)
     const msgsBefore = await messageCount()
+    const unackBefore = await countUnacknowledgedDeclines()
 
     const res = await post(a.id)
     expect(res.status).toBe(200)
@@ -118,6 +126,7 @@ describe('POST /api/front-desk/assignments/[id]/acknowledge-decline', () => {
     expect(row.status).toBe('declined')
     expect(row.declineReason).toBe('Fully booked')
     expect(await messageCount()).toBe(msgsBefore)
+    expect(await countUnacknowledgedDeclines()).toBe(unackBefore - 1)
     const newAudit = (await ackAuditIds()).filter((id) => !auditIdsBefore.has(id))
     expect(newAudit).toHaveLength(1)
   })
