@@ -40,7 +40,7 @@ export default async function FormTemplateDetailPage({ params }: { params: Promi
       attachedConsents={attachedConsents}
       allConsentDocuments={consentDocuments.map((d) => ({ id: d.id, name: d.name }))}
       // Project to what SendFormModal's prop type requires; never ship full patient rows to the client.
-      patients={patients.map(({ id, nameTebra, nameIntakeq }) => ({ id, nameTebra, nameIntakeq }))}
+      patients={patients.map(({ id, name }) => ({ id, name }))}
     />
   )
 }

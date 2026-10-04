@@ -664,18 +664,19 @@ export const policyDocuments = pgTable('policy_documents', {
 // A generic, append-only signature event, keyed by (signableType, signableId)
 // rather than a formSubmissionId/admissionId pair of nullable FKs -- same
 // one-table-many-parents shape auditLog already uses in this codebase.
-// signableId deliberately has NO FK: it means formSubmissions.id or
-// admissions.id depending on signableType, and a single FK column can't
-// target two different tables. This does NOT touch encounterNotes'
+// signableId deliberately has NO FK: it means formSubmissions.id,
+// admissions.id, policyDocuments.id or formSubmissionConsents.id depending
+// on signableType, and a single FK column can't target several tables. This does NOT touch encounterNotes'
 // existing status/signedAt signing mechanism -- that one stays as-is; see
 // docs/superpowers/specs/2026-09-28-e-signatures.md §2.
 export const signatures = pgTable('signatures', {
   id: serial('id').primaryKey(),
   signableType: signableTypeEnum('signable_type').notNull(),
   signableId: integer('signable_id').notNull(),
-  // Nullable: form_submission/admission_discharge signatures already resolve
-  // their patient by looking up signableId (a formSubmissions/admissions
-  // row, each of which has its own patientId). policy_acceptance's
+  // Nullable: form_submission/admission_discharge/form_submission_consent
+  // signatures already resolve their patient by looking up signableId (a
+  // formSubmissions/admissions row, or a formSubmissionConsents row via its
+  // formSubmission, each of which has its own patientId). policy_acceptance's
   // signableId is a policyDocuments row shared by every patient, so THAT
   // signable type has no other way to know which patient signed -- this
   // column exists for it. Set it and every other signable type ignores it.

@@ -1,9 +1,11 @@
 import { getDb } from '@/db/client'
-import { signatures } from '@/db/schema'
+import { signatures, signableTypeEnum } from '@/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
 
 export type Signature = typeof signatures.$inferSelect
-export type SignableType = 'form_submission' | 'admission_discharge' | 'form_submission_consent'
+// Derived from the pg enum so it can never drift from it again (the two
+// sides of the forms-redesign / hims-platform merge each added one value).
+export type SignableType = (typeof signableTypeEnum.enumValues)[number]
 
 export interface CreateSignatureInput {
   signableType: SignableType

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import { patients, formTemplates, formSubmissions, consentDocuments, formSubmissionConsents } from '@/db/schema'
 import { deletePatient } from '@/lib/queries/patients'
@@ -24,16 +24,7 @@ describe('deletePatient — form submission consents cleanup', () => {
   it('deletes the consent rows with the submissions and does not FK-fail', { timeout: 30000 }, async () => {
     const db = getDb()
     const testPatientId = `TEST-DEL-FSC-${Date.now()}`
-    // The shared dev DB may carry NOT NULL patients.name/dob columns added by
-    // a concurrently-developed branch's migration that this branch's
-    // schema.ts does not declare; fill them via raw SQL only when present.
-    const extra = await db.execute<{ column_name: string }>(sql`select column_name from information_schema.columns where table_name = 'patients' and column_name in ('name', 'dob')`)
-    const hasNameDob = extra.rows.length === 2
-    if (hasNameDob) {
-      await db.execute(sql`insert into patients (id, intakeq_client_id_encrypted, name_intakeq, dob_intakeq, name, dob) values (${testPatientId}, 'ENC[test]', 'Delete Form Consent Test Patient', '2000-01-01', 'Delete Form Consent Test Patient', '2000-01-01')`)
-    } else {
-      await db.insert(patients).values({ id: testPatientId, intakeqClientIdRef: 'ENC[test]', nameIntakeq: 'Delete Form Consent Test Patient', dobIntakeq: '2000-01-01' })
-    }
+    await db.insert(patients).values({ id: testPatientId, name: 'Delete Form Consent Test Patient', dob: '2000-01-01' })
     ids.patient = testPatientId
     const [template] = await db.insert(formTemplates).values({ name: `Del FSC Test ${Date.now()}`, category: 'Uncategorized', diagnosisTag: 'test', questions: [] }).returning()
     ids.template = template.id

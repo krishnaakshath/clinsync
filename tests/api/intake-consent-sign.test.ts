@@ -15,7 +15,7 @@ import { CONSENT_DRAFT_BANNER } from '@/lib/queries/consent-documents'
 // Only the staff-side send (POST /api/form-submissions) and the staff-side
 // consent-document edit consult this mock. The intake GET/PUT and the inline
 // sign route never call requireSession() -- they are token-authorized.
-vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz', userId: null })) }))
 
 const PATIENT_ID = 'RD-0001' // seeded real patient
 const SIGN_ACTION = 'signed consent document via intake form'

@@ -8,7 +8,7 @@ import { formSubmissions, formTemplates } from '@/db/schema'
 // together. A submission left behind without its consent rows would pass the
 // completion gate with nothing to sign.
 
-vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz', userId: null })) }))
 
 const copyCalls: { formSubmissionId: number; hadExecutor: boolean }[] = []
 vi.mock('@/lib/queries/form-submission-consents', async (importOriginal) => {

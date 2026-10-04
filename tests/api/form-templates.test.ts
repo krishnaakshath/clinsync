@@ -5,7 +5,7 @@ import { getDb } from '@/db/client'
 import { formTemplates, formTemplateFolders, auditLog } from '@/db/schema'
 import { eq, desc, or, like } from 'drizzle-orm'
 
-vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz', userId: null })) }))
 
 // Folders created directly for the folderId tests below -- separate from
 // createdTemplateId, which only ever tracks one template at a time.

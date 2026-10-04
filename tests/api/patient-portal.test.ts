@@ -19,7 +19,7 @@ const TEST_PATIENT_ID = 'RD-0001'
 
 vi.mock('@/lib/auth', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth')>('@/lib/auth')
-  return { ...actual, requireSession: vi.fn(async () => ({ role: 'admin' as const, name: 'Test Admin' })) }
+  return { ...actual, requireSession: vi.fn(async () => ({ role: 'admin' as const, name: 'Test Admin', userId: null })) }
 })
 
 // Same reasoning as tests/api/login.test.ts: rate limiting is real (shared
