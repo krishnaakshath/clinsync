@@ -96,4 +96,29 @@ describe('TrialCriteriaEditor', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/Network error/)
     expect(screen.getByRole('button', { name: 'Save criteria' })).not.toBeDisabled()
   })
+
+  it('closes on Escape and restores focus to the trigger', () => {
+    open()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveFocus()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit criteria' })).toHaveFocus()
+  })
+
+  it('closes on backdrop click but not on clicks inside the dialog', () => {
+    open()
+    fireEvent.mouseDown(screen.getByLabelText('Minimum age'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.mouseDown(screen.getByRole('dialog').parentElement!)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('does not close on Escape while saving', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Save criteria' }))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
 })
