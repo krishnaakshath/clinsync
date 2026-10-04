@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { FormBuilderEditor } from '@/components/FormBuilderEditor'
+import type { AttachedConsentRow } from '@/lib/queries/form-template-consents'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -13,6 +14,12 @@ const BASE_PROPS = {
   initialName: 'Depression Screening',
   initialCategory: 'Screening Questionnaires',
   initialDiagnosisTag: 'Major Depressive Disorder',
+  initialFolderId: null as number | null,
+  initialIsActive: true,
+  folders: [{ id: 7, name: 'Research Forms' }],
+  attachedConsents: [] as AttachedConsentRow[],
+  allConsentDocuments: [{ id: 1, name: 'HIPAA Notice' }],
+  patients: [],
 }
 
 describe('FormBuilderEditor', () => {
@@ -106,6 +113,83 @@ describe('FormBuilderEditor', () => {
       const body = JSON.parse(init!.body as string)
       expect(body.questions[0].options).toEqual(['Moderate', 'Mild'])
       expect(body.questions[0].optionScores).toEqual([5, 0])
+    })
+  })
+
+  describe('editor frame', () => {
+    const Q = [{ id: 'q1', label: 'Full name', type: 'text' as const, hipaaSensitive: false, required: true }]
+    const ATTACHED: AttachedConsentRow[] = [{ formTemplateConsentId: 1, consentDocumentId: 1, name: 'HIPAA Notice', bodyPreview: 'We protect', legalReviewStatus: 'draft', sortOrder: 0, signedCount: 3 }]
+
+    it('renders the toolbar controls in order', () => {
+      render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={Q} />)
+      const labels = ['Send to Client', 'Preview', 'Consent Forms', 'Add New Question']
+      const buttons = screen.getAllByRole('button').map((b) => b.textContent?.trim())
+      const positions = labels.map((l) => buttons.indexOf(l))
+      expect(positions.every((p) => p >= 0)).toBe(true)
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    })
+
+    it('reads Unsaved changes after an edit, with no fetch and an explicit Save', async () => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
+      render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={Q} />)
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^Saved/))
+      fireEvent.change(screen.getByDisplayValue('Full name'), { target: { value: 'Legal name' } })
+      expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+      expect(screen.getByText('Save Form')).toBeInTheDocument()
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('returns to Saved after a successful save and sends folderId', async () => {
+      const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response('{}', { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={Q} />)
+      fireEvent.change(screen.getByLabelText('Folder'), { target: { value: '7' } })
+      expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+      fireEvent.click(screen.getByText('Save Form'))
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^Saved/))
+      expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string).folderId).toBe(7)
+    })
+
+    it('renders a Folder select seeded to initialFolderId with an un-filed option', () => {
+      render(<FormBuilderEditor {...BASE_PROPS} initialFolderId={7} initialQuestions={Q} />)
+      const select = screen.getByLabelText('Folder') as HTMLSelectElement
+      expect(select.value).toBe('7')
+      expect(screen.getByRole('option', { name: '— No folder —' })).toBeInTheDocument()
+    })
+
+    it('swaps between the question list and the consents view', () => {
+      render(<FormBuilderEditor {...BASE_PROPS} attachedConsents={ATTACHED} initialQuestions={Q} />)
+      expect(screen.getByDisplayValue('Full name')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Consent Forms' }))
+      expect(screen.queryByDisplayValue('Full name')).not.toBeInTheDocument()
+      expect(screen.getByText('HIPAA Notice', { selector: 'p' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Consent Forms' }))
+      expect(screen.getByDisplayValue('Full name')).toBeInTheDocument()
+    })
+
+    it('shows name, review status, signed count and Detach for attached consents', () => {
+      render(<FormBuilderEditor {...BASE_PROPS} attachedConsents={ATTACHED} initialQuestions={Q} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Consent Forms' }))
+      expect(screen.getByText('HIPAA Notice', { selector: 'p' })).toBeInTheDocument()
+      expect(screen.getByText('draft')).toBeInTheDocument()
+      expect(screen.getByText('3 signed')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Detach' })).toBeInTheDocument()
+    })
+
+    it('shows the info panel with counts and the five static items', () => {
+      render(<FormBuilderEditor {...BASE_PROPS} attachedConsents={ATTACHED} initialQuestions={Q} />)
+      const panel = screen.getByRole('complementary')
+      expect(panel).toHaveTextContent('Depression Screening')
+      expect(panel).toHaveTextContent('1 question')
+      expect(panel).toHaveTextContent('1 attached consent')
+      expect(panel).toHaveTextContent('Common things you can do here')
+      expect(panel.querySelectorAll('li')).toHaveLength(5)
+    })
+
+    it('hides Archive for an already archived template', () => {
+      render(<FormBuilderEditor {...BASE_PROPS} initialIsActive={false} initialQuestions={Q} />)
+      expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
     })
   })
 })

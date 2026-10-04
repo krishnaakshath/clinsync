@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
-
-interface Question { id: string; label: string; type: 'text' | 'textarea' | 'date' | 'select' | 'checkbox'; options?: string[]; required: boolean }
+import { IntakeQuestionField, type IntakeQuestion as Question } from '@/components/IntakeQuestionField'
 
 function isAnswered(question: Question, value: string | undefined): boolean {
   if (question.type === 'checkbox') return value !== undefined
@@ -63,26 +62,7 @@ export function IntakePortalForm({ token, questions, existingAnswers, autofill }
 
       <div className="space-y-4">
         {questions.map((q) => (
-          <div key={q.id}>
-            <label className="mb-1 block text-sm font-medium text-foreground">
-              {q.label}{q.required && <span aria-hidden="true"> *</span>}
-            </label>
-            {q.type === 'textarea' ? (
-              <textarea value={answers[q.id] ?? ''} onChange={(e) => update(q.id, e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-primary/40 focus:outline-none" rows={3} />
-            ) : q.type === 'select' ? (
-              <select value={answers[q.id] ?? ''} onChange={(e) => update(q.id, e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-primary/40 focus:outline-none">
-                <option value="">Select…</option>
-                {q.options?.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
-            ) : q.type === 'checkbox' ? (
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <input type="checkbox" checked={answers[q.id] === 'true'} onChange={(e) => update(q.id, e.target.checked ? 'true' : 'false')} />
-                I agree
-              </label>
-            ) : (
-              <input type={q.type === 'date' ? 'date' : 'text'} value={answers[q.id] ?? ''} onChange={(e) => update(q.id, e.target.value)} className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-primary/40 focus:outline-none" />
-            )}
-          </div>
+          <IntakeQuestionField key={q.id} question={q} value={answers[q.id]} onChange={(v) => update(q.id, v)} />
         ))}
       </div>
 
