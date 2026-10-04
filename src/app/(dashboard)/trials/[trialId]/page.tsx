@@ -7,6 +7,7 @@ import { listScreeningsForTrial } from '@/lib/queries/trial-screenings'
 import { Tabs } from '@/components/Tabs'
 import { BackLink } from '@/components/BackLink'
 import { StatusChip } from '@/components/StatusChip'
+import { TrialCriteriaEditor } from '@/components/TrialCriteriaEditor'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
 const HEADING = 'mb-2 border-l-2 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -30,7 +31,8 @@ function CriterionRow({ criterion }: { criterion: { criterionText: string; evide
 
 export default async function TrialDetailPage({ params }: { params: Promise<{ trialId: string }> }) {
   // Must be the first statement — see the comment in patients/page.tsx.
-  await requireSessionOrRedirect()
+  const session = await requireSessionOrRedirect()
+  const canEditCriteria = session.role === 'pi' || session.role === 'admin'
 
   const { trialId } = await params
   const trials = await listAllTrials()
@@ -191,10 +193,24 @@ export default async function TrialDetailPage({ params }: { params: Promise<{ tr
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
           <FlaskConical className="h-6 w-6" />
         </span>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-foreground">{trial.name}</h1>
           <p className="text-xs text-muted-foreground">{trial.nctNumber} · {trial.site} · {trial.studyDrug}</p>
         </div>
+        {canEditCriteria && (
+          <TrialCriteriaEditor
+            trialId={trial.id}
+            initial={{
+              ageMin: trial.ageMin,
+              ageMax: trial.ageMax,
+              diagnosisCodes: trial.diagnosisCodes,
+              ratingScales: trial.ratingScales,
+              minRatingScaleScore: trial.minRatingScaleScore,
+              exclusionDiagnoses: trial.exclusionDiagnoses,
+              medicationClasses: trial.medicationClasses,
+            }}
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-3">

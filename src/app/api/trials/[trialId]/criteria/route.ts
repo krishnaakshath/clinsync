@@ -23,6 +23,10 @@ const criteriaUpdateSchema = z
     ageMax: z.number().int().positive().optional(),
   })
   .strict()
+  .refine((v) => v.ageMin === undefined || v.ageMax === undefined || v.ageMax >= v.ageMin, {
+    message: 'ageMax must be greater than or equal to ageMin',
+    path: ['ageMax'],
+  })
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ trialId: string }> }) {
   const session = await requireSession()
@@ -40,7 +44,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Invalid criteria payload', details: parsed.error.flatten() }, { status: 400 })
   }
 
-  await getDb().update(trials).set(parsed.data).where(eq(trials.id, trialId))
+  const db = getDb()
+  const [existing] = await db.select({ ageMin: trials.ageMin, ageMax: trials.ageMax }).from(trials).where(eq(trials.id, trialId))
+  if (!existing) return NextResponse.json({ error: 'Trial not found' }, { status: 404 })
+
+  // When only one bound is sent, check it against the stored other bound.
+  const nextMin = parsed.data.ageMin ?? existing.ageMin
+  const nextMax = parsed.data.ageMax ?? existing.ageMax
+  if (nextMax < nextMin) {
+    return NextResponse.json({ error: 'ageMax must be greater than or equal to ageMin' }, { status: 400 })
+  }
+
+  // listAllTrials() is an uncached query, so no cache invalidation is needed.
+  await db.update(trials).set(parsed.data).where(eq(trials.id, trialId))
   await logAudit(session, `updated criteria for trial ${trialId}`, null)
   return NextResponse.json({ ok: true })
 }

@@ -12,7 +12,7 @@ import { PUT as updateCriteria } from '@/app/api/trials/[trialId]/criteria/route
 
 vi.mock('@/lib/auth', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth')>('@/lib/auth')
-  return { ...actual, requireSession: vi.fn(async () => ({ role: 'crc' as const, name: 'Test CRC' })) }
+  return { ...actual, requireSession: vi.fn(async () => ({ role: 'pi' as const, name: 'Test PI' })) }
 })
 
 // The PUT test below overwrites nct-adhd-demo-01's medicationClasses with a
