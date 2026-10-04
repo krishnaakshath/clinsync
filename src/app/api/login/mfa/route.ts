@@ -48,7 +48,16 @@ export async function POST(request: NextRequest) {
     const mfaState = pending.userId === null ? await getAdminMfaState() : await getUserMfaState(pending.userId)
     if (!mfaState?.mfaSecretEncrypted) return NextResponse.json({ error: 'Your login session expired. Please sign in again.' }, { status: 401 })
 
-    const secretBase32 = decryptSensitive(mfaState.mfaSecretEncrypted)
+    let secretBase32: string
+    try {
+      secretBase32 = decryptSensitive(mfaState.mfaSecretEncrypted)
+    } catch {
+      // A malformed stored secret is an unrecoverable server-side problem,
+      // not something a retry or a different code fixes -- fail clearly
+      // instead of letting the thrown error surface as an opaque 500.
+      await logAudit({ role: pending.role, name: pending.name, userId: pending.userId }, 'MFA login failed: stored secret could not be decrypted', null)
+      return NextResponse.json({ error: 'Your MFA setup is in a bad state. Contact an administrator.' }, { status: 500 })
+    }
     if (!(await verifyMfaCode(secretBase32, parsed.data.code, identity))) {
       await logAudit({ role: pending.role, name: pending.name, userId: pending.userId }, 'failed MFA code entry', null)
       return NextResponse.json({ error: 'Invalid code' }, { status: 401 })

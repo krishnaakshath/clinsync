@@ -81,7 +81,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Blob before DB, matching POST /api/documents -- an orphaned blob is
   // invisible and cheap; a row pointing at bytes that were never stored is
   // a broken link in a chart.
-  const blob = await put(`imaging/${orderId}-${crypto.randomUUID()}-${file.name}`, file, { access: 'public' })
+  const blob = await put(`imaging/${orderId}-${crypto.randomUUID()}-${file.name}`, file, { access: 'private', contentType: file.type })
 
   const created = await createDocument({
     name,

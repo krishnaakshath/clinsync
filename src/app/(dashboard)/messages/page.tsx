@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { MessageSquare } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -10,12 +11,12 @@ import { MessageComposer } from '@/components/MessageComposer'
 const SECTION = 'rounded-md border border-border bg-card p-5 shadow-none'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
-// Any staff role can message a patient, same reasoning as broadcasts.sentBy
-// -- Jamie Ruiz the CRC coordinates patient communication in real clinics
-// too, not only the PI. No role restriction here, unlike (dashboard)/doctor
-// which is 'pi'-only.
+// LeftNav.tsx:81 -- crc/pi/admin/pharmacy, not frontdesk/billing/labs. Jamie
+// Ruiz the CRC coordinates patient communication in real clinics too, not
+// only the PI, but front desk/billing/labs have no part in it.
 export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ patientId?: string }> }) {
   const session = await requireSessionOrRedirect()
+  if (!['crc', 'pi', 'admin', 'pharmacy'].includes(session.role)) redirect('/')
   const { patientId: requestedPatientId } = await searchParams
 
   const threads = await listMessageThreads()

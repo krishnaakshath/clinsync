@@ -27,7 +27,11 @@ export function encryptSensitive(plaintext: string): string {
 }
 
 export function decryptSensitive(stored: string): string {
-  const [ivB64, authTagB64, ciphertextB64] = stored.split(':')
+  const parts = stored.split(':')
+  if (parts.length !== 3 || parts.some((p) => p.length === 0)) {
+    throw new Error('Malformed encrypted value: expected "iv:authTag:ciphertext"')
+  }
+  const [ivB64, authTagB64, ciphertextB64] = parts
   const decipher = createDecipheriv('aes-256-gcm', getKey(), Buffer.from(ivB64, 'base64'))
   decipher.setAuthTag(Buffer.from(authTagB64, 'base64'))
   const plaintext = Buffer.concat([decipher.update(Buffer.from(ciphertextB64, 'base64')), decipher.final()])

@@ -264,8 +264,8 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
                 <div>
                   <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Card — Front</p>
                   {patient.primaryCardFrontUrl && (
-                    <a href={patient.primaryCardFrontUrl} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
-                      <img src={patient.primaryCardFrontUrl} alt="Primary insurance card, front" className="h-24 w-auto rounded-md border border-border object-cover" />
+                    <a href={`/api/patients/${anonId}/insurance-card/front`} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
+                      <img src={`/api/patients/${anonId}/insurance-card/front`} alt="Primary insurance card, front" className="h-24 w-auto rounded-md border border-border object-cover" />
                     </a>
                   )}
                   <InsuranceCardUpload anonId={anonId} side="front" hasImage={!!patient.primaryCardFrontUrl} canWrite={canWriteInsurance} />
@@ -273,8 +273,8 @@ export default async function MedicalRecordPage({ params }: { params: Promise<{ 
                 <div>
                   <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Card — Back</p>
                   {patient.primaryCardBackUrl && (
-                    <a href={patient.primaryCardBackUrl} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
-                      <img src={patient.primaryCardBackUrl} alt="Primary insurance card, back" className="h-24 w-auto rounded-md border border-border object-cover" />
+                    <a href={`/api/patients/${anonId}/insurance-card/back`} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
+                      <img src={`/api/patients/${anonId}/insurance-card/back`} alt="Primary insurance card, back" className="h-24 w-auto rounded-md border border-border object-cover" />
                     </a>
                   )}
                   <InsuranceCardUpload anonId={anonId} side="back" hasImage={!!patient.primaryCardBackUrl} canWrite={canWriteInsurance} />

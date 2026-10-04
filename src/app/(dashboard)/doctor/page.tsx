@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Clock, AlertCircle, Activity, Search, Filter } from 'lucide-react'
+import { Clock, AlertCircle, Activity } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { resolveSessionProvider } from '@/lib/provider-identity'
 import { logAudit } from '@/lib/audit'
@@ -13,6 +13,7 @@ import { listFormSubmissions } from '@/lib/queries/form-submissions'
 import { AssignmentScheduleModalTrigger } from '@/components/AssignmentScheduleModal'
 import { DashboardAppointmentsTable, type DashboardAppointmentRow } from '@/components/DashboardAppointmentsTable'
 import { PatientsTable } from '@/components/PatientsTable'
+import { DoctorScheduleTimeline } from '@/components/DoctorScheduleTimeline'
 
 // Enterprise EMR dense layout
 export default async function DoctorPortalPage() {
@@ -174,46 +175,13 @@ export default async function DoctorPortalPage() {
                 <Clock className="h-5 w-5 text-primary" />
                 <h3 className="text-base font-semibold text-foreground">Today's Schedule</h3>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
-                  <Filter className="h-3 w-3" /> Filter
-                </button>
-                <Link href="/calendar" className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">
-                  Full Calendar
-                </Link>
-              </div>
+              <Link href="/calendar" className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">
+                Full Calendar
+              </Link>
             </div>
-            
+
             <div className="p-0">
-              {todaysCheckups.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">No appointments scheduled for today.</div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {todaysCheckups.map((a) => (
-                    <div key={a.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/10 transition-colors">
-                      <div className="flex w-24 flex-col items-end border-r border-border pr-4">
-                        <span className="text-sm font-bold text-foreground">
-                          {new Date(a.startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{a.status}</span>
-                      </div>
-                      <div className="flex flex-1 flex-col">
-                        <div className="flex items-center justify-between">
-                          <Link href={`/patients/${a.patientId}`} className="text-sm font-bold text-primary hover:underline">
-                            {a.patientName} <span className="text-xs font-normal text-muted-foreground">({a.patientId})</span>
-                          </Link>
-                          {a.status === 'scheduled' && (
-                            <Link href={`/patients/${a.patientId}`} className="rounded bg-success/10 px-2.5 py-1 text-xs font-bold text-success hover:bg-success/20">
-                              Start Encounter
-                            </Link>
-                          )}
-                        </div>
-                        <p className="mt-1 text-xs text-foreground/80">{a.visitReason}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <DoctorScheduleTimeline appointments={todaysCheckups} />
             </div>
           </div>
 
@@ -221,12 +189,6 @@ export default async function DoctorPortalPage() {
           <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <h3 className="text-base font-semibold text-foreground">Assigned Patient Panel</h3>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1.5 h-4 w-4 text-muted-foreground" />
-                  <input type="text" placeholder="Search patients..." className="h-8 w-64 rounded-md border border-input bg-transparent pl-9 pr-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary" />
-                </div>
-              </div>
             </div>
             <div className="p-0">
               <PatientsTable patients={myPatients.map((p) => ({
@@ -240,6 +202,25 @@ export default async function DoctorPortalPage() {
                 criteriaSummary: p.criteriaSummary,
               }))} />
             </div>
+          </div>
+
+          {/* My Appointments -- the telemedicine start entry point lives here,
+              scoped to this pi's own matched provider row, not the
+              same-day-only timeline above. */}
+          <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card p-5 shadow-sm">
+            <h3 className="mb-3 text-base font-semibold text-foreground">My Appointments</h3>
+            <DashboardAppointmentsTable
+              appointments={myAppointments.map((a): DashboardAppointmentRow => ({
+                id: a.id,
+                patientId: a.patientId,
+                patientName: a.patientName,
+                providerName: a.providerName,
+                visitReason: a.visitReason,
+                status: a.status,
+                startsAt: a.startsAt.toISOString(),
+              }))}
+              canStartTelemedicine={Boolean(providerMatch)}
+            />
           </div>
 
         </div>

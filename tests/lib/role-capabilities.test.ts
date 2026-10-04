@@ -29,11 +29,15 @@ describe('ROLE_CAPABILITIES', () => {
     }
   })
 
-  it('states patient registration for the three roles that can do it', () => {
-    for (const role of ['crc', 'frontdesk', 'admin'] as Role[]) {
-      expect(has(role, /register a new patient/i)).toBe(true)     // patients/route.ts:53
+  it('states patient registration for the two roles that can do it', () => {
+    // patients/route.ts:45 -- admin/frontdesk exclusively; crc had this
+    // removed per explicit product direction (DashboardHomeClient.tsx's
+    // canAddPatient comment, CoordinatorDashboard.tsx:64 passes false).
+    for (const role of ['frontdesk', 'admin'] as Role[]) {
+      expect(has(role, /register a new patient/i)).toBe(true)
     }
     expect(has('pi', /register a new patient/i)).toBe(false)
+    expect(has('crc', /register a new patient/i)).toBe(false)
   })
 
   it('states room transfer for crc and frontdesk too', () => {
@@ -52,7 +56,16 @@ describe('ROLE_CAPABILITIES', () => {
 
   it('leaves both summary paragraphs untouched -- the new gates make them true as written', () => {
     expect(ROLE_CAPABILITIES.pi.summary).toMatch(/not shown here/)
-    expect(ROLE_CAPABILITIES.frontdesk.summary).toMatch(/not the clinical evidence-review or practice-administration tools/)
+    expect(ROLE_CAPABILITIES.frontdesk.summary).toMatch(/not the clinical evidence-review, lab, or insurance tools/)
+  })
+
+  it('states trial compliance (AE/drug accountability/regulatory binder) write access for crc, pi, and admin', () => {
+    // trials/[trialId]/page.tsx:43 -- canWriteCompliance is crc/pi/admin
+    for (const role of ['crc', 'pi', 'admin'] as Role[]) {
+      expect(has(role, /adverse event/i)).toBe(true)
+      expect(has(role, /drug accountability/i)).toBe(true)
+      expect(has(role, /regulatory binder/i)).toBe(true)
+    }
   })
 
   it('names imaging attachment on the admin and pi capability bullets', () => {

@@ -47,6 +47,15 @@ describe('GET /api/messages/[patientId]', () => {
     expect(res.status).toBe(401)
   })
 
+  // messages/page.tsx (LeftNav.tsx:81) -- crc/pi/admin/pharmacy, not
+  // frontdesk/billing/labs. Enforced here too since this route is reachable
+  // directly regardless of what the UI shows.
+  it('does not treat a frontdesk session as a valid staff actor', async () => {
+    vi.mocked(auth.getSession).mockResolvedValue({ role: 'frontdesk', name: 'Test Frontdesk', userId: null })
+    const res = await GET(req() as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })
+    expect(res.status).toBe(401)
+  })
+
   it('returns 403 when a patient session tries to read a different patient\'s thread', async () => {
     vi.mocked(patientSession.getPatientSession).mockResolvedValue({ patientId: OTHER_PATIENT_ID })
     const res = await GET(req() as never, { params: Promise.resolve({ patientId: STAFF_PATIENT_ID }) })

@@ -49,7 +49,13 @@ afterEach(async () => {
 })
 
 describe('the draft-to-submitted charge lifecycle', () => {
-  it('leaves a draft charge out of patient collections and A/R, and counts it once submitted', async () => {
+  // listPatientCollections()/getArDashboardData() both aggregate across the
+  // whole shared dev DB, and this test calls that pair four times (twice via
+  // refreshCaches()'s callers) -- as the DB's data volume has grown, this
+  // has crept right up against the global 15000ms default. A generous
+  // override here, not a second global bump, since most tests aren't this
+  // aggregate-heavy.
+  it('leaves a draft charge out of patient collections and A/R, and counts it once submitted', { timeout: 30000 }, async () => {
     const patientId = 'RD-0002'
     await refreshCaches()
     const balanceBefore = await patientBalanceCents(patientId)

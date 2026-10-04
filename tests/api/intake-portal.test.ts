@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { eq, asc } from 'drizzle-orm'
 import { GET, PUT } from '@/app/api/intake/[token]/route'
 import { POST as sendForm } from '@/app/api/form-submissions/route'
 import { getDb } from '@/db/client'
@@ -30,10 +30,15 @@ afterEach(async () => {
 
 // The seeded template IDs are serial and drift across reseeds of the shared
 // dev database, so tests look up a real, currently-valid template ID rather
-// than assuming any fixed value.
+// than assuming any fixed value -- but a bare `limit(1)` with no ordering
+// risks landing on a non-"Trial Intake" template (e.g. a consent form or
+// PHQ-9, both seeded with their own unrelated q1/q2) whose questions have
+// no autofillField at all, silently breaking the autofill assertions below
+// without ever touching them. Scope to category = 'Trial Intake' (MDD/ADHD
+// Intake Packet, the only templates seeded with autofillField on q1/q2).
 async function realTemplateId(): Promise<number> {
-  const [row] = await getDb().select({ id: formTemplates.id }).from(formTemplates).limit(1)
-  if (!row) throw new Error('No seeded form templates found -- run npm run db:seed')
+  const [row] = await getDb().select({ id: formTemplates.id }).from(formTemplates).where(eq(formTemplates.category, 'Trial Intake')).orderBy(asc(formTemplates.id)).limit(1)
+  if (!row) throw new Error('No seeded Trial Intake form templates found -- run npm run db:seed')
   return row.id
 }
 

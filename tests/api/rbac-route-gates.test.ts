@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
+import { getDb } from '@/db/client'
+import { reviews } from '@/db/schema'
 import type { Role } from '@/lib/auth'
 
 // Module-scope mutable role, reset in afterEach -- the vi.mock('@/lib/auth', ...)
@@ -77,7 +79,13 @@ describe('GET /api/workbook/export', () => {
     }
   })
 
-  it('returns the xlsx for admin and crc', async () => {
+  // Building the real xlsx for every patient across every trial is a
+  // genuinely heavy multi-query operation, and the shared dev DB's data
+  // volume only grows over time -- the global 15000ms default (already once
+  // bumped from vitest's 5000ms, see vitest.config.ts) has been outgrown by
+  // this specific test again. A generous override here, not a second global
+  // bump, since most tests are nowhere near this heavy.
+  it('returns the xlsx for admin and crc', { timeout: 60000 }, async () => {
     for (const role of ['admin', 'crc'] as const) {
       sessionRole = role
       const res = await getWorkbookExport()
@@ -97,8 +105,8 @@ describe('GET /api/workbook/export', () => {
 })
 
 describe('POST /api/mock-payments', () => {
-  it('403s pi', async () => {
-    for (const role of deniedFor(['admin', 'crc', 'frontdesk'])) {
+  it('403s pi and frontdesk', async () => {
+    for (const role of deniedFor(['admin', 'crc'])) {
       sessionRole = role
       const res = await postMockPayment(
         new NextRequest('http://localhost/api/mock-payments', { method: 'POST', body: JSON.stringify({}) })
@@ -107,13 +115,25 @@ describe('POST /api/mock-payments', () => {
     }
   })
 
+  // 'billing' isn't in this file's ALL_ROLES roster (it predates that role),
+  // so it's asserted directly here rather than through deniedFor -- this is
+  // the exact role /billing/pay's own page gate allows through, matching
+  // VirtualCardPaymentForm's only POST target.
+  it('403s the billing role\'s own page-gate complement: frontdesk, not billing', async () => {
+    sessionRole = 'frontdesk'
+    const res = await postMockPayment(
+      new NextRequest('http://localhost/api/mock-payments', { method: 'POST', body: JSON.stringify({}) })
+    )
+    expect(res.status).toBe(403)
+  })
+
   // An intentionally invalid (empty) body so an allowed role's response
-  // proves it: the gate must let admin/crc/frontdesk through to the route's
+  // proves it: the gate must let admin/crc/billing through to the route's
   // own Zod validation, which then 400s on the missing fields -- never
   // recording a payment. Anything other than 403 here shows the gate didn't
   // block them; the 400 itself is the route's own concern, not this test's.
-  it('does not 403 admin, crc, or frontdesk', async () => {
-    for (const role of ['admin', 'crc', 'frontdesk'] as const) {
+  it('does not 403 admin, crc, or billing', async () => {
+    for (const role of ['admin', 'crc', 'billing'] as const) {
       sessionRole = role
       const res = await postMockPayment(
         new NextRequest('http://localhost/api/mock-payments', { method: 'POST', body: JSON.stringify({}) })
@@ -259,10 +279,17 @@ describe('GET /api/reviews/[id]', () => {
   })
 
   it('returns 200 for admin', async () => {
+    // 999999 is used as a definitely-nonexistent sentinel id elsewhere in
+    // this suite (and in tests/lib/queries/reviews.test.ts's own "returns
+    // null for a non-existent id") -- a 200 needs a review that actually
+    // exists, which the seeded data guarantees at least a few of (see
+    // tests/lib/queries/reviews.test.ts's "returns the seeded survey
+    // records", length >= 3).
+    const [row] = await getDb().select({ id: reviews.id }).from(reviews).limit(1)
     sessionRole = 'admin'
     const res = await getReview(
-      new NextRequest('http://localhost/api/reviews/999999'),
-      { params: Promise.resolve({ id: '999999' }) }
+      new NextRequest(`http://localhost/api/reviews/${row.id}`),
+      { params: Promise.resolve({ id: String(row.id) }) }
     )
     expect(res.status).toBe(200)
   })

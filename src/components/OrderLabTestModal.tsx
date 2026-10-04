@@ -13,12 +13,11 @@ export interface LabTestOption {
   category: 'lab' | 'imaging'
 }
 
-// Reusable from any patient-chart context -- the caller (Task 4's Medical
-// Record section) owns the trigger button and open/close state and passes
-// this patient's id plus the test catalog (fetched server-side via
+// Reusable from any patient-chart context -- the caller (LabResultsSection's
+// "Order Test" button) owns the trigger button and open/close state and
+// passes this patient's id plus the test catalog (fetched server-side via
 // listLabTests(), the same "prop-drilled reference data" shape as
-// TransferAdmissionModal's `availableRooms`) as props. Not wired to any
-// button in this task.
+// TransferAdmissionModal's `availableRooms`) as props.
 export function OrderLabTestModal({ patientId, labTests, onClose }: { patientId: string; labTests: LabTestOption[]; onClose: () => void }) {
   const router = useRouter()
   const [labTestId, setLabTestId] = useState<number | ''>('')

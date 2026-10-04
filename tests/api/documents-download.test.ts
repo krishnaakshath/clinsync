@@ -7,6 +7,34 @@ import { eq } from 'drizzle-orm'
 let sessionRole: 'admin' | 'pi' | 'crc' | 'frontdesk' = 'crc'
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: sessionRole, name: 'Jamie Ruiz' })) }))
 
+// The blob store is private -- the download route can no longer redirect to
+// the stored URL (a browser can't authenticate to it), it streams the bytes
+// itself via @vercel/blob's get(). Mocked the same way as the upload routes
+// mock put().
+vi.mock('@vercel/blob', () => ({
+  get: vi.fn(async (urlOrPathname: string) => ({
+    statusCode: 200 as const,
+    stream: new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('fake-file-bytes'))
+        controller.close()
+      },
+    }),
+    headers: new Headers(),
+    blob: {
+      url: urlOrPathname,
+      downloadUrl: urlOrPathname,
+      pathname: urlOrPathname,
+      contentDisposition: '',
+      cacheControl: '',
+      uploadedAt: new Date(),
+      etag: 'test-etag',
+      contentType: 'application/pdf',
+      size: 15,
+    },
+  })),
+}))
+
 const createdDocumentIds: number[] = []
 
 afterEach(async () => {
@@ -45,21 +73,22 @@ function downloadReq(id: number) {
 }
 
 describe('GET /api/documents/[id]/download', () => {
-  it('redirects to the fileUrl for a crc', async () => {
+  it('streams the file bytes for a crc', async () => {
     const doc = await createThrowawayDocument({ fileUrl: 'https://blob.test/documents/some-file.pdf' })
 
     const res = await GET(downloadReq(doc.id) as never, { params: Promise.resolve({ id: String(doc.id) }) })
-    expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('https://blob.test/documents/some-file.pdf')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/pdf')
+    expect(await res.text()).toBe('fake-file-bytes')
   })
 
-  it('redirects to the fileUrl for a pi (download is read access, all four roles)', async () => {
+  it('streams the file bytes for a pi (download is read access, all four roles)', async () => {
     sessionRole = 'pi'
     const doc = await createThrowawayDocument({ fileUrl: 'https://blob.test/documents/some-file.pdf' })
 
     const res = await GET(downloadReq(doc.id) as never, { params: Promise.resolve({ id: String(doc.id) }) })
-    expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('https://blob.test/documents/some-file.pdf')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toBe('fake-file-bytes')
   })
 
   it('returns 404 for a metadata-only row with no stored file', async () => {
@@ -78,7 +107,7 @@ describe('GET /api/documents/[id]/download', () => {
     const doc = await createThrowawayDocument({ fileUrl: 'https://blob.test/documents/audited.pdf' })
 
     const res = await GET(downloadReq(doc.id) as never, { params: Promise.resolve({ id: String(doc.id) }) })
-    expect(res.status).toBe(302)
+    expect(res.status).toBe(200)
 
     const [row] = await getDb().select().from(auditLog).where(eq(auditLog.action, `downloaded document ${doc.id}`))
     expect(row).toBeDefined()

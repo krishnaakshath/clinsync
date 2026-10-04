@@ -5,7 +5,7 @@ import { getDb } from '@/db/client'
 import { charges, auditLog } from '@/db/schema'
 import { inArray, desc, eq, or, like } from 'drizzle-orm'
 
-let sessionRole: 'admin' | 'pi' | 'crc' | 'frontdesk' | 'pharmacy' = 'crc'
+let sessionRole: 'admin' | 'pi' | 'crc' | 'frontdesk' | 'pharmacy' | 'billing' = 'crc'
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: sessionRole, name: 'Jamie Ruiz' })) }))
 
 afterEach(() => { sessionRole = 'crc' })
@@ -218,17 +218,23 @@ describe('charges route role gating', () => {
     expect(res.status).toBe(403)
   })
 
-  it('still allows admin and frontdesk on POST /api/charges', async () => {
+  it('rejects a frontdesk session on POST /api/charges -- billing/registration staff means admin/crc/billing, not frontdesk', async () => {
+    sessionRole = 'frontdesk'
+    const res = await POST(validChargeBody('RD-0001') as never)
+    expect(res.status).toBe(403)
+  })
+
+  it('still allows admin and billing on POST /api/charges', async () => {
     sessionRole = 'admin'
     const adminRes = await POST(validChargeBody('RD-0001') as never)
     expect(adminRes.status).toBe(201)
     const adminBody = await adminRes.json()
     if (adminBody.id) createdChargeIds.push(adminBody.id)
 
-    sessionRole = 'frontdesk'
-    const frontdeskRes = await POST(validChargeBody('RD-0001') as never)
-    expect(frontdeskRes.status).toBe(201)
-    const frontdeskBody = await frontdeskRes.json()
-    if (frontdeskBody.id) createdChargeIds.push(frontdeskBody.id)
+    sessionRole = 'billing'
+    const billingRes = await POST(validChargeBody('RD-0001') as never)
+    expect(billingRes.status).toBe(201)
+    const billingBody = await billingRes.json()
+    if (billingBody.id) createdChargeIds.push(billingBody.id)
   })
 })

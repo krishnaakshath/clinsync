@@ -10,18 +10,20 @@ import { countEligibilityFollowUps } from '@/lib/queries/insurance-eligibility'
 import { ArAgingChart } from '@/components/ArAgingChart'
 import { EligibilityCheckButton } from '@/components/EligibilityCheckButton'
 import { formatCents } from '@/lib/format'
+import type { ChargeStatus } from '@/lib/charge-status'
 
 const SECTION = 'overflow-hidden rounded-md border border-border bg-card'
 const SECTION_HEADER = 'flex items-center justify-between border-b border-border px-5 py-3'
 const SECTION_TITLE = 'text-sm font-semibold text-foreground'
 
-const CHARGE_STATUS_BADGE: Record<string, string> = {
+// Matches ChargesTable.tsx's STATUS_DOT -- the real 4-state charge_status
+// enum (src/lib/charge-status.ts), not an imagined denied/paid/written_off
+// workflow that charges never actually enter.
+const CHARGE_STATUS_BADGE: Record<ChargeStatus, string> = {
   draft: 'bg-muted text-muted-foreground',
-  submitted: 'bg-primary/10 text-primary',
-  approved: 'bg-success/10 text-success',
-  denied: 'bg-destructive/10 text-destructive',
-  paid: 'bg-emerald-600/10 text-emerald-700',
-  written_off: 'bg-muted text-muted-foreground',
+  pending_approval: 'bg-warning/10 text-warning',
+  approved: 'bg-primary/10 text-primary',
+  submitted: 'bg-success/10 text-success',
 }
 
 export default async function BillingHomePage() {

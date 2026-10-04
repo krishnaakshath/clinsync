@@ -9,8 +9,11 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
 vi.mock('@/lib/patient-session', () => ({ requirePatientSessionOrRedirect: vi.fn(async () => ({ patientId: 'RD-0001' })) }))
 vi.mock('@/lib/patient-portal-audit', () => ({ logPatientPortalAction: vi.fn(async () => undefined) }))
 vi.mock('@/lib/queries/patient-portal', () => ({ getPatientPortalIdentity: vi.fn(async () => ({ id: 'RD-0001', name: 'Maria Alvarez', dob: '1990-01-01' })) }))
+// The page calls listPatientVisibleMessages (the privacy-filtered,
+// patient-facing query that excludes staff-internal notes), not
+// listMessagesForPatient (the staff-facing query used by (dashboard)/messages).
 vi.mock('@/lib/queries/messages', () => ({
-  listMessagesForPatient: vi.fn(async (patientId: string) => (patientId === 'RD-0001' ? [PATIENT_A_MESSAGE] : [PATIENT_B_MESSAGE])),
+  listPatientVisibleMessages: vi.fn(async (patientId: string) => (patientId === 'RD-0001' ? [PATIENT_A_MESSAGE] : [PATIENT_B_MESSAGE])),
   markReadByPatient: vi.fn(async () => undefined),
 }))
 
@@ -28,15 +31,15 @@ describe('Patient portal messages page (isolation)', () => {
     vi.doMock('@/lib/patient-session', () => ({ requirePatientSessionOrRedirect: vi.fn(async () => ({ patientId: 'RD-0002' })) }))
     vi.doMock('@/lib/patient-portal-audit', () => ({ logPatientPortalAction: vi.fn(async () => undefined) }))
     vi.doMock('@/lib/queries/patient-portal', () => ({ getPatientPortalIdentity: vi.fn(async () => ({ id: 'RD-0002', name: 'Someone Else', dob: '1985-05-05' })) }))
-    const mockListMessagesForPatient = vi.fn(async (patientId: string) => (patientId === 'RD-0001' ? [PATIENT_A_MESSAGE] : [PATIENT_B_MESSAGE]))
-    vi.doMock('@/lib/queries/messages', () => ({ listMessagesForPatient: mockListMessagesForPatient, markReadByPatient: vi.fn(async () => undefined) }))
+    const mockListPatientVisibleMessages = vi.fn(async (patientId: string) => (patientId === 'RD-0001' ? [PATIENT_A_MESSAGE] : [PATIENT_B_MESSAGE]))
+    vi.doMock('@/lib/queries/messages', () => ({ listPatientVisibleMessages: mockListPatientVisibleMessages, markReadByPatient: vi.fn(async () => undefined) }))
 
     const { default: PatientPortalMessagesPageForB } = await import('@/app/patient-portal/(authenticated)/messages/page')
     const { render: renderB, screen: screenB } = await import('@testing-library/react')
     const jsx = await PatientPortalMessagesPageForB()
     renderB(jsx)
 
-    expect(mockListMessagesForPatient).toHaveBeenCalledWith('RD-0002')
+    expect(mockListPatientVisibleMessages).toHaveBeenCalledWith('RD-0002')
     expect(screenB.getByText('Patient B only message body')).toBeInTheDocument()
     expect(screenB.queryByText('Patient A only message body')).not.toBeInTheDocument()
   })

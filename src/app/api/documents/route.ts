@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
   // UUID prefix, not a timestamp -- two coordinators scanning the same
   // standard form name in the same second must not collide.
-  const blob = await put(`documents/${crypto.randomUUID()}-${file.name}`, file, { access: 'public' })
+  const blob = await put(`documents/${crypto.randomUUID()}-${file.name}`, file, { access: 'private', contentType: file.type })
 
   const created = await createDocument({
     name,

@@ -23,4 +23,11 @@ describe('encryptSensitive / decryptSensitive', () => {
     const tampered = [iv, authTag, ciphertext.slice(0, -4) + 'AAAA'].join(':')
     expect(() => decryptSensitive(tampered)).toThrow()
   })
+
+  it('throws a clear error on a malformed stored value instead of an opaque Buffer crash', () => {
+    expect(() => decryptSensitive('')).toThrow(/malformed/i)
+    expect(() => decryptSensitive('not-the-right-shape')).toThrow(/malformed/i)
+    expect(() => decryptSensitive('a:b')).toThrow(/malformed/i)
+    expect(() => decryptSensitive('a::c')).toThrow(/malformed/i)
+  })
 })

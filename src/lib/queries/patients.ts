@@ -4,6 +4,7 @@ import {
   formSubmissions, formChartDiscrepancies, reviews, appointments, messages, charges, insuranceClaims, patientStatements, mockPayments, documents, faxes,
   rooms, doctorAssignments, insuranceEligibilityChecks, admissions, admissionTransfers, encounterNotes, medicationAdministrations,
   medicationDispenses, carePlans, carePlanGoals, labOrders, labResults, medications,
+  adverseEvents, drugAccountabilityEntries, signatures,
 } from '@/db/schema'
 import { desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { getOrSetCache, invalidateCache, patientListCacheKey, patientDetailCacheKey, dashboardCacheKey, workbookListCacheKey } from '@/lib/cache'
@@ -498,6 +499,16 @@ export async function deletePatient(anonId: string): Promise<boolean> {
     await db.update(documents).set({ labOrderId: null }).where(inArray(documents.labOrderId, labOrderIds))
   }
   await db.delete(labOrders).where(eq(labOrders.patientId, anonId))
+
+  // adverse_events.patient_id (NOT NULL) and drug_accountability_entries.patient_id
+  // (nullable) and signatures.patient_id (nullable, policy_acceptance only --
+  // see the column's own comment in schema.ts) are all FKs to patients(id)
+  // with no ON DELETE action and no children of their own, same gap class as
+  // care_plans/lab_orders above (trial-compliance and policy-acceptance
+  // shipped after this cascade was last audited).
+  await db.delete(adverseEvents).where(eq(adverseEvents.patientId, anonId))
+  await db.delete(drugAccountabilityEntries).where(eq(drugAccountabilityEntries.patientId, anonId))
+  await db.delete(signatures).where(eq(signatures.patientId, anonId))
 
   await db.delete(patients).where(eq(patients.id, anonId))
 

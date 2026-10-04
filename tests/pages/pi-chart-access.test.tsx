@@ -85,6 +85,7 @@ describe('a pi reaches the whole chart', () => {
     vi.doMock('@/lib/queries/lab-tests', () => ({ listLabTests: vi.fn(async () => []) }))
     vi.doMock('@/lib/queries/form-submissions', () => ({ listFormSubmissions: vi.fn(async () => []) }))
     vi.doMock('@/lib/queries/care-plans', () => ({ listCarePlansForPatient: vi.fn(async () => []) }))
+    vi.doMock('@/lib/queries/providers', () => ({ listAllProviders: vi.fn(async () => []) }))
 
     const { default: MedicalRecordPage } = await import('@/app/(dashboard)/patients/[anonId]/medical-record/page')
     await MedicalRecordPage({ params: Promise.resolve({ anonId: 'RD-TEST' }) } as never)

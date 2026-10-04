@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!ALLOWED_TYPES.includes(file.type)) return NextResponse.json({ error: 'File must be a JPEG, PNG, or WebP image' }, { status: 400 })
   if (file.size > MAX_BYTES) return NextResponse.json({ error: 'File must be under 8MB' }, { status: 400 })
 
-  const blob = await put(`insurance-cards/${anonId}-primary-${side}-${Date.now()}`, file, { access: 'public' })
+  const blob = await put(`insurance-cards/${anonId}-primary-${side}-${Date.now()}`, file, { access: 'private', contentType: file.type })
 
   const column = side === 'front' ? { primaryCardFrontUrl: blob.url } : { primaryCardBackUrl: blob.url }
   await getDb().update(patients).set(column).where(eq(patients.id, anonId))

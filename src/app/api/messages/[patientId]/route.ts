@@ -44,9 +44,14 @@ type Actor = { kind: 'staff'; session: Session } | { kind: 'patient'; session: P
  * on its own patientId's thread. Omitting it (or an unrecognized value)
  * keeps the original staff-first default.
  */
+// Messages page.tsx -- crc/pi/admin/pharmacy, not frontdesk/billing/labs.
+// Enforced here too, not just on the page: this route is reachable directly
+// regardless of what the UI shows.
+const STAFF_MESSAGE_ROLES = ['crc', 'pi', 'admin', 'pharmacy']
+
 async function resolveActor(patientId: string, actingAs?: 'provider' | 'patient'): Promise<Actor | NextResponse> {
   const [staffSession, patientSession] = await Promise.all([getSession(), getPatientSession()])
-  const staffActor: Actor | null = staffSession ? { kind: 'staff', session: staffSession } : null
+  const staffActor: Actor | null = staffSession && STAFF_MESSAGE_ROLES.includes(staffSession.role) ? { kind: 'staff', session: staffSession } : null
   const patientActor: Actor | null = patientSession && patientSession.patientId === patientId ? { kind: 'patient', session: patientSession } : null
 
   const [first, second] = actingAs === 'patient' ? [patientActor, staffActor] : [staffActor, patientActor]

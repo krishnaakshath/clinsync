@@ -25,7 +25,9 @@ const IMAGE_TYPES = new Set(['JPG', 'PNG', 'WEBP'])
  * Every link points at the audit-logged download route
  * (`/api/documents/[id]/download`, from the document-assignment plan) so
  * that every *view* of a patient image is logged, not just the upload --
- * this deliberately never renders a bare `fileUrl` as the href.
+ * this deliberately never renders a bare `fileUrl` as the href or the
+ * thumbnail's src, since the blob store is private and only that route can
+ * actually reach the bytes.
  */
 export function ImagingAttachmentStrip({ attachments }: { attachments: AttachmentView[] }) {
   if (attachments.length === 0) return null
@@ -44,7 +46,7 @@ export function ImagingAttachmentStrip({ attachments }: { attachments: Attachmen
             className="block overflow-hidden rounded-md border border-border"
           >
             {IMAGE_TYPES.has(a.fileType) ? (
-              <img src={a.fileUrl ?? undefined} alt={a.name} className="h-16 w-16 object-cover" />
+              <img src={`/api/documents/${a.id}/download`} alt={a.name} className="h-16 w-16 object-cover" />
             ) : (
               <span className="flex h-16 w-16 items-center justify-center px-1 text-center text-[0.65rem] font-medium text-muted-foreground">
                 {a.name}
