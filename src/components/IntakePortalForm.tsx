@@ -181,7 +181,7 @@ function ConsentPage({ consent, signing, error, onSign }: {
       {/* Plain text by design (bodyText is never rich text), rendered as a
           React text node -- never as HTML -- so the draft banner and every
           character the signer attests to appear literally. */}
-      <div className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-4 text-sm text-foreground">{consent.renderedText}</div>
+      <div tabIndex={0} role="region" aria-label={consent.name} className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-4 text-sm text-foreground">{consent.renderedText}</div>
       {consent.signedAt ? (
         <p className="text-sm font-medium text-foreground">
           Signed by {consent.signerTypedName} on {new Date(consent.signedAt).toLocaleDateString()}

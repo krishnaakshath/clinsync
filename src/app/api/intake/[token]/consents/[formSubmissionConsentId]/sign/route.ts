@@ -17,7 +17,7 @@ import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 // client cannot decide what it attests to; signer role and time are fixed
 // here too. .strict() rejects attestationText, consentDocumentId,
 // signerRole, signedAt, or anything else (Review Focus #3).
-const signSchema = z.object({ typedName: z.string().trim().min(1) }).strict()
+const signSchema = z.object({ typedName: z.string().trim().min(1).max(200) }).strict()
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ token: string; formSubmissionConsentId: string }> }) {
   const { token, formSubmissionConsentId } = await params

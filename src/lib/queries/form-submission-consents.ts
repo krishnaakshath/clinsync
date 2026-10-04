@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { consentDocuments, formSubmissionConsents, formSubmissions, formTemplateConsents, signatures } from '@/db/schema'
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
 import { renderConsentText } from '@/lib/queries/consent-documents'
 import { getSubmissionPatientIdByToken } from '@/lib/queries/intake-portal'
 
@@ -26,8 +26,14 @@ export interface SubmissionConsent {
  * changing under a patient produces a signature against something they were
  * never shown. Questions are NOT being changed to match (spec §2).
  */
-export async function copyTemplateConsentsToSubmission(formTemplateId: number, formSubmissionId: number): Promise<number> {
-  const db = getDb()
+// The executor is either the shared db or a transaction handle; callers that
+// insert the submission row in the same unit of work (POST
+// /api/form-submissions) pass their tx so both writes commit or roll back
+// together -- a submission without its consent rows would fail OPEN at the
+// completion gate.
+type DbExecutor = Pick<ReturnType<typeof getDb>, 'select' | 'insert'>
+
+export async function copyTemplateConsentsToSubmission(formTemplateId: number, formSubmissionId: number, db: DbExecutor = getDb()): Promise<number> {
   const attached = await db
     .select({ consentDocumentId: formTemplateConsents.consentDocumentId, sortOrder: formTemplateConsents.sortOrder })
     .from(formTemplateConsents)
@@ -80,15 +86,27 @@ export async function listConsentsForSubmission(formSubmissionId: number): Promi
 const outerFscId = sql.raw('"form_submission_consents"."id"')
 const isSignedSql = sql`exists (select 1 from ${signatures} where ${signatures.signableType} = 'form_submission_consent' and ${signatures.signableId} = ${outerFscId})`
 
-// Keyed by token, not submission id, so the completion gate in
-// PUT /api/intake/[token] needs no extra id-resolution round trip.
-export async function countUnsignedConsentsByToken(token: string): Promise<number> {
+// Shared by both completion gates; `scope` picks which submission(s).
+// Signatures are matched on (signableType='form_submission_consent',
+// signableId) via isSignedSql, never signableId alone.
+async function countUnsignedConsentsWhere(scope: SQL): Promise<number> {
   const [row] = await getDb()
     .select({ n: sql<number>`count(*)::int` })
     .from(formSubmissionConsents)
     .innerJoin(formSubmissions, eq(formSubmissionConsents.formSubmissionId, formSubmissions.id))
-    .where(and(eq(formSubmissions.accessToken, token), sql`not ${isSignedSql}`))
+    .where(and(scope, sql`not ${isSignedSql}`))
   return row?.n ?? 0
+}
+
+// Keyed by token, not submission id, so the completion gate in
+// PUT /api/intake/[token] needs no extra id-resolution round trip.
+export async function countUnsignedConsentsByToken(token: string): Promise<number> {
+  return countUnsignedConsentsWhere(eq(formSubmissions.accessToken, token))
+}
+
+// Staff-side completion gate (PUT /api/form-submissions/[id]).
+export async function countUnsignedConsentsBySubmissionId(formSubmissionId: number): Promise<number> {
+  return countUnsignedConsentsWhere(eq(formSubmissions.id, formSubmissionId))
 }
 
 export async function hasAttachedConsents(formSubmissionId: number): Promise<boolean> {

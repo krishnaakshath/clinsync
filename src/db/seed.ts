@@ -18,6 +18,10 @@ import {
   mockPayments,
   formTemplates,
   formSubmissions,
+  formTemplateFolders,
+  consentDocuments,
+  formTemplateConsents,
+  formSubmissionConsents,
   formSubmissionScores,
   formChartDiscrepancies,
   allergies,
@@ -798,11 +802,19 @@ async function clearExistingData() {
   await db.delete(identityMatches)
   await db.delete(formSubmissionScores)
   await db.delete(formChartDiscrepancies)
+  // form_submission_consents and form_template_consents reference
+  // form_submissions / form_templates / consent_documents with no ON DELETE
+  // action, so both join tables go before any of their parents.
+  await db.delete(formSubmissionConsents)
   await db.delete(formSubmissions)
   await db.delete(allergies)
   await db.delete(identityVerifications)
   await db.delete(appSettings)
+  await db.delete(formTemplateConsents)
   await db.delete(formTemplates)
+  // form_templates.folder_id references form_template_folders.
+  await db.delete(formTemplateFolders)
+  await db.delete(consentDocuments)
   await db.delete(appointments)
   await db.delete(patients)
   // staffCredentials/staffMembers FK into providers/users, so both must be

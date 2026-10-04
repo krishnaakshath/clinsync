@@ -1,7 +1,12 @@
 import { describe, it, expect, afterEach } from 'vitest'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
-import { patients, formTemplates, formSubmissions, formSubmissionScores, formChartDiscrepancies } from '@/db/schema'
+import {
+  patients, formTemplates, formSubmissions, formSubmissionScores, formChartDiscrepancies,
+  formTemplateFolders, consentDocuments, formTemplateConsents, formSubmissionConsents,
+} from '@/db/schema'
 
 // Proves, against the real Postgres FK constraints (not by eyeballing
 // clearExistingData()'s statement ordering in src/db/seed.ts), that
@@ -103,5 +108,95 @@ describe('formSubmissions child-table FK ordering (final review C2)', () => {
     const remaining = await db.select().from(formSubmissions).where(eq(formSubmissions.id, id))
     expect(remaining.length).toBe(0)
     submissionId = undefined // already deleted; afterEach only needs to clean up the template
+  })
+})
+
+// Forms hub tables (final whole-branch review of feature/forms-redesign, I2).
+// Same approach: isolated rows, scoped deletes in clearExistingData()'s
+// order, never the real unscoped wipe. Plus a static check that
+// clearExistingData()'s own statement order matches what these FK tests prove.
+describe('forms hub join tables FK ordering (final review I2)', () => {
+  const ids: { folder?: number; doc?: number; template?: number; submission?: number; ftc?: number; fsc?: number } = {}
+
+  afterEach(async () => {
+    const db = getDb()
+    if (ids.fsc != null) await db.delete(formSubmissionConsents).where(eq(formSubmissionConsents.id, ids.fsc))
+    if (ids.submission != null) await db.delete(formSubmissions).where(eq(formSubmissions.id, ids.submission))
+    if (ids.ftc != null) await db.delete(formTemplateConsents).where(eq(formTemplateConsents.id, ids.ftc))
+    if (ids.template != null) await db.delete(formTemplates).where(eq(formTemplates.id, ids.template))
+    if (ids.folder != null) await db.delete(formTemplateFolders).where(eq(formTemplateFolders.id, ids.folder))
+    if (ids.doc != null) await db.delete(consentDocuments).where(eq(consentDocuments.id, ids.doc))
+    for (const k of Object.keys(ids) as (keyof typeof ids)[]) delete ids[k]
+  })
+
+  async function makeFixture() {
+    const db = getDb()
+    const tag = `FK Order Forms Hub ${Date.now()}`
+    const [folder] = await db.insert(formTemplateFolders).values({ name: tag }).returning()
+    ids.folder = folder.id
+    const [doc] = await db.insert(consentDocuments).values({ name: tag, bodyText: 'x' }).returning()
+    ids.doc = doc.id
+    const [template] = await db.insert(formTemplates).values({ name: tag, category: 'Uncategorized', diagnosisTag: 'test', questions: [], folderId: folder.id }).returning()
+    ids.template = template.id
+    const [ftc] = await db.insert(formTemplateConsents).values({ formTemplateId: template.id, consentDocumentId: doc.id }).returning()
+    ids.ftc = ftc.id
+    const [patientRow] = await db.select().from(patients).limit(1)
+    const [submission] = await db.insert(formSubmissions).values({ templateId: template.id, patientId: patientRow.id, status: 'sent' }).returning()
+    ids.submission = submission.id
+    const [fsc] = await db.insert(formSubmissionConsents).values({ formSubmissionId: submission.id, consentDocumentId: doc.id }).returning()
+    ids.fsc = fsc.id
+    return { folder, doc, template, ftc, submission, fsc }
+  }
+
+  it('rejects deleting formSubmissions while a formSubmissionConsents row references it', async () => {
+    const f = await makeFixture()
+    await expectForeignKeyViolation(getDb().delete(formSubmissions).where(eq(formSubmissions.id, f.submission.id)))
+  })
+
+  it('rejects deleting formTemplates while a formTemplateConsents row references it', async () => {
+    const f = await makeFixture()
+    const db = getDb()
+    // Clear the submission side so only the template-consents FK is under test.
+    await db.delete(formSubmissionConsents).where(eq(formSubmissionConsents.id, f.fsc.id)); ids.fsc = undefined
+    await db.delete(formSubmissions).where(eq(formSubmissions.id, f.submission.id)); ids.submission = undefined
+    await expectForeignKeyViolation(db.delete(formTemplates).where(eq(formTemplates.id, f.template.id)))
+  })
+
+  it('rejects deleting formTemplateFolders while a formTemplates row references it', async () => {
+    const f = await makeFixture()
+    await expectForeignKeyViolation(getDb().delete(formTemplateFolders).where(eq(formTemplateFolders.id, f.folder.id)))
+  })
+
+  it('rejects deleting consentDocuments while either join table references it', async () => {
+    const f = await makeFixture()
+    await expectForeignKeyViolation(getDb().delete(consentDocuments).where(eq(consentDocuments.id, f.doc.id)))
+  })
+
+  it("succeeds in clearExistingData()'s fixed order", async () => {
+    const f = await makeFixture()
+    const db = getDb()
+    await db.delete(formSubmissionConsents).where(eq(formSubmissionConsents.id, f.fsc.id)); ids.fsc = undefined
+    await db.delete(formSubmissions).where(eq(formSubmissions.id, f.submission.id)); ids.submission = undefined
+    await db.delete(formTemplateConsents).where(eq(formTemplateConsents.id, f.ftc.id)); ids.ftc = undefined
+    await db.delete(formTemplates).where(eq(formTemplates.id, f.template.id)); ids.template = undefined
+    await db.delete(formTemplateFolders).where(eq(formTemplateFolders.id, f.folder.id)); ids.folder = undefined
+    await db.delete(consentDocuments).where(eq(consentDocuments.id, f.doc.id)); ids.doc = undefined
+    expect(await db.select().from(consentDocuments).where(eq(consentDocuments.id, f.doc.id))).toHaveLength(0)
+  })
+
+  it('clearExistingData() in src/db/seed.ts issues those deletes in that order', () => {
+    const src = readFileSync(join(process.cwd(), 'src/db/seed.ts'), 'utf8')
+    const body = src.slice(src.indexOf('async function clearExistingData()'), src.indexOf('export async function seed()'))
+    const pos = (t: string) => {
+      const i = body.indexOf(`await db.delete(${t})`)
+      expect(i, t).toBeGreaterThanOrEqual(0)
+      return i
+    }
+    expect(pos('formSubmissionConsents')).toBeLessThan(pos('formSubmissions'))
+    expect(pos('formTemplateConsents')).toBeLessThan(pos('formTemplates'))
+    expect(pos('formSubmissions')).toBeLessThan(pos('formTemplates'))
+    expect(pos('formTemplates')).toBeLessThan(pos('formTemplateFolders'))
+    expect(pos('formSubmissionConsents')).toBeLessThan(pos('consentDocuments'))
+    expect(pos('formTemplateConsents')).toBeLessThan(pos('consentDocuments'))
   })
 })

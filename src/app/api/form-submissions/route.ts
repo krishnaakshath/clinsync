@@ -39,10 +39,14 @@ export async function POST(request: NextRequest) {
   const accessToken = randomBytes(32).toString('base64url')
   const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
 
-  const [created] = await getDb().insert(formSubmissions).values({ ...parsed.data, status: 'sent', accessToken, tokenExpiresAt }).returning()
-  // Second sequential write (non-transactional, matching this codebase's
-  // posture): snapshot which consents this packet carries at send time.
-  await copyTemplateConsentsToSubmission(parsed.data.templateId, created.id)
+  // One transaction: the submission row and its send-time consent snapshot
+  // commit together. A submission left without its consent rows would pass
+  // the completion gate with nothing to sign (fail open).
+  const created = await getDb().transaction(async (tx) => {
+    const [row] = await tx.insert(formSubmissions).values({ ...parsed.data, status: 'sent', accessToken, tokenExpiresAt }).returning()
+    await copyTemplateConsentsToSubmission(parsed.data.templateId, row.id, tx)
+    return row
+  })
   await logAudit(session, 'sent intake form', parsed.data.patientId)
   return NextResponse.json(created, { status: 201 })
 }

@@ -9,7 +9,7 @@ import { getFormSubmission } from '@/lib/queries/form-submissions'
 import { createSignature } from '@/lib/queries/signatures'
 import { hasAttachedConsents } from '@/lib/queries/form-submission-consents'
 
-const signSchema = z.object({ typedName: z.string().trim().min(1) }).strict()
+const signSchema = z.object({ typedName: z.string().trim().min(1).max(200) }).strict()
 
 const CONSENT_ATTESTATION = 'I attest that the information in this form is accurate and I consent to the terms described above.'
 

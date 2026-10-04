@@ -4,6 +4,7 @@ import { GET, PUT } from '@/app/api/intake/[token]/route'
 import { POST as sendForm } from '@/app/api/form-submissions/route'
 import { POST as signConsent } from '@/app/api/intake/[token]/consents/[formSubmissionConsentId]/sign/route'
 import { PUT as updateDoc } from '@/app/api/consent-documents/[id]/route'
+import { PUT as staffUpdateSubmission } from '@/app/api/form-submissions/[id]/route'
 import { getDb } from '@/db/client'
 import {
   auditLog, consentDocuments, formChartDiscrepancies, formSubmissionConsents, formSubmissionScores,
@@ -232,6 +233,7 @@ describe('POST /api/intake/[token]/consents/[id]/sign', () => {
     ['signedAt', { typedName: 'Maria Alvarez', signedAt: '2020-01-01T00:00:00Z' }],
     ['blank typedName', { typedName: '   ' }],
     ['missing typedName', {}],
+    ['typedName over 200 chars', { typedName: 'a'.repeat(201) }],
   ])('the body is { typedName } only -- extra/invalid %s -> 400 and no signature', async (_label, body) => {
     const doc = await makeDoc('Strict.')
     const t = await makeTemplate([{ docId: doc.id, sortOrder: 0 }])
@@ -340,6 +342,43 @@ describe('PUT /api/intake/[token] completion gate', () => {
     expect((await sign(accessToken, data.consents[0].formSubmissionConsentId)).status).toBe(200)
     const ok = await put(accessToken, { answers: {}, complete: true })
     expect(ok.status).toBe(200)
+    expect((await statusOf(id)).status).toBe('completed')
+  })
+})
+
+// Final whole-branch review I3: the staff-side PUT must not be a way around
+// the intake completion gate.
+describe('PUT /api/form-submissions/[id] unsigned-consent completion gate', () => {
+  function staffPut(submissionId: number, body: unknown) {
+    const req = new Request('http://localhost', { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } })
+    return staffUpdateSubmission(req as never, { params: Promise.resolve({ id: String(submissionId) }) })
+  }
+
+  it('blocks completed while an attached consent is unsigned, allows it once signed', async () => {
+    const doc = await makeDoc('Staff gate.')
+    const t = await makeTemplate([{ docId: doc.id, sortOrder: 0 }])
+    const { id, accessToken } = await sendRealForm(t.id)
+    const [fsc] = await fscRowsFor(id)
+
+    const blocked = await staffPut(id, { status: 'completed' })
+    expect(blocked.status).toBe(400)
+    expect((await blocked.json()).error).toBe('This form has unsigned consent documents')
+    expect((await statusOf(id)).status).toBe('sent')
+
+    // Non-completing status changes are unaffected.
+    expect((await staffPut(id, { status: 'partial' })).status).toBe(200)
+
+    expect((await sign(accessToken, fsc.id)).status).toBe(200)
+    const ok = await staffPut(id, { status: 'completed' })
+    expect(ok.status).toBe(200)
+    expect((await statusOf(id)).status).toBe('completed')
+  })
+
+  it('a submission with no consent rows completes as before', async () => {
+    const t = await makeTemplate()
+    const { id } = await sendRealForm(t.id)
+    const res = await staffPut(id, { status: 'completed' })
+    expect(res.status).toBe(200)
     expect((await statusOf(id)).status).toBe('completed')
   })
 })
