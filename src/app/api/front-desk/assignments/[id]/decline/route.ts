@@ -35,6 +35,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  if (assignmentRow.status !== 'pending') {
+    return NextResponse.json({ error: 'This assignment has already been scheduled or declined.' }, { status: 409 })
+  }
+
   const updated = await declineAssignment(assignmentId, parsed.data.reason)
   if (!updated) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
 
