@@ -1,7 +1,10 @@
 import { getDb } from '@/db/client'
-import { doctorAssignments, patients } from '@/db/schema'
+import { appointments, doctorAssignments, patients } from '@/db/schema'
 import { and, asc, desc, eq, getTableColumns, gte, isNull, sql } from 'drizzle-orm'
 import { getNextQueueTicketNumberForToday } from './queue-tickets'
+import { sendMessage } from './messages'
+import { SYSTEM_SENDER_NAME } from './eligibility'
+import { buildVisitConfirmationBody } from '@/lib/notification-templates'
 
 export interface CreateDoctorAssignmentInput {
   patientId: string
@@ -103,4 +106,49 @@ export async function listTodaysAssignments(): Promise<DoctorAssignmentRow[]> {
     .from(doctorAssignments)
     .where(gte(doctorAssignments.createdAt, startOfToday))
     .orderBy(desc(doctorAssignments.createdAt))
+}
+
+/**
+ * Sends the patient the fixed "Your visit is confirmed." notice (spec §5) at
+ * most once per assignment. `patientNotifiedAt` is the send-guard (spec §8)
+ * and is never cleared by anything.
+ *
+ * Divergence D7 (plan): the spec describes read-check, send, then set; the
+ * eligibility precedent (confirmScreeningSelection) instead claims the
+ * timestamp first and never un-claims it, so a failed send there leaves the
+ * patient marked notified when they were not. Here the conditional claim
+ * (`... WHERE patient_notified_at IS NULL RETURNING id`) and the message
+ * insert run in ONE transaction on the same `tx`:
+ *   - concurrent callers serialize on the row lock taken by the UPDATE; the
+ *     loser re-evaluates the predicate after the winner commits, matches no
+ *     row, and returns without sending;
+ *   - if the insert (or anything after the claim) throws, the transaction
+ *     rolls back, so `patientNotifiedAt` stays NULL and no message exists
+ *     (spec §5.1 failure rule).
+ * Errors are deliberately NOT caught: the caller (schedule route) reports
+ * the failure so the front desk can message the patient manually.
+ *
+ * The body comes only from the fixed template, with server-side values.
+ */
+export async function notifyPatientOfScheduledAssignment(
+  assignment: DoctorAssignmentRow,
+  appointment: typeof appointments.$inferSelect,
+  providerName: string,
+): Promise<void> {
+  await getDb().transaction(async (tx) => {
+    const claimed = await tx
+      .update(doctorAssignments)
+      .set({ patientNotifiedAt: new Date() })
+      .where(and(eq(doctorAssignments.id, assignment.id), isNull(doctorAssignments.patientNotifiedAt)))
+      .returning({ id: doctorAssignments.id })
+    if (claimed.length === 0) return
+
+    const body = buildVisitConfirmationBody({
+      providerName,
+      startsAt: appointment.startsAt,
+      visitReason: appointment.visitReason,
+      visitType: assignment.visitType,
+    })
+    await sendMessage(assignment.patientId, 'system', SYSTEM_SENDER_NAME, body, false, tx)
+  })
 }
