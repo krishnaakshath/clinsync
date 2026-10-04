@@ -14,18 +14,23 @@ export function NewFolderButton() {
     if (!name.trim()) return
     setCreating(true)
     setError(null)
-    const res = await fetch('/api/form-template-folders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim() }),
-    })
-    setCreating(false)
-    if (res.ok) {
-      setEditing(false)
-      setName('')
-      router.refresh()
-    } else {
-      setError('Could not create folder. Please try again.')
+    try {
+      const res = await fetch('/api/form-template-folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      })
+      if (res.ok) {
+        setEditing(false)
+        setName('')
+        router.refresh()
+      } else {
+        setError('Could not create folder. Please try again.')
+      }
+    } catch {
+      setError('Could not create folder. Please check your connection and try again.')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -41,6 +46,7 @@ export function NewFolderButton() {
             if (e.key === 'Escape') { setEditing(false); setName(''); setError(null) }
           }}
           placeholder="Folder name"
+          aria-label="New folder name"
           disabled={creating}
         />
         <div className="flex gap-2">

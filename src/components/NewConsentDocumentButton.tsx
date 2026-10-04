@@ -15,17 +15,22 @@ export function NewConsentDocumentButton() {
     if (!name.trim() || !bodyText.trim()) return
     setSaving(true)
     setError(null)
-    const res = await fetch('/api/consent-documents', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), bodyText }),
-    })
-    setSaving(false)
-    if (res.ok) {
-      const created = await res.json()
-      router.push('/consent-documents/' + created.id)
-    } else {
-      setError('Could not create consent document. Please try again.')
+    try {
+      const res = await fetch('/api/consent-documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), bodyText }),
+      })
+      if (res.ok) {
+        const created = await res.json()
+        router.push('/consent-documents/' + created.id)
+      } else {
+        setError('Could not create consent document. Please try again.')
+      }
+    } catch {
+      setError('Could not create consent document. Please check your connection and try again.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -39,11 +44,12 @@ export function NewConsentDocumentButton() {
 
   return (
     <div className="flex w-full max-w-xl flex-col gap-2 rounded-lg border border-border bg-card p-4">
-      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Document name" disabled={saving} />
+      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Document name" aria-label="Document name" disabled={saving} />
       <textarea
         value={bodyText}
         onChange={(e) => setBodyText(e.target.value)}
         placeholder="Consent wording"
+        aria-label="Consent wording"
         rows={6}
         disabled={saving}
         className="rounded-md border border-border bg-background p-2 text-sm"

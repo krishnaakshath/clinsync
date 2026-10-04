@@ -15,17 +15,22 @@ export function ConsentDocumentEditor({ document }: { document: ConsentDocumentR
   async function save() {
     setSaving(true)
     setMessage(null)
-    const res = await fetch(`/api/consent-documents/${document.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), bodyText, legalReviewStatus: status }),
-    })
-    setSaving(false)
-    if (res.ok) {
-      setMessage({ kind: 'ok', text: 'Saved.' })
-      router.refresh()
-    } else {
-      setMessage({ kind: 'error', text: 'Could not save. Check that name and wording are not empty.' })
+    try {
+      const res = await fetch(`/api/consent-documents/${document.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), bodyText, legalReviewStatus: status }),
+      })
+      if (res.ok) {
+        setMessage({ kind: 'ok', text: 'Saved.' })
+        router.refresh()
+      } else {
+        setMessage({ kind: 'error', text: 'Could not save. Check that name and wording are not empty.' })
+      }
+    } catch {
+      setMessage({ kind: 'error', text: 'Could not save. Please check your connection and try again.' })
+    } finally {
+      setSaving(false)
     }
   }
 

@@ -20,19 +20,24 @@ export function TemplateConsentsPanel({ templateId, attached, allDocuments }: {
     if (!selected) return
     setBusy(true)
     setError(null)
-    const res = await fetch(`/api/form-templates/${templateId}/consents`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ consentDocumentId: Number(selected) }),
-    })
-    setBusy(false)
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      setError(body?.error ?? 'Could not attach this consent document.')
-      return
+    try {
+      const res = await fetch(`/api/form-templates/${templateId}/consents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consentDocumentId: Number(selected) }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setError(body?.error ?? 'Could not attach this consent document.')
+        return
+      }
+      setSelected('')
+      router.refresh()
+    } catch {
+      setError('Could not attach this consent document. Please check your connection and try again.')
+    } finally {
+      setBusy(false)
     }
-    setSelected('')
-    router.refresh()
   }
 
   async function detach(row: AttachedConsentRow) {
@@ -46,14 +51,19 @@ export function TemplateConsentsPanel({ templateId, attached, allDocuments }: {
     if (!ok) return
     setBusy(true)
     setError(null)
-    const res = await fetch(`/api/form-templates/${templateId}/consents/${row.consentDocumentId}`, { method: 'DELETE' })
-    setBusy(false)
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      setError(body?.error ?? 'Could not detach this consent document.')
-      return
+    try {
+      const res = await fetch(`/api/form-templates/${templateId}/consents/${row.consentDocumentId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setError(body?.error ?? 'Could not detach this consent document.')
+        return
+      }
+      router.refresh()
+    } catch {
+      setError('Could not detach this consent document. Please check your connection and try again.')
+    } finally {
+      setBusy(false)
     }
-    router.refresh()
   }
 
   return (
@@ -79,7 +89,7 @@ export function TemplateConsentsPanel({ templateId, attached, allDocuments }: {
         </select>
         <button onClick={attach} disabled={busy || !selected} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground hover:opacity-90 disabled:opacity-50">Attach</button>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
   )
 }

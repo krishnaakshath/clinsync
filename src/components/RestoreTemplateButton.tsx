@@ -10,16 +10,21 @@ export function RestoreTemplateButton({ templateId }: { templateId: number }) {
   async function restore() {
     setRestoring(true)
     setError(null)
-    const res = await fetch(`/api/form-templates/${templateId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: true }),
-    })
-    setRestoring(false)
-    if (res.ok) {
-      router.refresh()
-    } else {
-      setError('Could not restore this form. Please try again.')
+    try {
+      const res = await fetch(`/api/form-templates/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: true }),
+      })
+      if (res.ok) {
+        router.refresh()
+      } else {
+        setError('Could not restore this form. Please try again.')
+      }
+    } catch {
+      setError('Could not restore this form. Please check your connection and try again.')
+    } finally {
+      setRestoring(false)
     }
   }
 

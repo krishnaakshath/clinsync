@@ -17,18 +17,23 @@ export function SignConsentFormAction({ patientId, formSubmissionId }: { patient
   async function sign(typedName: string) {
     setSubmitting(true)
     setError(null)
-    const res = await fetch(`/api/patients/${patientId}/form-submissions/${formSubmissionId}/sign`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ typedName }),
-    })
-    setSubmitting(false)
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      setError(body?.error ?? 'Could not sign this form.')
-      return
+    try {
+      const res = await fetch(`/api/patients/${patientId}/form-submissions/${formSubmissionId}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ typedName }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setError(body?.error ?? 'Could not sign this form.')
+        return
+      }
+      router.refresh()
+    } catch {
+      setError('Could not sign this form. Please check your connection and try again.')
+    } finally {
+      setSubmitting(false)
     }
-    router.refresh()
   }
 
   return (

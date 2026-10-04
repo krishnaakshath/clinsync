@@ -10,17 +10,22 @@ export function CreateFormButton({ folderId }: { folderId: number | null }) {
   async function create() {
     setCreating(true)
     setError(null)
-    const res = await fetch('/api/form-templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Untitled Form', category: 'Uncategorized', diagnosisTag: 'General', questions: [], folderId }),
-    })
-    setCreating(false)
-    if (res.ok) {
-      const created = await res.json()
-      router.push(`/forms/${created.id}`)
-    } else {
-      setError('Could not create form. Please try again.')
+    try {
+      const res = await fetch('/api/form-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Untitled Form', category: 'Uncategorized', diagnosisTag: 'General', questions: [], folderId }),
+      })
+      if (res.ok) {
+        const created = await res.json()
+        router.push(`/forms/${created.id}`)
+      } else {
+        setError('Could not create form. Please try again.')
+      }
+    } catch {
+      setError('Could not create form. Please check your connection and try again.')
+    } finally {
+      setCreating(false)
     }
   }
 

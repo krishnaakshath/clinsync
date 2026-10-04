@@ -16,17 +16,22 @@ export function FolderActions({ folder, templateCount }: { folder: { id: number;
     if (!name.trim()) return
     setSaving(true)
     setError(null)
-    const res = await fetch(`/api/form-template-folders/${folder.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim() }),
-    })
-    setSaving(false)
-    if (res.ok) {
-      setRenaming(false)
-      router.refresh()
-    } else {
-      setError('Could not rename folder. Please try again.')
+    try {
+      const res = await fetch(`/api/form-template-folders/${folder.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      })
+      if (res.ok) {
+        setRenaming(false)
+        router.refresh()
+      } else {
+        setError('Could not rename folder. Please try again.')
+      }
+    } catch {
+      setError('Could not rename folder. Please check your connection and try again.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -37,12 +42,17 @@ export function FolderActions({ folder, templateCount }: { folder: { id: number;
     if (!confirmed) return
     setDeleting(true)
     setError(null)
-    const res = await fetch(`/api/form-template-folders/${folder.id}`, { method: 'DELETE' })
-    setDeleting(false)
-    if (res.ok) {
-      router.push('/forms')
-    } else {
-      setError('Could not delete folder. Please try again.')
+    try {
+      const res = await fetch(`/api/form-template-folders/${folder.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        router.push('/forms')
+      } else {
+        setError('Could not delete folder. Please try again.')
+      }
+    } catch {
+      setError('Could not delete folder. Please check your connection and try again.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -59,6 +69,7 @@ export function FolderActions({ folder, templateCount }: { folder: { id: number;
               if (e.key === 'Escape') { setRenaming(false); setName(folder.name); setError(null) }
             }}
             disabled={saving}
+            aria-label="Folder name"
             className="max-w-xs"
           />
           <button
