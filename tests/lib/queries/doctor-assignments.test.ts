@@ -51,6 +51,28 @@ describe('scheduleAssignment', () => {
     expect(updated?.status).toBe('scheduled')
     expect(updated?.appointmentId).toBe(appointment.id)
   })
+  it('returns null and changes nothing when the assignment is no longer pending', async () => {
+    const providers = await listActiveProviders()
+    const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId: providers[0].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(assignment.id)
+    const [first] = await getDb().insert(appointments).values({ patientId: 'RD-0001', providerId: providers[0].id, startsAt: new Date('2026-11-02T10:00:00'), endsAt: new Date('2026-11-02T10:30:00'), visitReason: 'Test' }).returning()
+    const [second] = await getDb().insert(appointments).values({ patientId: 'RD-0001', providerId: providers[0].id, startsAt: new Date('2026-11-02T11:00:00'), endsAt: new Date('2026-11-02T11:30:00'), visitReason: 'Test' }).returning()
+    createdAppointmentIds.push(first.id, second.id)
+
+    expect((await scheduleAssignment(assignment.id, first.id))?.appointmentId).toBe(first.id)
+    expect(await scheduleAssignment(assignment.id, second.id)).toBeNull()
+    const [row] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, assignment.id))
+    expect(row.status).toBe('scheduled')
+    expect(row.appointmentId).toBe(first.id)
+
+    const declined = await createDoctorAssignment({ patientId: 'RD-0001', providerId: providers[0].id, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(declined.id)
+    await declineAssignment(declined.id, 'x')
+    expect(await scheduleAssignment(declined.id, second.id)).toBeNull()
+    const [drow] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, declined.id))
+    expect(drow.status).toBe('declined')
+    expect(drow.appointmentId).toBeNull()
+  })
 })
 
 describe('declineAssignment', () => {

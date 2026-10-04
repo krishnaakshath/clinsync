@@ -64,11 +64,15 @@ export async function acknowledgeDecline(assignmentId: number, acknowledgedByNam
   return updated ?? null
 }
 
+/** Transitions a PENDING assignment to scheduled. The status condition is in
+ *  the UPDATE itself, so of two concurrent callers only one can win; the
+ *  other gets null (the row is no longer pending) and must not keep its
+ *  appointment. */
 export async function scheduleAssignment(assignmentId: number, appointmentId: number): Promise<DoctorAssignmentRow | null> {
   const [updated] = await getDb()
     .update(doctorAssignments)
     .set({ status: 'scheduled', appointmentId })
-    .where(eq(doctorAssignments.id, assignmentId))
+    .where(and(eq(doctorAssignments.id, assignmentId), eq(doctorAssignments.status, 'pending')))
     .returning()
   return updated ?? null
 }

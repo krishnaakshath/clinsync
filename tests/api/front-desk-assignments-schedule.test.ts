@@ -7,10 +7,19 @@ import { doctorAssignments, appointments, messages, auditLog } from '@/db/schema
 import { createDoctorAssignment, declineAssignment } from '@/lib/queries/doctor-assignments'
 import { listActiveProviders } from '@/lib/queries/providers'
 import { sendMessage } from '@/lib/queries/messages'
+import { hasSchedulingConflict } from '@/lib/queries/appointments'
 
 vi.mock('@/lib/queries/messages', async () => {
   const a = await vi.importActual<typeof import('@/lib/queries/messages')>('@/lib/queries/messages')
   return { ...a, sendMessage: vi.fn(a.sendMessage) }
+})
+
+// Pass-through spy so the concurrency test can hold both requests at the
+// conflict check (after the pending-status read, before the appointment
+// insert) and force the real race.
+vi.mock('@/lib/queries/appointments', async () => {
+  const a = await vi.importActual<typeof import('@/lib/queries/appointments')>('@/lib/queries/appointments')
+  return { ...a, hasSchedulingConflict: vi.fn(a.hasSchedulingConflict) }
 })
 
 vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'pi', name: 'Dr. R. Kunam' })) }))
@@ -121,8 +130,13 @@ describe('POST /api/front-desk/assignments/[id]/schedule -- notification and sta
     const a = await newAssignment()
     const res = await post(a.id, '2026-11-04T09:00:00', '2026-11-04T09:30:00')
     expect(res.status).toBe(200)
-    createdAppointmentIds.push((await res.json()).appointmentId)
-    expect(await systemMsgs('RD-0001', before)).toHaveLength(1)
+    const body = await res.json()
+    createdAppointmentIds.push(body.appointmentId)
+    // Track the message for cleanup before any assertion can fail.
+    const msgs = await systemMsgs('RD-0001', before)
+    // The response reflects the post-notify row, not the pre-notify one.
+    expect(body.patientNotifiedAt).not.toBeNull()
+    expect(msgs).toHaveLength(1)
     expect(await systemMsgs('RD-0002', before)).toHaveLength(0)
     expect((await getRow(a.id)).patientNotifiedAt).not.toBeNull()
   })
@@ -145,6 +159,44 @@ describe('POST /api/front-desk/assignments/[id]/schedule -- notification and sta
     expect(stray).toHaveLength(0)
     expect(await systemMsgs('RD-0001', before)).toHaveLength(1)
     expect((await getRow(a.id)).appointmentId).toBe(apptId)
+  })
+
+  it('two truly concurrent POSTs -> one 200, one 409, exactly one appointment and one message', async () => {
+    const before = await maxMessageId()
+    const a = await newAssignment()
+    const providerId = await kunamProviderId()
+    const slots = ['2026-11-09T09:00:00', '2026-11-09T10:00:00']
+    // Barrier: neither request continues past the conflict check until both
+    // have read the assignment as pending.
+    const actual = (await vi.importActual<typeof import('@/lib/queries/appointments')>('@/lib/queries/appointments')).hasSchedulingConflict
+    let arrived = 0
+    let release!: () => void
+    const bothArrived = new Promise<void>((r) => { release = r })
+    vi.mocked(hasSchedulingConflict).mockImplementation(async (...args) => {
+      if (++arrived === 2) release()
+      await bothArrived
+      return actual(...args)
+    })
+    const results = await Promise.all([
+      post(a.id, slots[0], '2026-11-09T09:30:00'),
+      post(a.id, slots[1], '2026-11-09T10:30:00'),
+    ])
+    // Track every appointment in either slot for cleanup before asserting.
+    const appts = await getDb().select().from(appointments)
+      .where(and(eq(appointments.providerId, providerId), inArray(appointments.startsAt, slots.map((s) => new Date(s)))))
+    for (const r of appts) createdAppointmentIds.push(r.id)
+    const msgs = await systemMsgs('RD-0001', before)
+    vi.mocked(hasSchedulingConflict).mockImplementation(actual)
+    expect(arrived).toBe(2)
+
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409])
+    const loser = results.find((r) => r.status === 409)!
+    expect(await loser.json()).toEqual({ error: 'This assignment has already been scheduled or declined.' })
+    expect(appts).toHaveLength(1)
+    expect(msgs).toHaveLength(1)
+    const row = await getRow(a.id)
+    expect(row.status).toBe('scheduled')
+    expect(row.appointmentId).toBe(appts[0].id)
   })
 
   it('POST on a declined assignment -> 409', async () => {

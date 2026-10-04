@@ -48,8 +48,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const alreadyHandled = { error: 'This assignment has already been scheduled or declined.' }
   if (assignmentRow.status !== 'pending') {
-    return NextResponse.json({ error: 'This assignment has already been scheduled or declined.' }, { status: 409 })
+    return NextResponse.json(alreadyHandled, { status: 409 })
   }
 
   if (await hasSchedulingConflict(assignmentRow.providerId, startsAt, endsAt)) {
@@ -66,8 +67,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }).returning()
 
   const updated = await scheduleAssignment(assignmentId, appointment.id)
+  if (!updated) {
+    // A concurrent request scheduled (or someone declined) this assignment
+    // between our status read and our update. Remove the appointment we just
+    // inserted so it isn't orphaned, and send no message.
+    await db.delete(appointments).where(eq(appointments.id, appointment.id))
+    return NextResponse.json(alreadyHandled, { status: 409 })
+  }
   try {
-    await notifyPatientOfScheduledAssignment(updated ?? assignmentRow, appointment, providerMatch.name)
+    await notifyPatientOfScheduledAssignment(updated, appointment, providerMatch.name)
   } catch (err) {
     // The appointment is already committed; only the patient message failed.
     console.error('Failed to notify patient of scheduled assignment', err)
@@ -78,5 +86,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     )
   }
   await logAudit(session, 'scheduled assignment into appointment and notified patient', assignmentRow.patientId)
-  return NextResponse.json(updated, { status: 200 })
+  // Re-read so the response reflects patientNotifiedAt set by the notify step.
+  const [final] = await db.select().from(doctorAssignments).where(eq(doctorAssignments.id, assignmentId))
+  return NextResponse.json(final ?? updated, { status: 200 })
 }
