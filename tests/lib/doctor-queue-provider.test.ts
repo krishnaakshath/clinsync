@@ -10,4 +10,10 @@ describe('resolveDoctorQueueProvider', () => {
   it('returns null when nothing matches', async () => {
     expect(await resolveDoctorQueueProvider({ role: 'pi', name: 'Dr. Nobody Matchington', userId: null })).toBeNull()
   })
+
+  // An empty last name would make includes('') match every provider, so a
+  // doctor would see another provider's queue and badge.
+  it.each(['', '   '])('returns null for an empty or whitespace-only name (%j)', async (name) => {
+    expect(await resolveDoctorQueueProvider({ role: 'pi', name, userId: null })).toBeNull()
+  })
 })
