@@ -1,34 +1,49 @@
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { listFormTemplates } from '@/lib/queries/form-templates'
+import { listFormTemplateFolders, countArchivedTemplates } from '@/lib/queries/form-template-folders'
 import { FormTemplateCard } from '@/components/FormTemplateCard'
+import { FolderCard } from '@/components/FolderCard'
 import { CreateFormButton } from '@/components/CreateFormButton'
+import { NewFolderButton } from '@/components/NewFolderButton'
 
 export default async function FormsPage() {
   const session = await requireSessionOrRedirect()
-  const templates = await listFormTemplates()
+  if (!['admin', 'crc'].includes(session.role)) redirect('/')
+
+  const [templates, folders, archivedCount] = await Promise.all([
+    listFormTemplates(),
+    listFormTemplateFolders(),
+    countArchivedTemplates(),
+  ])
   await logAudit(session, 'viewed form templates', null)
 
-  const categories = [...new Set(templates.map((t) => t.category))].sort()
+  const unfoldered = templates.filter((t) => t.folderId === null && t.isActive === true)
+  const isEmpty = folders.length === 0 && unfoldered.length === 0
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-foreground">Form Templates</h1>
-      {categories.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No form templates yet.</p>
-      ) : (
-        <div className="space-y-8">
-          {categories.map((category) => (
-            <section key={category}>
-              <h2 className="mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{category}</h2>
-              <div className="grid grid-cols-3 gap-4">
-                {templates.filter((t) => t.category === category).map((t) => <FormTemplateCard key={t.id} template={t} />)}
-                <CreateFormButton category={category} />
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">Questionnaires</h1>
+        {archivedCount > 0 && (
+          <Link href="/forms/archived" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            {archivedCount} archived
+          </Link>
+        )}
+      </div>
+      {isEmpty && <p className="mb-4 text-sm text-muted-foreground">No form templates yet.</p>}
+      <div className="grid grid-cols-3 gap-4">
+        {folders.map((folder) => (
+          <FolderCard key={folder.id} folder={folder} />
+        ))}
+        {unfoldered.map((t) => (
+          <FormTemplateCard key={t.id} template={t} />
+        ))}
+        <CreateFormButton folderId={null} />
+        <NewFolderButton />
+      </div>
     </div>
   )
 }
