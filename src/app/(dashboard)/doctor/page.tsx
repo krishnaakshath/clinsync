@@ -77,7 +77,7 @@ export default async function DoctorPortalPage() {
           </div>
           <div className="flex flex-col items-end border-r border-border pr-6">
             <span className="text-2xl font-bold tabular-nums text-foreground">{todaysCheckups.length}</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today's Visits</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today&apos;s Visits</span>
           </div>
           <div className="flex flex-col items-end">
             <span className={`text-2xl font-bold tabular-nums ${highAcuityCount > 0 ? 'text-destructive' : 'text-foreground'}`}>{highAcuityCount}</span>
@@ -105,7 +105,7 @@ export default async function DoctorPortalPage() {
             </div>
             <div className="p-0">
               {!providerMatch ? (
-                <p role="alert" className="p-4 text-sm text-destructive">We couldn't match your account to a provider record, so your assignment queue can't be shown. Ask an administrator to check your provider record.</p>
+                <p role="alert" className="p-4 text-sm text-destructive">We couldn&apos;t match your account to a provider record, so your assignment queue can&apos;t be shown. Ask an administrator to check your provider record.</p>
               ) : pendingAssignments.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">Queue clear.</div>
               ) : (
@@ -180,7 +180,7 @@ export default async function DoctorPortalPage() {
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
-                <h3 className="text-base font-semibold text-foreground">Today's Schedule</h3>
+                <h3 className="text-base font-semibold text-foreground">Today&apos;s Schedule</h3>
               </div>
               <Link href="/calendar" className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">
                 Full Calendar
