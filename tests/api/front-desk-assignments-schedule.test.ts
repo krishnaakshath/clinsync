@@ -234,6 +234,37 @@ describe('POST /api/front-desk/assignments/[id]/schedule -- notification and sta
   })
 })
 
+describe('POST /api/front-desk/assignments/[id]/schedule -- empty session name', () => {
+  // An empty last name used to match the first active provider via
+  // includes(''), letting the session act on that provider's assignments.
+  it.each([
+    ['', '2026-11-10T09:00:00', '2026-11-10T09:30:00'],
+    ['   ', '2026-11-10T10:00:00', '2026-11-10T10:30:00'],
+  ])('pi named %j -> 403, assignment stays pending, no appointment or message', async (name, startsAt, endsAt) => {
+    const auth = await import('@/lib/auth')
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name, userId: null })
+    const before = await maxMessageId()
+    // The provider the old includes('') fallback would have matched.
+    const providerId = (await listActiveProviders())[0].id
+    const a = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(a.id)
+
+    const res = await post(a.id, startsAt, endsAt)
+    // Record anything created for cleanup before asserting.
+    const appts = await getDb().select().from(appointments)
+      .where(and(eq(appointments.providerId, providerId), eq(appointments.startsAt, new Date(startsAt))))
+    for (const r of appts) createdAppointmentIds.push(r.id)
+    const msgs = await systemMsgs('RD-0001', before)
+
+    expect(res.status).toBe(403)
+    expect(appts).toHaveLength(0)
+    expect(msgs).toHaveLength(0)
+    const row = await getRow(a.id)
+    expect(row.status).toBe('pending')
+    expect(row.appointmentId).toBeNull()
+  })
+})
+
 describe('POST /api/front-desk/assignments/[id]/decline', () => {
   it('marks the assignment declined with the given reason', async () => {
     const providerId = await kunamProviderId()

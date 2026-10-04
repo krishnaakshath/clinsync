@@ -96,3 +96,20 @@ describe('POST /api/front-desk/assignments/[id]/decline -- status guard', () => 
     expect((await getRow(a.id)).status).toBe('pending')
   })
 })
+
+describe('POST /api/front-desk/assignments/[id]/decline -- empty session name', () => {
+  it.each(['', '   '])('pi named %j -> 403, assignment stays pending', async (name) => {
+    const auth = await import('@/lib/auth')
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name, userId: null })
+    // The provider the old includes('') fallback would have matched.
+    const a = await newAssignment((await listActiveProviders())[0].id)
+    const before = await messageCount()
+    const res = await post(a.id)
+    expect(res.status).toBe(403)
+    const row = await getRow(a.id)
+    expect(row.status).toBe('pending')
+    expect(row.declineReason).toBeNull()
+    expect(row.appointmentId).toBeNull()
+    expect(await messageCount()).toBe(before)
+  })
+})

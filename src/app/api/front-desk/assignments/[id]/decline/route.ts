@@ -6,7 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { getDb } from '@/db/client'
 import { doctorAssignments } from '@/db/schema'
 import { declineAssignment } from '@/lib/queries/doctor-assignments'
-import { listActiveProviders } from '@/lib/queries/providers'
+import { resolveDoctorQueueProvider } from '@/lib/doctor-queue-provider'
 
 const declineSchema = z.object({ reason: z.string().min(1) }).strict()
 
@@ -24,13 +24,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // Load the assignment row BEFORE mutating it, so ownership can be checked
   // and a 403 returned before declineAssignment ever touches the row --
-  // same last-name-match convention as doctor/page.tsx and the schedule route.
+  // same provider resolution as /doctor, the nav badge and the schedule route.
   const [assignmentRow] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, assignmentId))
   if (!assignmentRow) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
 
-  const lastName = session.name.trim().split(/\s+/).pop() ?? session.name
-  const providers = await listActiveProviders()
-  const providerMatch = providers.find((p) => p.name.toLowerCase().includes(lastName.toLowerCase()))
+  const providerMatch = await resolveDoctorQueueProvider(session)
   if (!providerMatch || assignmentRow.providerId !== providerMatch.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

@@ -7,7 +7,7 @@ import { getDb } from '@/db/client'
 import { appointments, doctorAssignments } from '@/db/schema'
 import { hasSchedulingConflict } from '@/lib/queries/appointments'
 import { scheduleAssignment, notifyPatientOfScheduledAssignment } from '@/lib/queries/doctor-assignments'
-import { listActiveProviders } from '@/lib/queries/providers'
+import { resolveDoctorQueueProvider } from '@/lib/doctor-queue-provider'
 
 const scheduleSchema = z.object({
   startsAt: z.string().min(1),
@@ -37,13 +37,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const [assignmentRow] = await db.select().from(doctorAssignments).where(eq(doctorAssignments.id, assignmentId))
   if (!assignmentRow) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
 
-  // Ownership check: the same best-effort last-name match used in
-  // doctor/page.tsx to resolve "this PI's own provider row", applied here to
-  // make sure a PI can only schedule/decline assignments actually routed to
-  // them -- there's no real session<->provider-row link yet.
-  const lastName = session.name.trim().split(/\s+/).pop() ?? session.name
-  const providers = await listActiveProviders()
-  const providerMatch = providers.find((p) => p.name.toLowerCase().includes(lastName.toLowerCase()))
+  // Ownership check: the same provider resolution /doctor and the nav badge
+  // use (real user->provider link first, then the guarded last-name
+  // fallback), so a PI can only schedule assignments the page shows them.
+  const providerMatch = await resolveDoctorQueueProvider(session)
   if (!providerMatch || assignmentRow.providerId !== providerMatch.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
