@@ -27,6 +27,11 @@ const criteriaUpdateSchema = z
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ trialId: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  // Eligibility criteria define who can enroll in a trial, so changing them is
+  // a protocol decision -- PI/admin only, not coordinators.
+  if (session.role !== 'pi' && session.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden — PI or admin only' }, { status: 403 })
+  }
 
   const { trialId } = await params
 
