@@ -83,6 +83,22 @@ export const PAGE_GATES: PageGateCase[] = [
     props: { params: Promise.resolve({ templateId: '1' }) },
     allowed: ['admin', 'crc', 'pi'],
   },
+  // Forms hub sub-pages (feature/forms-redesign) -- same gate as /forms.
+  {
+    route: '/forms/folders/[folderId]',
+    load: () => import('@/app/(dashboard)/forms/folders/[folderId]/page'),
+    props: { params: Promise.resolve({ folderId: '1' }) },
+    allowed: ['admin', 'crc', 'pi'],
+  },
+  { route: '/forms/archived', load: () => import('@/app/(dashboard)/forms/archived/page'), allowed: ['admin', 'crc', 'pi'] },
+  // LeftNav.tsx:52
+  { route: '/consent-documents', load: () => import('@/app/(dashboard)/consent-documents/page'), allowed: ['admin', 'crc', 'pi'] },
+  {
+    route: '/consent-documents/[id]',
+    load: () => import('@/app/(dashboard)/consent-documents/[id]/page'),
+    props: { params: Promise.resolve({ id: '1' }) },
+    allowed: ['admin', 'crc', 'pi'],
+  },
   // LeftNav.tsx:98 — showBilling
   { route: '/billing/charges', load: () => import('@/app/(dashboard)/billing/charges/page'), allowed: ['admin', 'crc', 'billing'] },
   // LeftNav.tsx:98 — showBilling

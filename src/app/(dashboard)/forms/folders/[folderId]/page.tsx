@@ -9,7 +9,7 @@ import { BackLink } from '@/components/BackLink'
 
 export default async function FormTemplateFolderPage({ params }: { params: Promise<{ folderId: string }> }) {
   const session = await requireSessionOrRedirect()
-  if (!['admin', 'crc'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'pi'].includes(session.role)) redirect('/')
 
   const { folderId } = await params
   const id = Number(folderId)

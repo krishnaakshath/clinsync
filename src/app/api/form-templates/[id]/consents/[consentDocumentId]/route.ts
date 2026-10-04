@@ -7,7 +7,7 @@ import { invalidateFormTemplatesList } from '@/lib/queries/form-templates'
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string; consentDocumentId: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'crc', 'pi'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id, consentDocumentId } = await params
   const templateId = Number(id)
   const docId = Number(consentDocumentId)

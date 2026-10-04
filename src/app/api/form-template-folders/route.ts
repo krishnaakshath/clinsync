@@ -12,7 +12,7 @@ const createFolderSchema = z.object({
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) {
+  if (!['admin', 'crc', 'pi'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -24,7 +24,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) {
+  if (!['admin', 'crc', 'pi'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

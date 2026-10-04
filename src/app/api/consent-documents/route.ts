@@ -12,7 +12,7 @@ const createSchema = z.object({
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'crc', 'pi'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const docs = await listConsentDocumentsWithCounts()
   await logAudit(session, 'viewed consent documents', null)
   return NextResponse.json(docs)
@@ -21,7 +21,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'crc', 'pi'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = createSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid consent document payload', details: parsed.error.flatten() }, { status: 400 })

@@ -12,7 +12,7 @@ const renameFolderSchema = z.object({
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) {
+  if (!['admin', 'crc', 'pi'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   const { id } = await params
@@ -31,7 +31,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) {
+  if (!['admin', 'crc', 'pi'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   const { id } = await params

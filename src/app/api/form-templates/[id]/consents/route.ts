@@ -10,7 +10,7 @@ const attachSchema = z.object({ consentDocumentId: z.number().int().positive() }
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'crc', 'pi'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
   const templateId = Number(id)
   if (!Number.isInteger(templateId) || !(await getFormTemplate(templateId))) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -20,7 +20,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
-  if (!['admin', 'crc'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!['admin', 'crc', 'pi'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
   const templateId = Number(id)
   if (!Number.isInteger(templateId)) return NextResponse.json({ error: 'Not found' }, { status: 404 })

@@ -7,7 +7,7 @@ import { BackLink } from '@/components/BackLink'
 
 export default async function ConsentDocumentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSessionOrRedirect()
-  if (!['admin', 'crc'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'pi'].includes(session.role)) redirect('/')
 
   const { id } = await params
   const doc = await getConsentDocumentWithCounts(Number(id))

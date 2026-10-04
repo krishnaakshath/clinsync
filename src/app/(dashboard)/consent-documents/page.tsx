@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 export default async function ConsentDocumentsPage() {
   const session = await requireSessionOrRedirect()
-  if (!['admin', 'crc'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'pi'].includes(session.role)) redirect('/')
 
   const docs = await listConsentDocumentsWithCounts()
   await logAudit(session, 'viewed consent documents', null)

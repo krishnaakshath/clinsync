@@ -8,10 +8,10 @@ import { auditLog, consentDocuments, formSubmissionConsents, formSubmissions, fo
 
 const PATIENT_ID = 'RD-0001' // seeded real patient
 
-let sessionRole: 'admin' | 'crc' | 'pi' | 'frontdesk' | null = 'crc'
+let sessionRole: 'admin' | 'crc' | 'pi' | 'frontdesk' | 'billing' | null = 'crc'
 vi.mock('@/lib/auth', () => ({
   requireSession: vi.fn(async () =>
-    sessionRole ? { role: sessionRole, name: 'Jamie Ruiz' } : NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    sessionRole ? { role: sessionRole, name: 'Jamie Ruiz', userId: null } : NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
   ),
 }))
 
@@ -206,7 +206,7 @@ describe('detach with existing signatures', () => {
 })
 
 describe('role gating', () => {
-  it.each(['pi', 'frontdesk'] as const)('%s gets 403 on GET, POST, DELETE', async (role) => {
+  it.each(['frontdesk', 'billing'] as const)('%s gets 403 on GET, POST, DELETE', async (role) => {
     const t = await makeTemplate()
     const d = await makeDoc()
     sessionRole = role
@@ -231,6 +231,15 @@ describe('role gating', () => {
     const d = await makeDoc()
     sessionRole = 'admin'
     expect((await POST(json('POST', { consentDocumentId: d }), listCtx(t))).status).toBe(201)
+  })
+
+  it('pi (doctor) is allowed on GET, POST, DELETE', async () => {
+    const t = await makeTemplate()
+    const d = await makeDoc()
+    sessionRole = 'pi'
+    expect((await POST(json('POST', { consentDocumentId: d }), listCtx(t))).status).toBe(201)
+    expect((await GET(bare(), listCtx(t))).status).toBe(200)
+    expect((await DELETE(bare(), itemCtx(t, d))).status).toBe(200)
   })
 })
 

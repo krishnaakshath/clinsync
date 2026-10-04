@@ -9,10 +9,10 @@ import { CONSENT_DRAFT_BANNER, renderConsentText } from '@/lib/queries/consent-d
 
 const PATIENT_ID = 'RD-0001' // seeded real patient
 
-let sessionRole: 'admin' | 'crc' | 'pi' | 'frontdesk' | null = 'crc'
+let sessionRole: 'admin' | 'crc' | 'pi' | 'frontdesk' | 'billing' | null = 'crc'
 vi.mock('@/lib/auth', () => ({
   requireSession: vi.fn(async () =>
-    sessionRole ? { role: sessionRole, name: 'Jamie Ruiz' } : NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    sessionRole ? { role: sessionRole, name: 'Jamie Ruiz', userId: null } : NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
   ),
 }))
 
@@ -173,7 +173,7 @@ describe('signature immutability', () => {
 })
 
 describe('role gating', () => {
-  it.each(['pi', 'frontdesk'] as const)('%s gets 403 on GET, POST, PUT, and GET [id]', async (role) => {
+  it.each(['frontdesk', 'billing'] as const)('%s gets 403 on GET, POST, PUT, and GET [id]', async (role) => {
     const { body } = await createDoc()
     sessionRole = role
     expect((await GET()).status).toBe(403)
@@ -185,6 +185,14 @@ describe('role gating', () => {
   it('admin is allowed', async () => {
     sessionRole = 'admin'
     expect((await GET()).status).toBe(200)
+  })
+
+  it('pi (doctor) is allowed on GET, POST, PUT, and GET [id]', async () => {
+    const { body } = await createDoc()
+    sessionRole = 'pi'
+    expect((await GET()).status).toBe(200)
+    expect((await getOne(new Request('http://localhost') as never, ctx(body.id))).status).toBe(200)
+    expect((await PUT(json('PUT', { name: `pi-renamed-${body.id}` }), ctx(body.id))).status).toBe(200)
   })
 
   it('no session gets 401', async () => {

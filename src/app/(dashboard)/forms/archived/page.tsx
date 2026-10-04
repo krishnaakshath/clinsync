@@ -7,7 +7,7 @@ import { BackLink } from '@/components/BackLink'
 
 export default async function ArchivedFormTemplatesPage() {
   const session = await requireSessionOrRedirect()
-  if (!['admin', 'crc'].includes(session.role)) redirect('/')
+  if (!['admin', 'crc', 'pi'].includes(session.role)) redirect('/')
 
   const templates = await listArchivedTemplates()
   await logAudit(session, 'viewed archived form templates', null)

@@ -4,11 +4,11 @@ import { GET, POST } from '@/app/api/form-template-folders/route'
 import { PUT, DELETE } from '@/app/api/form-template-folders/[id]/route'
 import { getDb } from '@/db/client'
 import { formTemplateFolders, formTemplates, auditLog } from '@/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, inArray } from 'drizzle-orm'
 import { listFormTemplates } from '@/lib/queries/form-templates'
 import { listActiveTemplatesInFolder } from '@/lib/queries/form-template-folders'
 
-vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz' })) }))
+vi.mock('@/lib/auth', () => ({ requireSession: vi.fn(async () => ({ role: 'crc', name: 'Jamie Ruiz', userId: null })) }))
 
 let createdFolderIds: number[] = []
 let createdTemplateIds: number[] = []
@@ -20,6 +20,7 @@ afterEach(async () => {
   createdTemplateIds = []
   for (const id of createdFolderIds) {
     await getDb().delete(formTemplateFolders).where(eq(formTemplateFolders.id, id))
+    await getDb().delete(auditLog).where(inArray(auditLog.action, [`renamed form template folder ${id}`, `deleted form template folder ${id}`]))
   }
   createdFolderIds = []
   await getDb().delete(auditLog).where(eq(auditLog.action, 'created form template folder'))
@@ -163,22 +164,22 @@ describe('DELETE /api/form-template-folders/[id]', () => {
 })
 
 describe('role gating', () => {
-  it('rejects pi and frontdesk with 403 on POST/PUT/DELETE, leaving the folder table unchanged', async () => {
+  it('rejects frontdesk and billing with 403 on POST/PUT/DELETE, leaving the folder table unchanged', async () => {
     const createRes = await POST(makeRequest({ name: 'Gated Folder' }) as never)
     const created = await createRes.json()
     createdFolderIds.push(created.id)
 
     const auth = await import('@/lib/auth')
-    for (const role of ['pi', 'frontdesk'] as const) {
-      vi.mocked(auth.requireSession).mockResolvedValueOnce({ role, name: 'Someone' })
+    for (const role of ['frontdesk', 'billing'] as const) {
+      vi.mocked(auth.requireSession).mockResolvedValueOnce({ role, name: 'Someone', userId: null })
       const postRes = await POST(makeRequest({ name: 'Should Not Exist' }) as never)
       expect(postRes.status).toBe(403)
 
-      vi.mocked(auth.requireSession).mockResolvedValueOnce({ role, name: 'Someone' })
+      vi.mocked(auth.requireSession).mockResolvedValueOnce({ role, name: 'Someone', userId: null })
       const putRes = await PUT(makeRequest({ name: 'Should Not Rename' }, 'PUT') as never, { params: Promise.resolve({ id: String(created.id) }) })
       expect(putRes.status).toBe(403)
 
-      vi.mocked(auth.requireSession).mockResolvedValueOnce({ role, name: 'Someone' })
+      vi.mocked(auth.requireSession).mockResolvedValueOnce({ role, name: 'Someone', userId: null })
       const delRes = await DELETE(makeRequest(undefined, 'DELETE') as never, { params: Promise.resolve({ id: String(created.id) }) })
       expect(delRes.status).toBe(403)
     }
@@ -186,6 +187,23 @@ describe('role gating', () => {
     const [row] = await getDb().select().from(formTemplateFolders).where(eq(formTemplateFolders.id, created.id))
     expect(row).toBeDefined()
     expect(row.name).toBe('Gated Folder')
+  })
+
+  it('allows pi (doctor) on POST/PUT/DELETE', async () => {
+    const auth = await import('@/lib/auth')
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Dr. Someone', userId: null })
+    const postRes = await POST(makeRequest({ name: 'PI Folder' }) as never)
+    expect(postRes.status).toBe(201)
+    const created = await postRes.json()
+    createdFolderIds.push(created.id)
+
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Dr. Someone', userId: null })
+    const putRes = await PUT(makeRequest({ name: 'PI Folder Renamed' }, 'PUT') as never, { params: Promise.resolve({ id: String(created.id) }) })
+    expect(putRes.status).toBe(200)
+
+    vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'pi', name: 'Dr. Someone', userId: null })
+    const delRes = await DELETE(makeRequest(undefined, 'DELETE') as never, { params: Promise.resolve({ id: String(created.id) }) })
+    expect(delRes.status).toBe(200)
   })
 
   it('rejects an unauthenticated call with 401', async () => {
