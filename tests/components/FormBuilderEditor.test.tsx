@@ -187,6 +187,14 @@ describe('FormBuilderEditor', () => {
       expect(panel.querySelectorAll('li')).toHaveLength(5)
     })
 
+    it('disables Archive while there are unsaved changes', () => {
+      render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={Q} />)
+      expect(screen.getByRole('button', { name: 'Archive' })).toBeEnabled()
+      fireEvent.change(screen.getByDisplayValue('Full name'), { target: { value: 'X' } })
+      expect(screen.getByRole('button', { name: 'Archive' })).toBeDisabled()
+      expect(screen.getByText('Save your changes before archiving.')).toBeInTheDocument()
+    })
+
     it('hides Archive for an already archived template', () => {
       render(<FormBuilderEditor {...BASE_PROPS} initialIsActive={false} initialQuestions={Q} />)
       expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()

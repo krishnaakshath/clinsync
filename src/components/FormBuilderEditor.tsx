@@ -293,7 +293,10 @@ export function FormBuilderEditor({
         </ul>
       </div>
       {initialIsActive && (
-        <button onClick={archive} className="w-full rounded-md border border-border px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10">Archive</button>
+        <>
+          <button onClick={archive} disabled={isDirty} className="w-full rounded-md border border-border px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50">Archive</button>
+          {isDirty && <p className="text-xs text-muted-foreground">Save your changes before archiving.</p>}
+        </>
       )}
     </aside>
 
