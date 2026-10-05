@@ -19,4 +19,16 @@ describe('NewEventModal', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('caps the visit reason input at 140 characters', () => {
+    render(
+      <NewEventModal
+        patients={[{ id: 'RD-0001', name: 'Test Patient' }]}
+        providers={[{ id: 1, name: 'Dr. Test' }]}
+        defaultDate="2026-09-25"
+        onClose={vi.fn()}
+      />
+    )
+    expect(screen.getByPlaceholderText('Visit reason')).toHaveAttribute('maxLength', '140')
+  })
 })
