@@ -21,7 +21,7 @@ describe('CheckInModal', () => {
   })
 
   it('submits a check-in with the selected provider and visit type', async () => {
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ id: 1 }), { status: 201 }))
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response(JSON.stringify({ id: 1 }), { status: 201 }))
     vi.stubGlobal('fetch', fetchMock)
 
     render(<CheckInModal providers={PROVIDERS} rooms={ROOMS} onClose={vi.fn()} />)
@@ -136,6 +136,22 @@ describe('CheckInModal', () => {
     it('wraps the ticket in a printable div with id="print-ticket"', async () => {
       await checkInSuccessfully()
       await waitFor(() => expect(document.getElementById('print-ticket')).not.toBeNull())
+    })
+  })
+
+  describe('Reason field (patient-facing)', () => {
+    const HINT = 'Shown to the patient in their visit confirmation — keep it brief and non-clinical.'
+    it('shows a visible hint wired to the input via aria-describedby', () => {
+      render(<CheckInModal providers={PROVIDERS} rooms={ROOMS} onClose={vi.fn()} />)
+      const hint = screen.getByText(HINT)
+      expect(hint).toBeVisible()
+      const input = screen.getByLabelText(/reason/i)
+      expect(input).toHaveAttribute('aria-describedby', hint.id)
+      expect(hint.id).not.toBe('')
+    })
+    it('caps the reason at 140 characters', () => {
+      render(<CheckInModal providers={PROVIDERS} rooms={ROOMS} onClose={vi.fn()} />)
+      expect(screen.getByLabelText(/reason/i)).toHaveAttribute('maxLength', '140')
     })
   })
 })

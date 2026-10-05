@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
   const [visitType, setVisitType] = useState<'inpatient' | 'outpatient'>('outpatient')
   const [urgency, setUrgency] = useState<'routine' | 'urgent' | 'emergency'>('routine')
   const [reason, setReason] = useState('')
+  const reasonHintId = useId()
   const [roomId, setRoomId] = useState<number | ''>('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -126,7 +127,10 @@ export function CheckInModal({ providers, rooms, onClose }: { providers: Provide
             <p className="text-sm text-warning">No rooms are currently available. You can still complete this check-in and assign a room once one frees up.</p>
           )}
 
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for visit" aria-label="Reason" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+          <div className="space-y-1">
+            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for visit" aria-label="Reason" aria-describedby={reasonHintId} maxLength={140} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+            <p id={reasonHintId} className="text-xs text-muted-foreground">Shown to the patient in their visit confirmation — keep it brief and non-clinical.</p>
+          </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
