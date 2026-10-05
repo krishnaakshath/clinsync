@@ -6,10 +6,11 @@ import { eq } from 'drizzle-orm'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getAppointment, hasSchedulingConflict } from '@/lib/queries/appointments'
+import { visitReasonSchema } from '@/lib/visit-reason-schema'
 
 const updateAppointmentSchema = z.object({
   status: z.enum(['scheduled', 'completed', 'cancelled', 'no_show']).optional(),
-  visitReason: z.string().min(1).optional(),
+  visitReason: visitReasonSchema.optional(),
   startsAt: z.string().min(1).optional(),
   endsAt: z.string().min(1).optional(),
   notes: z.string().optional(),

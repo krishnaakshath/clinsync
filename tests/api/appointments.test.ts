@@ -173,3 +173,60 @@ describe('scheduling conflict detection', () => {
     expect(res.status).toBe(200)
   })
 })
+
+describe('appointments visitReason length (patient-facing)', () => {
+  const slot = { startsAt: '2026-11-13T09:00:00', endsAt: '2026-11-13T09:30:00' }
+
+  async function apptsAtSlot(providerId: number) {
+    const rows = await getDb().select().from(appointments).where(eq(appointments.startsAt, new Date(slot.startsAt)))
+    const mine = rows.filter((r) => r.providerId === providerId)
+    for (const r of mine) if (!createdIds.includes(r.id)) createdIds.push(r.id)
+    return mine
+  }
+  function postAppt(body: Record<string, unknown>) {
+    return POST(new Request('http://localhost/api/appointments', { method: 'POST', body: JSON.stringify(body) }) as never)
+  }
+
+  it('POST rejects a 141-char visitReason with the existing 400 shape and creates nothing', async () => {
+    const providers = await listActiveProviders()
+    const visitReason = `len141-${Date.now()}-`.padEnd(141, 'x')
+    const res = await postAppt({ patientId: 'RD-0001', providerId: providers[0].id, ...slot, visitReason })
+    const rows = await apptsAtSlot(providers[0].id)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('Invalid appointment payload')
+    expect(body.details.fieldErrors.visitReason).toBeDefined()
+    expect(rows).toHaveLength(0)
+  })
+
+  it('POST accepts a 140-char visitReason (after trimming) and stores the trimmed value', async () => {
+    const providers = await listActiveProviders()
+    const visitReason = `len140-${Date.now()}-`.padEnd(140, 'y')
+    const res = await postAppt({ patientId: 'RD-0001', providerId: providers[0].id, ...slot, visitReason: ` ${visitReason}  ` })
+    const body = await res.json()
+    if (body?.id) createdIds.push(body.id)
+    await apptsAtSlot(providers[0].id)
+    expect(res.status).toBe(201)
+    expect(body.visitReason).toBe(visitReason)
+  })
+
+  it('PUT rejects a 141-char visitReason and leaves the stored reason unchanged', async () => {
+    const providers = await listActiveProviders()
+    const created = await postAppt({ patientId: 'RD-0001', providerId: providers[0].id, ...slot, visitReason: 'Original reason' })
+    const createdBody = await created.json()
+    if (createdBody?.id) createdIds.push(createdBody.id)
+    expect(created.status).toBe(201)
+
+    const tooLong = 'z'.repeat(141)
+    const res = await PUT(new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ visitReason: tooLong }) }) as never, { params: Promise.resolve({ id: String(createdBody.id) }) })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('Invalid appointment update')
+    const [row] = await getDb().select().from(appointments).where(eq(appointments.id, createdBody.id))
+    expect(row.visitReason).toBe('Original reason')
+
+    const ok = await PUT(new Request('http://localhost', { method: 'PUT', body: JSON.stringify({ visitReason: `  ${'w'.repeat(140)} ` }) }) as never, { params: Promise.resolve({ id: String(createdBody.id) }) })
+    expect(ok.status).toBe(200)
+    const [after] = await getDb().select().from(appointments).where(eq(appointments.id, createdBody.id))
+    expect(after.visitReason).toBe('w'.repeat(140))
+  })
+})
