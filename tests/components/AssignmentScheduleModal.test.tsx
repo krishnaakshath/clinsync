@@ -19,7 +19,7 @@ afterEach(() => { vi.unstubAllGlobals() })
 
 describe('AssignmentScheduleModal', () => {
   it('posts only the time slot -- never the visit reason (the server uses the stored one)', async () => {
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ id: 42 }), { status: 200 }))
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response(JSON.stringify({ id: 42 }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
     render(<AssignmentScheduleModalTrigger assignment={ASSIGNMENT} />)
