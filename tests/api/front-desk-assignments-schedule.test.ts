@@ -66,7 +66,7 @@ async function getRow(id: number) {
   return row
 }
 function post(id: number, startsAt: string, endsAt: string) {
-  const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt, endsAt, visitReason: 'Follow-up' }) })
+  const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt, endsAt }) })
   return schedule(req as never, { params: Promise.resolve({ id: String(id) }) })
 }
 async function newAssignment() {
@@ -90,7 +90,7 @@ describe('POST /api/front-desk/assignments/[id]/schedule', () => {
     const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
     createdAssignmentIds.push(assignment.id)
 
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt: '2026-11-03T09:00:00', endsAt: '2026-11-03T09:30:00', visitReason: 'Follow-up' }) })
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt: '2026-11-03T09:00:00', endsAt: '2026-11-03T09:30:00' }) })
     const res = await schedule(req as never, { params: Promise.resolve({ id: String(assignment.id) }) })
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -106,7 +106,7 @@ describe('POST /api/front-desk/assignments/[id]/schedule', () => {
     const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
     createdAssignmentIds.push(assignment.id)
 
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt: '2026-11-03T10:00:00', endsAt: '2026-11-03T10:30:00', visitReason: 'Follow-up' }) })
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt: '2026-11-03T10:00:00', endsAt: '2026-11-03T10:30:00' }) })
     const res = await schedule(req as never, { params: Promise.resolve({ id: String(assignment.id) }) })
     expect(res.status).toBe(403)
   })
@@ -118,7 +118,7 @@ describe('POST /api/front-desk/assignments/[id]/schedule', () => {
     const assignment = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
     createdAssignmentIds.push(assignment.id)
 
-    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt: '2026-11-03T11:00:00', endsAt: '2026-11-03T11:30:00', visitReason: 'Follow-up' }) })
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ startsAt: '2026-11-03T11:00:00', endsAt: '2026-11-03T11:30:00' }) })
     const res = await schedule(req as never, { params: Promise.resolve({ id: String(assignment.id) }) })
     expect(res.status).toBe(403)
   })
@@ -231,6 +231,59 @@ describe('POST /api/front-desk/assignments/[id]/schedule -- notification and sta
       .where(and(gt(auditLog.id, auditBefore), eq(auditLog.action, 'scheduled assignment into appointment; patient notification FAILED'), eq(auditLog.patientId, 'RD-0001')))
     for (const r of audits) createdAuditIds.push(r.id)
     expect(audits.length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('POST /api/front-desk/assignments/[id]/schedule -- visit reason is server-side only', () => {
+  it('uses the stored assignment.reason for the appointment and the patient message', async () => {
+    const before = await maxMessageId()
+    const providerId = await kunamProviderId()
+    const storedReason = `Stored check-in reason ${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const a = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: storedReason, roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(a.id)
+
+    const res = await post(a.id, '2026-11-11T09:00:00', '2026-11-11T09:30:00')
+    // Record everything created for cleanup before asserting.
+    const appts = await getDb().select().from(appointments)
+      .where(and(eq(appointments.providerId, providerId), eq(appointments.startsAt, new Date('2026-11-11T09:00:00'))))
+    for (const r of appts) createdAppointmentIds.push(r.id)
+    const msgs = await systemMsgs('RD-0001', before)
+
+    expect(res.status).toBe(200)
+    expect(appts).toHaveLength(1)
+    expect(appts[0].visitReason).toBe(storedReason)
+    expect(msgs).toHaveLength(1)
+    expect(msgs[0].body).toContain(`Reason for visit: ${storedReason}`)
+  })
+
+  it('rejects a client-supplied visitReason with the same 400 as any unknown key; nothing is created', async () => {
+    const before = await maxMessageId()
+    const providerId = await kunamProviderId()
+    const a = await createDoctorAssignment({ patientId: 'RD-0001', providerId, visitType: 'outpatient', urgency: 'routine', reason: 'Test', roomId: null, assignedByName: 'Taylor Nguyen' })
+    createdAssignmentIds.push(a.id)
+
+    async function postBody(body: Record<string, unknown>) {
+      const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify(body) })
+      return schedule(req as never, { params: Promise.resolve({ id: String(a.id) }) })
+    }
+    const times = { startsAt: '2026-11-12T09:00:00', endsAt: '2026-11-12T09:30:00' }
+    const withReason = await postBody({ ...times, visitReason: 'Crafted text for the patient' })
+    const withUnknown = await postBody({ ...times, somethingElse: 'x' })
+    const appts = await getDb().select().from(appointments)
+      .where(and(eq(appointments.providerId, providerId), eq(appointments.startsAt, new Date(times.startsAt))))
+    for (const r of appts) createdAppointmentIds.push(r.id)
+    const msgs = await systemMsgs('RD-0001', before)
+
+    expect(withReason.status).toBe(400)
+    expect(withUnknown.status).toBe(400)
+    const reasonBody = await withReason.json()
+    const unknownBody = await withUnknown.json()
+    expect(reasonBody.error).toBe('Invalid schedule payload')
+    expect(reasonBody.error).toBe(unknownBody.error)
+    expect(reasonBody.details.formErrors.join(' ')).toContain('visitReason')
+    expect(appts).toHaveLength(0)
+    expect(msgs).toHaveLength(0)
+    expect((await getRow(a.id)).status).toBe('pending')
   })
 })
 
