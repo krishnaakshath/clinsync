@@ -8,13 +8,15 @@ import { patients, providers } from '@/db/schema'
 import { assignRoomToPatient } from '@/lib/queries/rooms'
 import { createDoctorAssignment } from '@/lib/queries/doctor-assignments'
 import { createAdmission, getActiveAdmissionForPatient } from '@/lib/queries/admissions'
+import { visitReasonSchema } from '@/lib/visit-reason-schema'
 
 const checkInSchema = z.object({
   patientId: z.string().min(1),
   providerId: z.number().int().positive(),
   visitType: z.enum(['inpatient', 'outpatient']),
   urgency: z.enum(['routine', 'urgent', 'emergency']),
-  reason: z.string().min(1),
+  // Shown to the patient in their visit confirmation -- see visitReasonSchema.
+  reason: visitReasonSchema,
   roomId: z.number().int().positive().optional(),
 }).strict()
 
