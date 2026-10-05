@@ -6,7 +6,17 @@ export const NAV_BADGE_REFRESH_MS = 60_000
 
 function isNavBadges(value: unknown): value is NavBadges {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  return Object.values(value).every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0)
+  return Object.values(value).every((v) => v === null || (typeof v === 'number' && Number.isFinite(v) && v >= 0))
+}
+
+/** A usable /api/nav-badges body: well-formed badges and an explicit
+ *  `degraded: false`. Anything else (degraded, missing flag, bad shape) is
+ *  treated like a failed fetch. */
+function authoritativeBadges(body: unknown): NavBadges | null {
+  if (typeof body !== 'object' || body === null) return null
+  const { badges, degraded } = body as { badges?: unknown; degraded?: unknown }
+  if (degraded !== false || !isNavBadges(badges)) return null
+  return badges
 }
 
 /** Live nav counts. Next layouts don't re-render on client navigation, so the
@@ -15,10 +25,15 @@ function isNavBadges(value: unknown): value is NavBadges {
  *  NAV_BADGE_REFRESH_MS while the tab is visible, and immediately when the
  *  window regains focus or the document becomes visible.
  *
- *  A failed refresh (network error, non-2xx, bad body) keeps the previous
- *  counts silently. Keys absent from a successful response also keep their
- *  previous value: the server omits a key when it couldn't compute it
- *  (getNavBadges fails safe to {}), and absence must never read as 0.
+ *  A successful, non-degraded response is authoritative and replaces the
+ *  counts: a 0 or an explicit `null` (badge intentionally suppressed, e.g.
+ *  an unmatched pi) clears that pill. A failed refresh -- network error,
+ *  non-2xx, bad body, or `degraded: true` (the server's fail-safe {}) --
+ *  keeps the previous counts silently, so a failure never reads as 0.
+ *
+ *  A new `initial` from a layout re-render is merged over the current
+ *  counts (the layout can't tell a degraded {} apart; its explicit nulls
+ *  and numbers still apply).
  *
  *  `initial === undefined` (no server badges) disables polling entirely. */
 export function useLiveNavBadges(initial: NavBadges | undefined): NavBadges | undefined {
@@ -43,10 +58,9 @@ export function useLiveNavBadges(initial: NavBadges | undefined): NavBadges | un
       try {
         const res = await fetch('/api/nav-badges', { cache: 'no-store', signal: controller.signal })
         if (!res.ok) return
-        const body: unknown = await res.json()
-        const next = (body as { badges?: unknown } | null)?.badges
-        if (disposed || !isNavBadges(next)) return
-        setBadges((prev) => ({ ...prev, ...next }))
+        const next = authoritativeBadges(await res.json())
+        if (disposed || next === null) return
+        setBadges(next)
       } catch {
         // Keep the previous counts; the next tick or focus will retry.
       } finally {
