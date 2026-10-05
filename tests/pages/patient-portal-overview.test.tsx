@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import PatientPortalOverviewPage from '@/app/patient-portal/(authenticated)/page'
 import { render, screen } from '@testing-library/react'
+import { getPatientPortalData } from '@/lib/queries/patient-portal'
 
 vi.mock('@/lib/patient-session', () => ({ requirePatientSessionOrRedirect: vi.fn(async () => ({ patientId: 'RD-0001' })) }))
 vi.mock('@/lib/patient-portal-audit', () => ({ logPatientPortalAction: vi.fn(async () => undefined) }))
@@ -38,5 +39,23 @@ describe('Patient dashboard (patient-portal overview)', () => {
     expect(nudge).not.toBeNull()
     expect(tiles).not.toBeNull()
     expect(nudge!.compareDocumentPosition(tiles!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('shows a legacy long multi-line stored visit reason collapsed and capped at 140 chars', async () => {
+    const stored = 'Follow-up\n\nr/o MI   ' + 'detail '.repeat(40)
+    const base = await vi.mocked(getPatientPortalData)('RD-0001')
+    vi.mocked(getPatientPortalData).mockResolvedValueOnce({
+      ...base!,
+      upcomingAppointments: [{ ...base!.upcomingAppointments[0], visitReason: stored }],
+    })
+    const jsx = await PatientPortalOverviewPage()
+    const { container } = render(jsx)
+    const nudge = container.querySelector('[data-testid="patient-action-items"]')!
+    const line = Array.from(nudge.querySelectorAll('p')).find((p) => p.textContent?.includes(' with Dr. R. Kunam'))!
+    const shown = line.textContent!.replace(/ with Dr\. R\. Kunam$/, '')
+    expect(shown.startsWith('Follow-up r/o MI detail detail')).toBe(true)
+    expect(shown).not.toMatch(/\n|\s{2}/)
+    expect(shown).toHaveLength(140)
+    expect(shown.endsWith('…')).toBe(true)
   })
 })

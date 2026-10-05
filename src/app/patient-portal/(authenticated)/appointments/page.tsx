@@ -5,6 +5,7 @@ import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
 import { AppointmentStatusChip } from '@/components/AppointmentStatusChip'
 import type { AppointmentStatus } from '@/lib/queries/appointments'
+import { normalizeVisitReason } from '@/lib/notification-templates'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -16,7 +17,8 @@ function AppointmentRow({ visitReason, providerName, status, dateLabel }: { visi
         <CalendarClock className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">{visitReason}</p>
+        {/* Display-only normalization: legacy stored reasons may be long or multi-line. */}
+        <p className="truncate text-sm font-medium text-foreground">{normalizeVisitReason(visitReason)}</p>
         <p className="truncate text-xs text-muted-foreground">with {providerName} · {dateLabel}</p>
       </div>
       <div className="shrink-0">
