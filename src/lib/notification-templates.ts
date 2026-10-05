@@ -1,4 +1,5 @@
 // Fixed, pure patient-notification copy. No DB access, no patient-supplied text.
+// The only free-text field (visitReason) is normalized by normalizeVisitReason.
 //
 // Date/time rule (src/lib/queries/reports.ts:24-29): use LOCAL formatters only and
 // never mix toISOString() (UTC) with a local formatter, or visits near midnight
@@ -37,6 +38,21 @@ export const WHAT_TO_BRING: readonly string[] = [
 export const INPATIENT_OVERNIGHT_BAG =
   'An overnight bag — a few days of comfortable clothes and toiletries, and your medicines in their original labelled containers'
 
+export const VISIT_REASON_MAX_LENGTH = 140
+export const VISIT_REASON_FALLBACK = 'General visit'
+
+// The reason originates as free text typed at check-in, so it is normalized
+// before it reaches the patient: whitespace (including newlines, which could
+// otherwise forge extra lines in the message) collapses to single spaces, and
+// the result is capped at VISIT_REASON_MAX_LENGTH characters with an ellipsis.
+export function normalizeVisitReason(reason: string): string {
+  const collapsed = reason.replace(/\s+/g, ' ').trim()
+  if (collapsed === '') return VISIT_REASON_FALLBACK
+  const chars = Array.from(collapsed)
+  if (chars.length <= VISIT_REASON_MAX_LENGTH) return collapsed
+  return chars.slice(0, VISIT_REASON_MAX_LENGTH - 1).join('').trimEnd() + '…'
+}
+
 export function buildVisitConfirmationBody(input: VisitConfirmationInput): string {
   const items = input.visitType === 'inpatient' ? [...WHAT_TO_BRING, INPATIENT_OVERNIGHT_BAG] : [...WHAT_TO_BRING]
   return [
@@ -44,7 +60,7 @@ export function buildVisitConfirmationBody(input: VisitConfirmationInput): strin
     '',
     `${input.providerName} will see you on ${formatVisitDate(input.startsAt)} at ${formatVisitTime(input.startsAt)}.`,
     '',
-    `Reason for visit: ${input.visitReason}`,
+    `Reason for visit: ${normalizeVisitReason(input.visitReason)}`,
     '',
     'Please bring with you:',
     ...items.map((i) => `• ${i}`),
