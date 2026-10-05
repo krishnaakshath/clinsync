@@ -148,6 +148,18 @@ describe('LeftNav live badges', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
+  it('adopts fresh server badges when the layout re-renders (router.refresh)', async () => {
+    const { rerender } = render(<LeftNav role="pi" badges={{ '/doctor': 3 }} />)
+    rerender(<LeftNav role="pi" badges={{ '/doctor': 6 }} />)
+    await flush()
+    expect(myPatientsText()).toBe('My Patients6')
+    // A server render that failed safe to {} does not wipe the known count.
+    rerender(<LeftNav role="pi" badges={{}} />)
+    await flush()
+    expect(myPatientsText()).toBe('My Patients6')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('does not poll at all when no server badges were provided', async () => {
     render(<LeftNav role="pi" />)
     await act(async () => {
