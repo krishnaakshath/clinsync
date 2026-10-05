@@ -8,10 +8,11 @@ import {
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
   ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard, CalendarClock, Search,
-  Syringe, DollarSign, ScrollText,
+  DollarSign, ScrollText,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
+import { useLiveNavBadges } from '@/components/useLiveNavBadges'
 
 type Icon = React.ComponentType<{ className?: string }>
 
@@ -140,8 +141,10 @@ function NavLink({ href, label, icon: Icon, active, badge }: { href: string; lab
 
 export const BILLING_ROLES: Role[] = ['admin', 'crc', 'billing']
 
-export function LeftNav({ role, badges }: { role: Role; badges?: NavBadges }) {
+export function LeftNav({ role, badges: initialBadges }: { role: Role; badges?: NavBadges }) {
   const pathname = usePathname()
+  // Server-computed counts are the initial state; the hook keeps them live.
+  const badges = useLiveNavBadges(initialBadges)
   const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
   const trailingItems = NAV_TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
   const showBilling = BILLING_ROLES.includes(role)

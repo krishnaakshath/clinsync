@@ -5,9 +5,9 @@ import { getNavBadges } from '@/lib/nav-badges'
 // Live LeftNav counts. The dashboard layout computes the initial badges on
 // a full render only (layouts don't re-render on client navigation), so the
 // client polls this to keep them fresh. getNavBadges never throws -- on
-// failure it returns {} (no badge), never a guessed number.
-export const dynamic = 'force-dynamic'
-
+// failure it returns {} (no badge), never a guessed number. Reading the
+// session cookie makes this handler dynamic; no-store also keeps browsers
+// and proxies from serving a stale count.
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
