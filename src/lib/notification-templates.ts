@@ -41,16 +41,23 @@ export const INPATIENT_OVERNIGHT_BAG =
 export const VISIT_REASON_MAX_LENGTH = 140
 export const VISIT_REASON_FALLBACK = 'General visit'
 
-// The reason originates as free text typed at check-in, so it is normalized
-// before it reaches the patient: whitespace (including newlines, which could
-// otherwise forge extra lines in the message) collapses to single spaces, and
-// the result is capped at VISIT_REASON_MAX_LENGTH characters with an ellipsis.
+// The reason originates as free text (check-in, booking), so it is normalized
+// wherever it is shown to the patient: whitespace (including newlines, which
+// could otherwise forge extra lines in a message) collapses to single spaces,
+// and the result is capped at VISIT_REASON_MAX_LENGTH with an ellipsis.
+// Length is measured in UTF-16 units -- the same unit zod's .max() and an
+// input's maxLength use -- and a surrogate pair is never split.
 export function normalizeVisitReason(reason: string): string {
   const collapsed = reason.replace(/\s+/g, ' ').trim()
   if (collapsed === '') return VISIT_REASON_FALLBACK
-  const chars = Array.from(collapsed)
-  if (chars.length <= VISIT_REASON_MAX_LENGTH) return collapsed
-  return chars.slice(0, VISIT_REASON_MAX_LENGTH - 1).join('').trimEnd() + '…'
+  if (collapsed.length <= VISIT_REASON_MAX_LENGTH) return collapsed
+  const budget = VISIT_REASON_MAX_LENGTH - 1 // room for the ellipsis
+  let out = ''
+  for (const ch of collapsed) {
+    if (out.length + ch.length > budget) break
+    out += ch
+  }
+  return out.trimEnd() + '…'
 }
 
 export function buildVisitConfirmationBody(input: VisitConfirmationInput): string {

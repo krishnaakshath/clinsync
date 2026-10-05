@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildVisitConfirmationBody, formatVisitDate, formatVisitTime, WHAT_TO_BRING, INPATIENT_OVERNIGHT_BAG } from '@/lib/notification-templates'
+import { normalizeVisitReason, buildVisitConfirmationBody, formatVisitDate, formatVisitTime, WHAT_TO_BRING, INPATIENT_OVERNIGHT_BAG } from '@/lib/notification-templates'
 
 const base = { providerName: 'Dr. Rajiv Kunam', startsAt: new Date(2026, 10, 3, 9, 0), visitReason: 'Follow-up', visitType: 'outpatient' as const }
 
@@ -66,5 +66,15 @@ describe('buildVisitConfirmationBody -- reason normalization', () => {
   })
   it.each(['', '   ', '\n\t '])('falls back to "General visit" for an empty reason (%j)', (visitReason) => {
     expect(reasonLine(buildVisitConfirmationBody({ ...base, visitReason }))).toBe('Reason for visit: General visit')
+  })
+})
+
+describe('normalizeVisitReason -- length is UTF-16 units, matching zod .max() and input maxLength', () => {
+  it('never exceeds 140 UTF-16 units for astral characters and never splits a surrogate pair', () => {
+    const out = normalizeVisitReason('🙂'.repeat(100))
+    expect(out.length).toBeLessThanOrEqual(140)
+    expect(out.endsWith('…')).toBe(true)
+    expect(out.slice(0, -1)).toBe('🙂'.repeat(69))
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(out)).toBe(false)
   })
 })
