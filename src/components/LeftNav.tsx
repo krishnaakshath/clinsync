@@ -117,7 +117,8 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-export type NavBadges = Partial<Record<string, number>>
+/** Count per nav href; `null` = badge intentionally suppressed (no pill). */
+export type NavBadges = Partial<Record<string, number | null>>
 
 function NavLink({ href, label, icon: Icon, active, badge }: { href: string; label: string; icon: Icon; active: boolean; badge?: number }) {
   return (
@@ -175,7 +176,7 @@ export function LeftNav({ role, badges: initialBadges }: { role: Role; badges?: 
             <ul className="space-y-0.5">
               {items.map((item) => (
                 <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
+                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href] ?? undefined} />
                 </li>
               ))}
             </ul>
@@ -205,7 +206,7 @@ export function LeftNav({ role, badges: initialBadges }: { role: Role; badges?: 
               <ul className={`mt-0.5 space-y-0.5 ${!isBillingOnly ? 'ps-3' : ''}`}>
                 {NAV_BILLING_ITEMS.map((item) => (
                   <li key={item.href}>
-                    <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
+                    <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href] ?? undefined} />
                   </li>
                 ))}
               </ul>
@@ -219,7 +220,7 @@ export function LeftNav({ role, badges: initialBadges }: { role: Role; badges?: 
             <ul className="space-y-0.5">
               {trailingItems.map((item) => (
                 <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
+                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href] ?? undefined} />
                 </li>
               ))}
             </ul>

@@ -37,7 +37,7 @@ describe('GET /api/nav-badges', () => {
     const res = await GET()
     expect(res.status).toBe(200)
     expect(res.headers.get('Cache-Control')).toBe('no-store')
-    expect(await res.json()).toEqual({ badges: { '/doctor': 4 } })
+    expect(await res.json()).toEqual({ badges: { '/doctor': 4 }, degraded: false })
     expect(pendingMock).toHaveBeenCalledWith(7)
   })
 
@@ -45,7 +45,7 @@ describe('GET /api/nav-badges', () => {
     sessionMock.mockResolvedValueOnce({ role: 'frontdesk', name: 'Taylor Nguyen', userId: null })
     declinesMock.mockResolvedValue(2)
     const res = await GET()
-    expect(await res.json()).toEqual({ badges: { '/front-desk/assignments': 2 } })
+    expect(await res.json()).toEqual({ badges: { '/front-desk/assignments': 2 }, degraded: false })
   })
 
   it('returns {} for a role with no badge (billing), running no query', async () => {
@@ -53,19 +53,29 @@ describe('GET /api/nav-badges', () => {
     const res = await GET()
     expect(res.status).toBe(200)
     expect(res.headers.get('Cache-Control')).toBe('no-store')
-    expect(await res.json()).toEqual({ badges: {} })
+    expect(await res.json()).toEqual({ badges: {}, degraded: false })
     expect(resolveMock).not.toHaveBeenCalled()
     expect(pendingMock).not.toHaveBeenCalled()
     expect(declinesMock).not.toHaveBeenCalled()
   })
 
-  it('fails safe to {} when a count query throws', async () => {
+  it('returns an explicit null /doctor badge (not degraded) for an unmatched pi', async () => {
+    sessionMock.mockResolvedValueOnce({ role: 'pi', name: 'Dr. Nobody Matchington', userId: null })
+    resolveMock.mockResolvedValue(null)
+    const res = await GET()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ badges: { '/doctor': null }, degraded: false })
+    expect(pendingMock).not.toHaveBeenCalled()
+  })
+
+  it('fails safe to {} flagged degraded when a count query throws', async () => {
     sessionMock.mockResolvedValueOnce({ role: 'frontdesk', name: 'Taylor Nguyen', userId: null })
     declinesMock.mockRejectedValue(new Error('db down'))
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const res = await GET()
     errSpy.mockRestore()
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ badges: {} })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+    expect(await res.json()).toEqual({ badges: {}, degraded: true })
   })
 })
