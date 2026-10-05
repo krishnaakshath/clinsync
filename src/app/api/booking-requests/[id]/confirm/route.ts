@@ -6,13 +6,14 @@ import { patients } from '@/db/schema'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getBookingRequestById, confirmBookingRequest } from '@/lib/queries/booking-requests'
+import { visitReasonSchema } from '@/lib/visit-reason-schema'
 
 const confirmBookingRequestSchema = z.object({
   patientId: z.string().min(1),
   providerId: z.number().int().positive(),
   startsAt: z.string().min(1),
   endsAt: z.string().min(1),
-  visitReason: z.string().min(1),
+  visitReason: visitReasonSchema,
 }).strict()
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

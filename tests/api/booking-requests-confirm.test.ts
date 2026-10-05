@@ -169,3 +169,40 @@ describe('PATCH /api/booking-requests/[id]/decline', () => {
     expect(after.length).toBe(before.length)
   })
 })
+
+describe('PATCH /api/booking-requests/[id]/confirm -- visitReason length (patient-facing)', () => {
+  const startsAt = new Date('2026-12-11T10:00:00Z').toISOString()
+  const endsAt = new Date('2026-12-11T10:30:00Z').toISOString()
+
+  async function apptsAtSlot() {
+    const rows = await getDb().select().from(appointments).where(eq(appointments.startsAt, new Date(startsAt)))
+    for (const r of rows) if (!createdAppointmentIds.includes(r.id)) createdAppointmentIds.push(r.id)
+    return rows
+  }
+
+  it('rejects a 141-char visitReason with the existing 400 shape; request stays pending, no appointment', async () => {
+    const request = await makePendingRequest()
+    const visitReason = `len141-${Date.now()}-`.padEnd(141, 'x')
+    const res = await confirmRoute(req({ ...(await confirmPayload()), startsAt, endsAt, visitReason }) as never, params(request.id))
+    const appts = (await apptsAtSlot()).filter((a) => a.visitReason === visitReason)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('Invalid confirm payload')
+    expect(body.details.fieldErrors.visitReason).toBeDefined()
+    expect(appts).toHaveLength(0)
+    const [row] = await getDb().select().from(bookingRequests).where(eq(bookingRequests.id, request.id))
+    expect(row.status).toBe('pending')
+  })
+
+  it('accepts a 140-char visitReason (after trimming) and stores the trimmed value', async () => {
+    const request = await makePendingRequest()
+    const visitReason = `len140-${Date.now()}-`.padEnd(140, 'y')
+    const res = await confirmRoute(req({ ...(await confirmPayload()), startsAt, endsAt, visitReason: `  ${visitReason}\t ` }) as never, params(request.id))
+    const body = await res.json()
+    if (body?.appointmentId) createdAppointmentIds.push(body.appointmentId)
+    await apptsAtSlot()
+    expect(res.status).toBe(200)
+    const [appt] = await getDb().select().from(appointments).where(eq(appointments.id, body.appointmentId))
+    expect(appt.visitReason).toBe(visitReason)
+  })
+})
