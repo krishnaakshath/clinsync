@@ -5,13 +5,14 @@ import { appointments } from '@/db/schema'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { hasSchedulingConflict, listAppointmentsInRange } from '@/lib/queries/appointments'
+import { visitReasonSchema } from '@/lib/visit-reason-schema'
 
 const createAppointmentSchema = z.object({
   patientId: z.string().min(1),
   providerId: z.number().int().positive(),
   startsAt: z.string().min(1),
   endsAt: z.string().min(1),
-  visitReason: z.string().min(1),
+  visitReason: visitReasonSchema,
   status: z.enum(['scheduled', 'completed', 'cancelled', 'no_show']).optional(),
 }).strict()
 

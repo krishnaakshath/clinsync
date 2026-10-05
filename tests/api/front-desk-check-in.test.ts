@@ -207,3 +207,43 @@ describe('POST /api/front-desk/check-in — admissions', () => {
     expect(activeAdmissions.length).toBe(1)
   })
 })
+
+describe('POST /api/front-desk/check-in -- reason length (patient-facing)', () => {
+  async function checkIn(reason: string) {
+    const providers = await listActiveProviders()
+    const req = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ patientId: 'RD-0001', visitType: 'outpatient', urgency: 'routine', reason, providerId: providers[0].id }) })
+    return POST(req as never)
+  }
+
+  it('rejects a 141-char reason with the existing 400 shape and creates nothing', async () => {
+    const reason = `len141-${Date.now()}-`.padEnd(141, 'x')
+    expect(reason).toHaveLength(141)
+    const res = await checkIn(reason)
+    // Track anything created for cleanup before asserting.
+    const rows = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.reason, reason))
+    for (const r of rows) createdAssignmentIds.push(r.id)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('Invalid check-in payload')
+    expect(body.details.fieldErrors.reason).toBeDefined()
+    expect(rows).toHaveLength(0)
+  })
+
+  it('accepts a 140-char reason (after trimming) and stores the trimmed value', async () => {
+    const reason = `len140-${Date.now()}-`.padEnd(140, 'y')
+    expect(reason).toHaveLength(140)
+    const res = await checkIn(`   ${reason}  \n`)
+    const body = await res.json()
+    if (body?.id) createdAssignmentIds.push(body.id)
+    expect(res.status).toBe(201)
+    const [row] = await getDb().select().from(doctorAssignments).where(eq(doctorAssignments.id, body.id))
+    expect(row.reason).toBe(reason)
+  })
+
+  it('rejects a whitespace-only reason', async () => {
+    const res = await checkIn('    ')
+    const body = await res.json()
+    if (body?.id) createdAssignmentIds.push(body.id)
+    expect(res.status).toBe(400)
+  })
+})

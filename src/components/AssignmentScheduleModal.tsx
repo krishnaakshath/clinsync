@@ -31,7 +31,7 @@ function AssignmentScheduleModal({ assignment, onClose }: { assignment: DoctorAs
     const res = await fetch(`/api/front-desk/assignments/${assignment.id}/schedule`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ startsAt: `${date}T${startTime}:00`, endsAt: `${date}T${endTime}:00`, visitReason: assignment.reason }),
+      body: JSON.stringify({ startsAt: `${date}T${startTime}:00`, endsAt: `${date}T${endTime}:00` }),
     })
     setSubmitting(false)
     if (res.ok) { router.refresh(); onClose(); return }

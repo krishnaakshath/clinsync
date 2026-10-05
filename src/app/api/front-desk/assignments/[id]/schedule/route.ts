@@ -9,10 +9,13 @@ import { hasSchedulingConflict } from '@/lib/queries/appointments'
 import { scheduleAssignment, notifyPatientOfScheduledAssignment } from '@/lib/queries/doctor-assignments'
 import { resolveDoctorQueueProvider } from '@/lib/doctor-queue-provider'
 
+// Only the time slot comes from the client. The visit reason is taken from
+// the stored assignment row server-side, so a crafted body cannot put
+// arbitrary text into the patient's automated confirmation; .strict() makes a
+// stray `visitReason` key a 400 like any other unknown key.
 const scheduleSchema = z.object({
   startsAt: z.string().min(1),
   endsAt: z.string().min(1),
-  visitReason: z.string().min(1),
 }).strict()
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     providerId: assignmentRow.providerId,
     startsAt,
     endsAt,
-    visitReason: parsed.data.visitReason,
+    visitReason: assignmentRow.reason,
     status: 'scheduled',
   }).returning()
 

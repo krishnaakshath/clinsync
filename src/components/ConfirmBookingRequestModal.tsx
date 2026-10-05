@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import type { BookingRequestRow } from '@/lib/queries/booking-requests'
+import { normalizeVisitReason, VISIT_REASON_MAX_LENGTH } from '@/lib/notification-templates'
 
 interface ProviderOption {
   id: number
@@ -21,7 +22,10 @@ export function ConfirmBookingRequestModal({ request, providers, onClose }: {
   const [date, setDate] = useState(request.preferredDateRangeStart)
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('09:30')
-  const [visitReason, setVisitReason] = useState(request.reason)
+  // The public request reason allows far more than the 140 chars the confirm
+  // route accepts for a (patient-visible) visit reason; prefill a normalized,
+  // capped version that staff can edit.
+  const [visitReason, setVisitReason] = useState(() => normalizeVisitReason(request.reason))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,7 +70,7 @@ export function ConfirmBookingRequestModal({ request, providers, onClose }: {
             <input value={startTime} onChange={(e) => setStartTime(e.target.value)} type="time" aria-label="Start time" className="w-1/2 rounded-md border border-border px-3 py-2 text-sm" />
             <input value={endTime} onChange={(e) => setEndTime(e.target.value)} type="time" aria-label="End time" className="w-1/2 rounded-md border border-border px-3 py-2 text-sm" />
           </div>
-          <input value={visitReason} onChange={(e) => setVisitReason(e.target.value)} placeholder="Visit reason" aria-label="Visit reason" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
+          <input value={visitReason} onChange={(e) => setVisitReason(e.target.value)} placeholder="Visit reason" aria-label="Visit reason" maxLength={VISIT_REASON_MAX_LENGTH} className="w-full rounded-md border border-border px-3 py-2 text-sm" />
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>

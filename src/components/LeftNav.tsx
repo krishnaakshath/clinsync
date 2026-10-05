@@ -8,10 +8,11 @@ import {
   FileBarChart, TrendingUp, BarChart3, CreditCard, FileBarChart2, FolderOpen,
   Megaphone, Star, Activity, Settings, ChevronDown, ChevronRight, History,
   ClipboardCheck, ListChecks, BedDouble, Pill, TestTube2, IdCard, CalendarClock, Search,
-  Syringe, DollarSign, ScrollText,
+  DollarSign, ScrollText,
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
+import { useLiveNavBadges } from '@/components/useLiveNavBadges'
 
 type Icon = React.ComponentType<{ className?: string }>
 
@@ -116,7 +117,8 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-export type NavBadges = Partial<Record<string, number>>
+/** Count per nav href; `null` = badge intentionally suppressed (no pill). */
+export type NavBadges = Partial<Record<string, number | null>>
 
 function NavLink({ href, label, icon: Icon, active, badge }: { href: string; label: string; icon: Icon; active: boolean; badge?: number }) {
   return (
@@ -140,8 +142,10 @@ function NavLink({ href, label, icon: Icon, active, badge }: { href: string; lab
 
 export const BILLING_ROLES: Role[] = ['admin', 'crc', 'billing']
 
-export function LeftNav({ role, badges }: { role: Role; badges?: NavBadges }) {
+export function LeftNav({ role, badges: initialBadges }: { role: Role; badges?: NavBadges }) {
   const pathname = usePathname()
+  // Server-computed counts are the initial state; the hook keeps them live.
+  const badges = useLiveNavBadges(initialBadges)
   const items = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
   const trailingItems = NAV_TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
   const showBilling = BILLING_ROLES.includes(role)
@@ -172,7 +176,7 @@ export function LeftNav({ role, badges }: { role: Role; badges?: NavBadges }) {
             <ul className="space-y-0.5">
               {items.map((item) => (
                 <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
+                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href] ?? undefined} />
                 </li>
               ))}
             </ul>
@@ -202,7 +206,7 @@ export function LeftNav({ role, badges }: { role: Role; badges?: NavBadges }) {
               <ul className={`mt-0.5 space-y-0.5 ${!isBillingOnly ? 'ps-3' : ''}`}>
                 {NAV_BILLING_ITEMS.map((item) => (
                   <li key={item.href}>
-                    <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
+                    <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href] ?? undefined} />
                   </li>
                 ))}
               </ul>
@@ -216,7 +220,7 @@ export function LeftNav({ role, badges }: { role: Role; badges?: NavBadges }) {
             <ul className="space-y-0.5">
               {trailingItems.map((item) => (
                 <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href]} />
+                  <NavLink href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} badge={badges?.[item.href] ?? undefined} />
                 </li>
               ))}
             </ul>

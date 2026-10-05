@@ -5,6 +5,7 @@ import { requirePatientSessionOrRedirect } from '@/lib/patient-session'
 import { getPatientPortalData } from '@/lib/queries/patient-portal'
 import { listBroadcastsForPatient } from '@/lib/queries/broadcasts'
 import { logPatientPortalAction } from '@/lib/patient-portal-audit'
+import { normalizeVisitReason } from '@/lib/notification-templates'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 const HEADING = 'mb-3 border-l-2 border-primary/40 pl-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -57,7 +58,7 @@ export default async function PatientPortalOverviewPage() {
             <Link href="/patient-portal/appointments" className={`${SECTION} group flex items-center justify-between transition-all duration-200 hover:border-primary/25 hover:shadow-md`}>
               <div>
                 <h2 className={HEADING}>Your next visit</h2>
-                <p className="text-sm font-medium text-foreground">{nextAppointment.visitReason} with {nextAppointment.providerName}</p>
+                <p className="text-sm font-medium text-foreground">{normalizeVisitReason(nextAppointment.visitReason)} with {nextAppointment.providerName}</p>
                 <p className="text-xs text-muted-foreground">{new Date(nextAppointment.startsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

@@ -1,4 +1,5 @@
 // Fixed, pure patient-notification copy. No DB access, no patient-supplied text.
+// The only free-text field (visitReason) is normalized by normalizeVisitReason.
 //
 // Date/time rule (src/lib/queries/reports.ts:24-29): use LOCAL formatters only and
 // never mix toISOString() (UTC) with a local formatter, or visits near midnight
@@ -37,6 +38,28 @@ export const WHAT_TO_BRING: readonly string[] = [
 export const INPATIENT_OVERNIGHT_BAG =
   'An overnight bag — a few days of comfortable clothes and toiletries, and your medicines in their original labelled containers'
 
+export const VISIT_REASON_MAX_LENGTH = 140
+export const VISIT_REASON_FALLBACK = 'General visit'
+
+// The reason originates as free text (check-in, booking), so it is normalized
+// wherever it is shown to the patient: whitespace (including newlines, which
+// could otherwise forge extra lines in a message) collapses to single spaces,
+// and the result is capped at VISIT_REASON_MAX_LENGTH with an ellipsis.
+// Length is measured in UTF-16 units -- the same unit zod's .max() and an
+// input's maxLength use -- and a surrogate pair is never split.
+export function normalizeVisitReason(reason: string): string {
+  const collapsed = reason.replace(/\s+/g, ' ').trim()
+  if (collapsed === '') return VISIT_REASON_FALLBACK
+  if (collapsed.length <= VISIT_REASON_MAX_LENGTH) return collapsed
+  const budget = VISIT_REASON_MAX_LENGTH - 1 // room for the ellipsis
+  let out = ''
+  for (const ch of collapsed) {
+    if (out.length + ch.length > budget) break
+    out += ch
+  }
+  return out.trimEnd() + '…'
+}
+
 export function buildVisitConfirmationBody(input: VisitConfirmationInput): string {
   const items = input.visitType === 'inpatient' ? [...WHAT_TO_BRING, INPATIENT_OVERNIGHT_BAG] : [...WHAT_TO_BRING]
   return [
@@ -44,7 +67,7 @@ export function buildVisitConfirmationBody(input: VisitConfirmationInput): strin
     '',
     `${input.providerName} will see you on ${formatVisitDate(input.startsAt)} at ${formatVisitTime(input.startsAt)}.`,
     '',
-    `Reason for visit: ${input.visitReason}`,
+    `Reason for visit: ${normalizeVisitReason(input.visitReason)}`,
     '',
     'Please bring with you:',
     ...items.map((i) => `• ${i}`),
