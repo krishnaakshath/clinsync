@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -17,7 +18,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const providerId = Number(id)
   if (!Number.isInteger(providerId)) return NextResponse.json({ error: 'Invalid provider id' }, { status: 400 })
 
-  const parsed = updateProviderSchema.safeParse(await request.json())
+  const parsed = updateProviderSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 })
 
   const updated = await updateProviderName(providerId, parsed.data.name)

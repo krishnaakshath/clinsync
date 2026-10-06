@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { identityVerifications } from '@/db/schema'
@@ -18,7 +19,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (session instanceof NextResponse) return session
   const { anonId } = await params
 
-  const parsed = verifySchema.safeParse(await request.json())
+  const parsed = verifySchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid identity verification payload', details: parsed.error.flatten() }, { status: 400 })
 
   const [existing] = await getDb().select().from(identityVerifications).where(eq(identityVerifications.patientId, anonId))

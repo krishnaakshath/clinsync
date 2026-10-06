@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { appointments } from '@/db/schema'
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 
-  const parsed = createAppointmentSchema.safeParse(await request.json())
+  const parsed = createAppointmentSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid appointment payload', details: parsed.error.flatten() }, { status: 400 })
 
   const startsAt = new Date(parsed.data.startsAt)

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { documents } from '@/db/schema'
@@ -19,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
-  const parsed = updateDocumentSchema.safeParse(await request.json())
+  const parsed = updateDocumentSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid document update', details: parsed.error.flatten() }, { status: 400 })
 
   const existing = await getDocument(Number(id))

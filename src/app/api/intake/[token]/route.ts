@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { formSubmissions } from '@/db/schema'
@@ -33,7 +34,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const patientId = await getSubmissionPatientIdByToken(token)
   if (!patientId) return NextResponse.json({ error: 'This link is no longer valid.' }, { status: 404 })
 
-  const parsed = submitSchema.safeParse(await request.json())
+  const parsed = submitSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid submission', details: parsed.error.flatten() }, { status: 400 })
 
   const status = parsed.data.complete ? 'completed' : 'partial'

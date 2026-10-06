@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { appointments } from '@/db/schema'
@@ -20,7 +21,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (session instanceof NextResponse) return session
   const { id } = await params
 
-  const parsed = updateAppointmentSchema.safeParse(await request.json())
+  const parsed = updateAppointmentSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid appointment update', details: parsed.error.flatten() }, { status: 400 })
 
   const existing = await getAppointment(Number(id))

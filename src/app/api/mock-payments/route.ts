@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
 import { canAccessOperations } from '@/lib/role-capabilities'
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (session instanceof NextResponse) return session
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const parsed = mockPaymentSchema.safeParse(await request.json())
+  const parsed = mockPaymentSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid payment payload', details: parsed.error.flatten() }, { status: 400 })
 
   const payment = await createMockPayment({

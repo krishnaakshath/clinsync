@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
 import { canAccessOperations } from '@/lib/role-capabilities'
@@ -25,7 +26,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
-  const parsed = statusUpdateSchema.safeParse(await request.json())
+  const parsed = statusUpdateSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid status payload', details: parsed.error.flatten() }, { status: 400 })
 
   const existing = await getCharge(Number(id))

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { reviews } from '@/db/schema'
@@ -33,7 +34,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
-  const parsed = recordResponseSchema.safeParse(await request.json())
+  const parsed = recordResponseSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid survey response payload', details: parsed.error.flatten() }, { status: 400 })
 
   const existing = await getReview(Number(id))
