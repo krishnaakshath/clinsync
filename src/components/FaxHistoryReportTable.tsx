@@ -5,6 +5,10 @@ import type { DataGridFilterField } from '@/components/DataGridToolbar'
 export interface FaxReportRow {
   id: number
   faxDate: string
+  // Preformatted on the server (see the page) -- formatting here with
+  // toLocale*() would use the browser's timezone/locale and mismatch the
+  // server-rendered HTML on hydration (React #418).
+  faxDateLabel: string
   subject: string
   documentsIncluded: string
   deliveryStatus: 'delivered' | 'failed'
@@ -27,7 +31,7 @@ const FILTER_FIELDS: DataGridFilterField[] = [
 ]
 
 const COLUMNS: ReportColumn<FaxReportRow>[] = [
-  { key: 'faxDate', label: 'Date', render: (f) => new Date(f.faxDate).toLocaleString() },
+  { key: 'faxDate', label: 'Date', render: (f) => f.faxDateLabel },
   { key: 'subject', label: 'Message Subject', render: (f) => f.subject },
   { key: 'documentsIncluded', label: 'Document(s) Included', render: (f) => f.documentsIncluded },
   {

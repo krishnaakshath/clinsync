@@ -15,7 +15,7 @@ export default async function PatientStatementsPage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold text-foreground">Patient Statements</h1>
       <p className="mb-4 text-sm text-muted-foreground">Activity log of statements sent to patients.</p>
-      <PatientStatementsTable statements={statements} />
+      <PatientStatementsTable statements={statements.map((s) => ({ ...s, sentDateLabel: new Date(s.sentDate).toLocaleDateString() }))} />
     </div>
   )
 }

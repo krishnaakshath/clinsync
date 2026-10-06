@@ -14,7 +14,7 @@ export default async function UnsignedNotesReportPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-foreground">Unsigned Notes</h1>
-      <UnsignedNotesReportTable rows={rows} />
+      <UnsignedNotesReportTable rows={rows.map((r) => ({ ...r, visitDateLabel: r.visitDate ? new Date(r.visitDate).toLocaleDateString() : null }))} />
     </div>
   )
 }

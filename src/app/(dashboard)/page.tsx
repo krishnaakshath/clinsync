@@ -153,6 +153,8 @@ export default async function DashboardHomePage() {
           visitReason: a.visitReason,
           status: a.status,
           startsAt: a.startsAt.toString(),
+          dateLabel: new Date(a.startsAt).toLocaleDateString([], { dateStyle: 'medium' }),
+          timeLabel: new Date(a.startsAt).toLocaleTimeString([], { timeStyle: 'short' }),
         }))} />
       </section>
 
