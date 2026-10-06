@@ -11,16 +11,25 @@ export function SendFormModal({ templates, patients, onClose }: {
   const [templateId, setTemplateId] = useState<number | ''>('')
   const [patientId, setPatientId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function submit() {
     setSubmitting(true)
-    const res = await fetch('/api/form-submissions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ templateId, patientId }),
-    })
-    setSubmitting(false)
-    if (res.ok) { router.refresh(); onClose() }
+    setError(null)
+    try {
+      const res = await fetch('/api/form-submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId, patientId }),
+      })
+      if (res.ok) { router.refresh(); onClose(); return }
+      const body = await res.json().catch(() => null)
+      setError(body?.error ?? 'Could not send this form.')
+    } catch {
+      setError('Could not reach the server. The form was not sent.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -37,6 +46,7 @@ export function SendFormModal({ templates, patients, onClose }: {
             {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
+        {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md border border-border px-4 py-1.5 text-sm font-medium text-foreground hover:bg-secondary">Cancel</button>
           <button onClick={submit} disabled={submitting || !templateId || !patientId} className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">Send Form</button>
