@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type { Role } from '@/lib/auth'
 import { ClinsyncLogo } from '@/components/ClinsyncLogo'
+import { OPERATIONS_ROLES, canAccessOperations } from '@/lib/role-capabilities'
 
 type Icon = React.ComponentType<{ className?: string }>
 
@@ -25,15 +26,15 @@ type Icon = React.ComponentType<{ className?: string }>
 // clinical review, not practice administration. Admin and CRC both keep
 // full operational access -- see src/lib/role-capabilities.ts, which this
 // must stay consistent with.
-const ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
+const ITEMS: { href: string; label: string; icon: Icon; roles?: readonly Role[] }[] = [
   { href: '/', label: 'Home', icon: LayoutDashboard },
   { href: '/doctor', label: 'My Patients', icon: Stethoscope, roles: ['pi'] as Role[] },
   { href: '/patients', label: 'Patients', icon: Users },
-  { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: ['admin', 'crc'] as Role[] },
-  { href: '/identity-matching', label: 'Identity Matching', icon: Fingerprint, roles: ['admin', 'crc'] as Role[] },
+  { href: '/workbook', label: 'Workbook', icon: ClipboardList, roles: OPERATIONS_ROLES },
+  { href: '/identity-matching', label: 'Identity Matching', icon: Fingerprint, roles: OPERATIONS_ROLES },
   { href: '/trials', label: 'Trials & Protocols', icon: FlaskConical },
   { href: '/calendar', label: 'Calendar', icon: Calendar },
-  { href: '/forms', label: 'Form Templates', icon: FileText, roles: ['admin', 'crc'] as Role[] },
+  { href: '/forms', label: 'Form Templates', icon: FileText, roles: OPERATIONS_ROLES },
   { href: '/client-forms', label: 'Client Forms', icon: FileSignature },
   { href: '/messages', label: 'Messages', icon: MessageSquare },
 ]
@@ -48,12 +49,12 @@ const BILLING_ITEMS: { href: string; label: string; icon: Icon }[] = [
   { href: '/billing/pay', label: 'Virtual Card Payment (Demo)', icon: CreditCard },
 ]
 
-const TRAILING_ITEMS: { href: string; label: string; icon: Icon; roles?: Role[] }[] = [
-  { href: '/reports', label: 'Reports', icon: FileBarChart2, roles: ['admin', 'crc'] as Role[] },
-  { href: '/documents', label: 'Documents', icon: FolderOpen, roles: ['admin', 'crc'] as Role[] },
-  { href: '/broadcasts', label: 'Broadcasts', icon: Megaphone, roles: ['admin', 'crc'] as Role[] },
-  { href: '/experience-surveys', label: 'Experience Surveys', icon: Star, roles: ['admin', 'crc'] as Role[] },
-  { href: '/pipeline-dashboard', label: 'Pipeline Dashboard', icon: Activity, roles: ['admin', 'crc'] as Role[] },
+const TRAILING_ITEMS: { href: string; label: string; icon: Icon; roles?: readonly Role[] }[] = [
+  { href: '/reports', label: 'Reports', icon: FileBarChart2, roles: OPERATIONS_ROLES },
+  { href: '/documents', label: 'Documents', icon: FolderOpen, roles: OPERATIONS_ROLES },
+  { href: '/broadcasts', label: 'Broadcasts', icon: Megaphone, roles: OPERATIONS_ROLES },
+  { href: '/experience-surveys', label: 'Experience Surveys', icon: Star, roles: OPERATIONS_ROLES },
+  { href: '/pipeline-dashboard', label: 'Pipeline Dashboard', icon: Activity, roles: OPERATIONS_ROLES },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
@@ -86,7 +87,7 @@ export function LeftNav({ role }: { role: Role }) {
   const pathname = usePathname()
   const items = ITEMS.filter((item) => !item.roles || item.roles.includes(role))
   const trailingItems = TRAILING_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
-  const showBilling = role === 'admin' || role === 'crc'
+  const showBilling = canAccessOperations(role)
   const billingActive = pathname?.startsWith('/billing') ?? false
   const [billingOpen, setBillingOpen] = useState(billingActive)
 

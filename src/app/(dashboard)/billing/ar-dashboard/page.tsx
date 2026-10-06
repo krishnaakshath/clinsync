@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getArDashboardData } from '@/lib/queries/ar-dashboard'
 import { formatCents } from '@/lib/format'
@@ -15,6 +17,7 @@ function KpiCard({ label, value }: { label: string; value: string }) {
 
 export default async function ArDashboardPage() {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const data = await getArDashboardData()
   await logAudit(session, 'viewed A/R dashboard', null)
 

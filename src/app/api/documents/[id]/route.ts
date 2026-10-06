@@ -4,6 +4,7 @@ import { getDb } from '@/db/client'
 import { documents } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getDocument } from '@/lib/queries/documents'
 import { invalidateCache, documentsListCacheKey } from '@/lib/cache'
@@ -15,6 +16,7 @@ const updateDocumentSchema = z.object({
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
   const parsed = updateDocumentSchema.safeParse(await request.json())

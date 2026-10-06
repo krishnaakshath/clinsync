@@ -1,10 +1,13 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listPatientStatements } from '@/lib/queries/patient-statements'
 import { PatientStatementsTable } from '@/components/PatientStatementsTable'
 
 export default async function PatientStatementsPage() {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const statements = await listPatientStatements()
   await logAudit(session, 'viewed patient statements activity', null)
 

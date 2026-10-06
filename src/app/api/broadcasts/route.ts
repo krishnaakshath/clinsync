@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { broadcasts } from '@/db/schema'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listBroadcasts, listBroadcastRecipientCandidates, simulateBroadcastDelivery, invalidateBroadcastsList } from '@/lib/queries/broadcasts'
 
@@ -28,12 +29,14 @@ const createBroadcastSchema = z
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   return NextResponse.json(await listBroadcasts())
 }
 
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = createBroadcastSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid broadcast payload', details: parsed.error.flatten() }, { status: 400 })

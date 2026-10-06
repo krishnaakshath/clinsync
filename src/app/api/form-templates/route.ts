@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { formTemplates } from '@/db/schema'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listFormTemplates, invalidateFormTemplatesList } from '@/lib/queries/form-templates'
 
@@ -25,12 +26,14 @@ const createTemplateSchema = z.object({
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   return NextResponse.json(await listFormTemplates())
 }
 
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = createTemplateSchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid template payload', details: parsed.error.flatten() }, { status: 400 })

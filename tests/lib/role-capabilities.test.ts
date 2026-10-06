@@ -17,3 +17,13 @@ describe('ROLE_CAPABILITIES', () => {
     }
   })
 })
+
+describe('canAccessOperations', () => {
+  it('is true for exactly the roles LeftNav shows the operations surface to (admin, crc)', async () => {
+    const { canAccessOperations, OPERATIONS_ROLES } = await import('@/lib/role-capabilities')
+    expect([...OPERATIONS_ROLES].sort()).toEqual(['admin', 'crc'])
+    expect(canAccessOperations('admin')).toBe(true)
+    expect(canAccessOperations('crc')).toBe(true)
+    expect(canAccessOperations('pi')).toBe(false)
+  })
+})

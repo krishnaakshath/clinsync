@@ -1,10 +1,13 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listUnsignedNotesReport } from '@/lib/queries/reports'
 import { UnsignedNotesReportTable } from '@/components/UnsignedNotesReportTable'
 
 export default async function UnsignedNotesReportPage() {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const rows = await listUnsignedNotesReport()
   await logAudit(session, 'viewed report: unsigned notes', null)
 

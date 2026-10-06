@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server'
 import { buildFullWorkbookXlsx } from '@/lib/excel-export'
 import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { listWorkbookRows } from '@/lib/queries/workbook'
 
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const rows = await listWorkbookRows()
   const buffer = await buildFullWorkbookXlsx(rows)

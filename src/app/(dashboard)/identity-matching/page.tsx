@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listPendingIdentityMatches } from '@/lib/queries/identity-matches'
 
@@ -6,6 +8,7 @@ export default async function IdentityMatchingPage() {
   // Must be the first statement — see the comment in patients/page.tsx for
   // why relying on the layout's redirect() alone isn't sufficient.
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const matches = await listPendingIdentityMatches()
   await logAudit(session, 'viewed identity matching queue', null)
 

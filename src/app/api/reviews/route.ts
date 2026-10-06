@@ -4,6 +4,7 @@ import { getDb } from '@/db/client'
 import { reviews, formSubmissions } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listReviews, invalidateReviewsList } from '@/lib/queries/reviews'
 
@@ -12,6 +13,7 @@ const sendSurveySchema = z.object({ formSubmissionId: z.number().int().positive(
 export async function GET(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const url = new URL(request.url)
   const statusParam = url.searchParams.get('status')
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = sendSurveySchema.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Invalid send-survey payload', details: parsed.error.flatten() }, { status: 400 })
