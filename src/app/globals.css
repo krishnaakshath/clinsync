@@ -140,3 +140,33 @@
     @apply font-sans;
   }
 }
+/* Pure-CSS sign-in backdrop: the fallback for LoginBackdrop when WebGL is
+   unavailable or reduced motion is requested. Transform-only animation. */
+.login-aurora-css {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  filter: blur(60px);
+}
+.login-aurora-blob {
+  position: absolute;
+  top: -10%;
+  width: 55%;
+  height: 90%;
+  border-radius: 9999px;
+  will-change: transform;
+}
+.login-aurora-blob-a { left: -5%; background: #3d4f8f; animation: login-aurora-drift-a 18s ease-in-out infinite alternate; }
+.login-aurora-blob-b { left: 28%; background: #c98a4b; animation: login-aurora-drift-b 22s ease-in-out infinite alternate; }
+.login-aurora-blob-c { right: -5%; background: #3d4f8f; animation: login-aurora-drift-a 26s ease-in-out infinite alternate-reverse; }
+@keyframes login-aurora-drift-a {
+  from { transform: translate3d(-6%, 0, 0) scale(1); }
+  to { transform: translate3d(8%, 12%, 0) scale(1.12); }
+}
+@keyframes login-aurora-drift-b {
+  from { transform: translate3d(6%, 6%, 0) scale(1.05); }
+  to { transform: translate3d(-8%, -6%, 0) scale(0.95); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-aurora-blob { animation: none; }
+}
