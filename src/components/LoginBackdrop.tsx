@@ -1,15 +1,17 @@
 'use client'
 
 import { Component, useEffect, useState, type ReactNode } from 'react'
-import Aurora from '@/components/Aurora'
+import Iridescence from '@/components/Iridescence'
 
 // The sign-in backdrop must never be able to take the page down. The WebGL
-// Aurora (reactbits.dev) is used where the browser can actually create a
+// Iridescence (reactbits.dev) is used where the browser can actually create a
 // WebGL2 context; everywhere else (privacy shields, hardware acceleration
 // off, remote desktops, headless) -- and for visitors who ask for reduced
 // motion -- a pure-CSS aurora of the same palette is shown instead.
 
-const STOPS = ['#3d4f8f', '#2aa6a1', '#c98a4b']
+// Iridescence tint (rgb 0-1): a cool, clinical blue-white that keeps the
+// card readable while the colours shimmer through it.
+const TINT: [number, number, number] = [0.72, 0.82, 1]
 
 function supportsWebGL2(): boolean {
   try {
@@ -59,15 +61,15 @@ export function LoginBackdrop() {
   }, [])
 
   // The CSS aurora is always the base layer (so the page is never plain);
-  // the WebGL Aurora is an enhancement drawn over it where it is supported.
+  // the WebGL Iridescence is an enhancement drawn over it where it is supported.
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
       <CssAurora />
       <div className="login-dotgrid" />
       {mode === 'webgl' && (
-        <div className="absolute inset-0 opacity-60 mix-blend-multiply">
+        <div className="absolute inset-0 opacity-70">
           <WebGLBoundary fallback={null}>
-            <Aurora colorStops={STOPS} amplitude={0.9} blend={0.5} lightMode />
+            <Iridescence color={TINT} speed={0.6} amplitude={0.12} mouseReact />
           </WebGLBoundary>
         </div>
       )}

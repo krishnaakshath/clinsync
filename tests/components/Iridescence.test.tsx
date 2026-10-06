@@ -17,11 +17,11 @@ vi.mock('ogl', () => ({
   Triangle: class {},
 }))
 
-import Aurora from '@/components/Aurora'
+import Iridescence from '@/components/Iridescence'
 
-describe('Aurora', () => {
+describe('Iridescence', () => {
   it('renders an empty container instead of crashing when WebGL is unavailable', () => {
-    const { container } = render(<Aurora colorStops={['#000000', '#111111', '#222222']} />)
+    const { container } = render(<Iridescence />)
     expect(container.querySelector('canvas')).toBeNull()
     expect(container.firstElementChild).not.toBeNull()
   })

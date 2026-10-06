@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
 
-vi.mock('@/components/Aurora', () => ({
+vi.mock('@/components/Iridescence', () => ({
   default: () => {
     throw new Error('webgl exploded')
   },
