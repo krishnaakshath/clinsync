@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FileClock, ClipboardCheck, LayoutTemplate, Clock, Users, Star, Send, CheckCircle2, Fingerprint, Sparkles, ArrowRight } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { PortalTileLink } from '@/components/PortalTileLink'
 import { CountUp } from '@/components/CountUp'
@@ -155,10 +156,12 @@ export default async function DashboardHomePage() {
         }))} />
       </section>
 
-      <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+      {/* Form Templates (/forms) is operations-only -- a PI would just be
+          redirected back here, so they don't get that tile. */}
+      <div className={`mb-4 grid grid-cols-2 gap-4 ${canAccessOperations(session.role) ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
         <MiniStatTile value={data.pendingFormsTotal} label="Pending Forms" href="/client-forms" icon={FileClock} color="sky" />
         <MiniStatTile value={data.pendingClassification.length} label="Pending Classifications" href="/patients" icon={ClipboardCheck} color="accent" />
-        <MiniStatTile value={templates.length} label="Form Templates" href="/forms" icon={LayoutTemplate} color="chart4" />
+        {canAccessOperations(session.role) && <MiniStatTile value={templates.length} label="Form Templates" href="/forms" icon={LayoutTemplate} color="chart4" />}
         <MiniStatTile value={patients.length} label="Total Patients" href="/patients" icon={Users} color="primary" />
       </div>
 
