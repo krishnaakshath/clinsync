@@ -1,4 +1,8 @@
-import { FHIRPatient, MedicationRequestResult, ConditionResult } from './types'
+import type { FHIRPatient, MedicationRequestResult, ConditionResult, TebraConnector } from './types'
+
+// Demo data for local development and tests ONLY. Selected by
+// getEhrConnectors() (src/connectors/index.ts) solely when EHR_USE_MOCKS=1
+// outside production -- never as a silent fallback.
 
 const PATIENTS: FHIRPatient[] = [
   { tebraPatientId: 'tebra-001', firstName: 'Maria', lastName: 'Alvarez', birthDate: '1985-03-12', city: 'Redlands', zip: '92373', email: 'maria.alvarez.demo@example.com', generalPractitioner: 'Dr. R. Kunam' },
@@ -52,4 +56,12 @@ export async function getInactiveMedications(patientId: string): Promise<Medicat
 
 export async function getConditions(patientId: string): Promise<ConditionResult[]> {
   return CONDITIONS[patientId] ?? []
+}
+
+export async function testConnection(): Promise<void> {}
+
+export const tebraMock: TebraConnector = {
+  supportsClinicalData: true,
+  listPatients, searchPatient, getPatientById, createPatient,
+  getActiveMedications, getInactiveMedications, getConditions, testConnection,
 }

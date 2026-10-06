@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client'
 import { appSettings } from '@/db/schema'
 import { eq } from 'drizzle-orm'
-import { encryptSensitive } from '@/lib/crypto'
+import { encryptSensitive, decryptSensitive } from '@/lib/crypto'
 
 // Single-row settings table: always operate on row id 1 (created by the seed).
 export async function getAppSettings() {
@@ -56,6 +56,33 @@ export async function updateEhrCredentials(input: EhrCredentialsInput) {
   if (input.tebraPassword) patch.tebraPasswordEncrypted = encryptSensitive(input.tebraPassword)
   if (Object.keys(patch).length === 0) return
   await getDb().update(appSettings).set(patch).where(eq(appSettings.id, current.id))
+}
+
+export interface EhrCredentials {
+  intakeq: { apiKey: string } | null
+  tebra: { customerKey: string; user: string; password: string } | null
+}
+
+/**
+ * SERVER-ONLY. Decrypts the stored EHR credentials for the connector factory
+ * (src/connectors/index.ts) to make outbound calls with. The result must
+ * never be returned from a route, passed to a Client Component, cached, or
+ * logged -- the Settings page uses getSettingsSummary()'s booleans instead.
+ * Tebra counts as configured only when all three of its fields are present
+ * (the customer key alone does not authenticate).
+ */
+export async function getEhrCredentials(): Promise<EhrCredentials> {
+  const s = await getAppSettings()
+  return {
+    intakeq: s.intakeqApiKeyEncrypted ? { apiKey: decryptSensitive(s.intakeqApiKeyEncrypted) } : null,
+    tebra: s.tebraCustomerKeyEncrypted && s.tebraUserEncrypted && s.tebraPasswordEncrypted
+      ? {
+          customerKey: decryptSensitive(s.tebraCustomerKeyEncrypted),
+          user: decryptSensitive(s.tebraUserEncrypted),
+          password: decryptSensitive(s.tebraPasswordEncrypted),
+        }
+      : null,
+  }
 }
 
 export async function getAdminMfaState(): Promise<{ mfaSecretEncrypted: string | null; mfaEnabled: boolean }> {
