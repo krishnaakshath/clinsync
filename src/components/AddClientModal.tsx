@@ -21,12 +21,14 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<NewPatientForm>(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmed, setConfirmed] = useState(false)
 
   function update<K extends keyof NewPatientForm>(key: K, value: NewPatientForm[K]) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
   async function submit() {
+    if (!confirmed) return
     setSubmitting(true)
     setError(null)
     const res = await fetch('/api/patients', {
@@ -59,8 +61,8 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-card p-6 shadow-lg">
         <h2 className="mb-1 text-lg font-semibold text-foreground">Add New Patient</h2>
-        <p className="mb-4 text-xs text-muted-foreground">
-          This creates a new chart in Tebra -- Clinsync doesn&apos;t store patient records of its own.
+        <p className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-foreground">
+          Submitting this form creates a real patient chart in the connected Tebra practice. It is not a draft and cannot be undone from Clinsync -- Clinsync doesn&apos;t store patient records of its own.
         </p>
 
         <div className="space-y-3">
@@ -80,10 +82,15 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
           <input value={form.currentProvider} onChange={(e) => update('currentProvider', e.target.value)} placeholder="Current provider (optional)" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
         </div>
 
+        <label className="mt-4 flex items-start gap-2 text-sm text-foreground">
+          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5" />
+          <span>I confirm this will create a real patient chart in Tebra.</span>
+        </label>
+
         {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md border border-border px-4 py-1.5 text-sm font-medium text-foreground hover:bg-secondary">Cancel</button>
-          <button onClick={submit} disabled={submitting || !form.name || !form.dob} className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">Save</button>
+          <button onClick={submit} disabled={submitting || !confirmed || !form.name || !form.dob} className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">{submitting ? 'Creating…' : 'Create chart in Tebra'}</button>
         </div>
       </div>
     </div>

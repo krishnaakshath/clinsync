@@ -5,6 +5,7 @@ import { getDb } from '@/db/client'
 import { patients } from '@/db/schema'
 import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
+import { canAddPatients } from '@/lib/role-capabilities'
 import { invalidateCache, patientListCacheKey } from '@/lib/cache'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { getEhrConnectors } from '@/connectors'
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAddPatients(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = addClientSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid new-client payload', details: parsed.error.flatten() }, { status: 400 })

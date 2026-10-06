@@ -5,6 +5,7 @@ import { getDb } from '@/db/client'
 import { formSubmissions } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { requireSession } from '@/lib/auth'
+import { canSendForms } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getFormSubmission } from '@/lib/queries/form-submissions'
 import { maybeAutoClassify } from '@/lib/auto-classify'
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canSendForms(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
   const parsed = updateSubmissionSchema.safeParse(await readJsonBody(request))

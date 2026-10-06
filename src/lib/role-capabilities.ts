@@ -13,14 +13,15 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
     summary: 'Runs day-to-day pre-screening and practice operations: reviews patients, resolves identity matches, manages intake forms, and handles billing.',
     bullets: [
       'View and search the Patients workbook across all trials, Workbook, and Identity Matching',
-      'Send and track intake forms via Form Templates and Client Forms',
+      'Send and track intake forms via Form Templates and Client Forms, change a submission\'s status, and resolve form-vs-chart discrepancies',
+      'Add New Patient (creates a real chart in Tebra) and see the practice-wide activity feed',
       'Manage Calendar, Billing, Broadcasts, Experience Surveys, and the Pipeline Dashboard',
       'View Reports and Documents',
     ],
   },
   pi: {
     label: 'Principal Investigator',
-    summary: 'A focused, clinical-only view for making eligibility calls from the evidence Clinsync surfaces — practice operations (billing, forms administration, broadcasts, reports) are the coordinator\'s and admin\'s tools, not shown here.',
+    summary: 'A focused, clinical-only view for making eligibility calls from the evidence Clinsync surfaces — practice operations (billing, sending forms, adding patients, the practice activity feed, broadcasts, reports) are the coordinator\'s and admin\'s tools, not shown here.',
     bullets: [
       'View "My Patients" — the panel of patients currently assigned to them',
       'Review screening evidence to confirm or overturn an eligibility verdict',
@@ -53,4 +54,25 @@ export const OPERATIONS_ROLES: readonly Role[] = ['admin', 'crc']
 
 export function canAccessOperations(role: Role): boolean {
   return OPERATIONS_ROLES.includes(role)
+}
+
+/**
+ * Owner decision: these practice-wide actions are admin/crc only, a PI is
+ * clinical-review-only. Each has its own named predicate so a call site says
+ * what it is gating, but they all resolve to the same operations roles here
+ * -- change the policy in this file, nowhere else. API handlers enforce them
+ * (403 right after requireSession); the UI hides the controls as a courtesy.
+ *  - canSendForms: Send Form to Client, changing a form submission's status,
+ *    resolving a form-vs-chart discrepancy.
+ *  - canAddPatients: Add New Patient (creates a real chart in Tebra).
+ *  - canViewActivityFeed: the practice-wide audit-log feed (notification bell).
+ */
+export function canSendForms(role: Role): boolean {
+  return canAccessOperations(role)
+}
+export function canAddPatients(role: Role): boolean {
+  return canAccessOperations(role)
+}
+export function canViewActivityFeed(role: Role): boolean {
+  return canAccessOperations(role)
 }

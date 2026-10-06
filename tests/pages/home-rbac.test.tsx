@@ -38,3 +38,16 @@ describe('home dashboard Form Templates tile', () => {
     expect(formsLinks()).toHaveLength(1)
   })
 })
+
+describe('home dashboard quick actions (Send Form to Client / Add New Patient)', () => {
+  it('are not rendered for a PI', async () => {
+    await renderAs('pi')
+    expect(screen.queryByText('Send Form to Client')).toBeNull()
+    expect(screen.queryByText('Add New Patient')).toBeNull()
+  })
+  it.each(['crc', 'admin'] as const)('are rendered for %s', async (role) => {
+    await renderAs(role)
+    expect(screen.getByText('Send Form to Client')).toBeInTheDocument()
+    expect(screen.getByText('Add New Patient')).toBeInTheDocument()
+  })
+})

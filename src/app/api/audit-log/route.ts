@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSession } from '@/lib/auth'
+import { canViewActivityFeed } from '@/lib/role-capabilities'
 import { listAuditLog } from '@/lib/queries/audit-log'
 
 export async function GET(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canViewActivityFeed(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const limitParam = request.nextUrl.searchParams.get('limit')
   const limit = limitParam ? Number(limitParam) : undefined

@@ -13,6 +13,7 @@ import { Tabs } from '@/components/Tabs'
 import { DeletePatientButton } from '@/components/DeletePatientButton'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { canSendForms } from '@/lib/role-capabilities'
 import { getPatientDetail } from '@/lib/queries/patients'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
@@ -110,7 +111,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       <section className={SECTION}>
         <h2 className={SECTION_HEADING}>Form vs. Chart Discrepancies</h2>
         <p className="mb-3 text-xs text-muted-foreground">Dual verification between what the patient self-reported on their intake form and what their actual chart shows.</p>
-        <DiscrepancyList discrepancies={patient.discrepancies.map((d) => ({
+        <DiscrepancyList canResolve={canSendForms(session.role)} discrepancies={patient.discrepancies.map((d) => ({
           id: d.id,
           questionLabel: d.questionLabel,
           patientAnswer: d.patientAnswer,
