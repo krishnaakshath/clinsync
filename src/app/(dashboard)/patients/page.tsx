@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { canAddPatients } from '@/lib/role-capabilities'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listAllTrials } from '@/lib/queries/trials'
 import { PatientsTable } from '@/components/PatientsTable'
@@ -24,7 +25,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Patients</h1>
         <div className="flex items-center gap-3">
-          <AddPatientButton />
+          {canAddPatients(session.role) && <AddPatientButton />}
           <a href="/api/workbook/export" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">Download Verification Workbook</a>
         </div>
       </div>
