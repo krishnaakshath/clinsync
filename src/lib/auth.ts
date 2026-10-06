@@ -7,6 +7,15 @@ export type Role = 'crc' | 'pi' | 'admin'
 export interface Session { role: Role; name: string }
 
 const VALID_ROLES: readonly Role[] = ['crc', 'pi', 'admin']
+
+/**
+ * True only for the roles this app actually supports. The shared Postgres
+ * `role` enum is wider (it also carries hims-platform roles), so a users row
+ * can hold a role this code must never mint a session for.
+ */
+export function isStaffRole(value: unknown): value is Role {
+  return VALID_ROLES.includes(value as Role)
+}
 const COOKIE_NAME = 'clinsync_demo_session'
 // Absolute session lifetime -- a server-enforced backstop independent of the
 // client-side idle timer (SessionTimeoutWarning), which cannot itself expire
@@ -49,7 +58,7 @@ export async function parseSessionCookie(value: string): Promise<Session | null>
     // an invalid role here previously reached the audit_log insert and
     // crashed with a Postgres enum-constraint violation on every subsequent
     // audited request for that session.
-    if (payload.kind === 'staff' && typeof payload.name === 'string' && payload.name.length > 0 && VALID_ROLES.includes(payload.role as Role)) {
+    if (payload.kind === 'staff' && typeof payload.name === 'string' && payload.name.length > 0 && isStaffRole(payload.role)) {
       return { role: payload.role as Role, name: payload.name }
     }
     return null
