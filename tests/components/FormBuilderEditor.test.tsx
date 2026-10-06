@@ -58,3 +58,23 @@ describe('FormBuilderEditor', () => {
     expect(body.questions[0].options).toEqual(['Mild'])
   })
 })
+
+describe('FormBuilderEditor save failure', () => {
+  // PUT /api/form-templates/:id returns 400 for e.g. a blank form name (zod
+  // min(1)) and 403 for a non-operations role; the editor used to ignore any
+  // non-2xx and look exactly like a successful save.
+  it('shows the server error when the save is rejected', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'Invalid template payload' }), { status: 400 })))
+    render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={[]} />)
+    fireEvent.click(screen.getByText('Save Form'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid template payload')
+  })
+
+  it('shows a fallback message when the request itself fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
+    render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={[]} />)
+    fireEvent.click(screen.getByText('Save Form'))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not/i)
+    await waitFor(() => expect(screen.getByText('Save Form')).not.toBeDisabled())
+  })
+})

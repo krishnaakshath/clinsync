@@ -25,6 +25,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
   const [diagnosisTag, setDiagnosisTag] = useState(initialDiagnosisTag)
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function addQuestion() {
     setQuestions([...questions, { id: `q${Date.now()}`, label: 'New question', type: 'text', hipaaSensitive: false, required: false }])
@@ -71,16 +72,27 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
 
   async function save() {
     setSaving(true)
+    setError(null)
     // Drop blank option rows (e.g. an "+ Add option" click the user never
     // filled in) so choice questions don't ship empty entries to patients.
     const cleaned = questions.map((q) => (q.type === 'select' ? { ...q, options: (q.options ?? []).map((o) => o.trim()).filter(Boolean) } : q))
-    const res = await fetch(`/api/form-templates/${templateId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, category, diagnosisTag, questions: cleaned }),
-    })
-    setSaving(false)
-    if (res.ok) router.refresh()
+    try {
+      const res = await fetch(`/api/form-templates/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, category, diagnosisTag, questions: cleaned }),
+      })
+      if (res.ok) {
+        router.refresh()
+        return
+      }
+      const body = await res.json().catch(() => null)
+      setError(body?.error ?? 'Could not save this form.')
+    } catch {
+      setError('Could not reach the server. The form was not saved.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -158,6 +170,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
         ))}
       </div>
 
+      {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
       <div className="mt-4 flex justify-between">
         <button onClick={addQuestion} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">+ Add New Question</button>
         <button onClick={save} disabled={saving} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">Save Form</button>
