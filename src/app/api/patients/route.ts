@@ -7,7 +7,9 @@ import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
 import { invalidateCache, patientListCacheKey } from '@/lib/cache'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
-import * as tebra from '@/connectors/tebra.mock'
+import { getEhrConnectors } from '@/connectors'
+import { EhrConnectorError } from '@/connectors/errors'
+import type { FHIRPatient } from '@/connectors/types'
 
 // A patient's clinical chart is created in Tebra, never as a row typed
 // directly into Clinsync -- Clinsync reconciles and displays chart data, it
@@ -43,17 +45,29 @@ export async function POST(request: NextRequest) {
   const parsed = addClientSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid new-client payload', details: parsed.error.flatten() }, { status: 400 })
 
+  // The chart is registered in whichever Tebra the factory resolves: the
+  // real one when an admin has saved credentials, the demo mock only when
+  // EHR_USE_MOCKS=1 outside production. Never a silent mock in production.
+  const { tebra } = await getEhrConnectors()
+  if (!tebra) return NextResponse.json({ error: 'EHR connections are not configured: an admin must connect Tebra before new patients can be added.' }, { status: 503 })
+
   const [firstName, ...rest] = parsed.data.name.trim().split(/\s+/)
   const lastName = rest.join(' ') || firstName
-  const tebraPatient = await tebra.createPatient({
-    firstName,
-    lastName,
-    birthDate: parsed.data.dob,
-    city: parsed.data.city ?? '',
-    zip: parsed.data.zip ?? '',
-    email: parsed.data.email ?? '',
-    generalPractitioner: parsed.data.currentProvider ?? '',
-  })
+  let tebraPatient: FHIRPatient
+  try {
+    tebraPatient = await tebra.createPatient({
+      firstName,
+      lastName,
+      birthDate: parsed.data.dob,
+      city: parsed.data.city ?? '',
+      zip: parsed.data.zip ?? '',
+      email: parsed.data.email ?? '',
+      generalPractitioner: parsed.data.currentProvider ?? '',
+    })
+  } catch (err) {
+    if (err instanceof EhrConnectorError) return NextResponse.json({ error: err.message }, { status: 502 })
+    throw err
+  }
 
   // Anon IDs are RD-#### sequential; find the current max and increment.
   // Some legacy/imported charts carry non-numeric RD- ids (e.g.

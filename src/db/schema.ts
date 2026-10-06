@@ -373,12 +373,11 @@ export const appSettings = pgTable('app_settings', {
   practiceName: text('practice_name'),
   practiceSite: text('practice_site'),
   practiceTimezone: text('practice_timezone').default('America/Los_Angeles'),
-  // Credentials for the real Tebra/IntakeQ APIs, stored so an admin can
-  // provision them here once the vendor issues real access -- this pilot
-  // has a signed BAA but no API access yet, so nothing reads these fields
-  // to make an outbound call today. AES-256-GCM encrypted at rest via
+  // Credentials for the real Tebra/IntakeQ APIs, saved by an admin on
+  // Settings -> EHR Connections. AES-256-GCM encrypted at rest via
   // lib/crypto.ts, same as identityVerifications.idNumberEncrypted; never
-  // decrypted for display, only for a future real sync job to consume.
+  // decrypted for display -- only by getEhrCredentials() for the connector
+  // factory (src/connectors/index.ts) to make outbound calls.
   intakeqApiKeyEncrypted: text('intakeq_api_key_encrypted'),
   tebraCustomerKeyEncrypted: text('tebra_customer_key_encrypted'),
   tebraUserEncrypted: text('tebra_user_encrypted'),

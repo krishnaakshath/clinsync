@@ -9,6 +9,11 @@ function StatusPill({ connected }: { connected: boolean }) {
   )
 }
 
+type ConnectionCheck = { ok: boolean; message: string }
+type SyncResult = { newPatients: number; newMatches: number; refreshedPatients: number }
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
 export function EhrConnectionsForm({ initial, isAdmin }: {
   initial: { intakeqConfigured: boolean; tebraConfigured: boolean }
   isAdmin: boolean
@@ -21,6 +26,42 @@ export function EhrConnectionsForm({ initial, isAdmin }: {
   const [tebraPassword, setTebraPassword] = useState('')
   const [saving, setSaving] = useState<'intakeq' | 'tebra' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ intakeq: ConnectionCheck; tebra: ConnectionCheck } | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
+
+  async function testConnections() {
+    setTesting(true)
+    setTestResult(null)
+    setError(null)
+    try {
+      const res = await fetch('/api/settings/ehr-connections/test', { method: 'POST' })
+      if (!res.ok) { setError('Could not run the connection test.'); return }
+      setTestResult(await res.json())
+    } catch {
+      setError('Could not run the connection test.')
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  async function syncNow() {
+    setSyncing(true)
+    setSyncResult(null)
+    setSyncError(null)
+    try {
+      const res = await fetch('/api/settings/ehr-connections/sync', { method: 'POST' })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) { setSyncError(body?.error ?? 'Sync failed.'); return }
+      setSyncResult(body)
+    } catch {
+      setSyncError('Sync failed.')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   async function save(payload: Record<string, string>, which: 'intakeq' | 'tebra') {
     setSaving(which)
@@ -42,8 +83,9 @@ export function EhrConnectionsForm({ initial, isAdmin }: {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Store API credentials here so they&apos;re ready to use once Tebra and IntakeQ issue real API access for this pilot.
-        Nothing in this app calls either API today — patient data is still mock/synthetic until that access is provisioned.
+        Credentials are encrypted at rest and never shown again after saving. Once both IntakeQ and Tebra are connected,
+        use <span className="font-medium text-foreground">Test connection</span> to validate them and{' '}
+        <span className="font-medium text-foreground">Sync now</span> to pull clients and charts. Sync never changes staff-entered fields.
       </p>
 
       <div className="rounded-lg border border-border p-4">
@@ -100,6 +142,39 @@ export function EhrConnectionsForm({ initial, isAdmin }: {
           </button>
         )}
       </div>
+
+      {isAdmin && (
+        <div className="rounded-lg border border-border p-4">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={testConnections}
+              disabled={testing}
+              className="rounded-md border border-border px-4 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+            >
+              {testing ? 'Testing…' : 'Test connection'}
+            </button>
+            <button
+              onClick={syncNow}
+              disabled={syncing}
+              className="rounded-md bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {syncing ? 'Syncing…' : 'Sync now'}
+            </button>
+          </div>
+          {testResult && (
+            <ul className="mt-3 space-y-1 text-sm" aria-live="polite">
+              <li className={testResult.intakeq.ok ? 'text-primary' : 'text-destructive'}>IntakeQ: {testResult.intakeq.message}</li>
+              <li className={testResult.tebra.ok ? 'text-primary' : 'text-destructive'}>Tebra: {testResult.tebra.message}</li>
+            </ul>
+          )}
+          {syncResult && (
+            <p className="mt-3 text-sm text-foreground" aria-live="polite">
+              Sync complete: {plural(syncResult.newPatients, 'new patient', 'new patients')}, {plural(syncResult.newMatches, 'new identity match', 'new identity matches')}, {syncResult.refreshedPatients} refreshed.
+            </p>
+          )}
+          {syncError && <p className="mt-3 text-sm text-destructive" aria-live="polite">{syncError}</p>}
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
