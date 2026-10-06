@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { formSubmissions } from '@/db/schema'
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 
-  const parsed = sendFormSchema.safeParse(await request.json())
+  const parsed = sendFormSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid send-form payload', details: parsed.error.flatten() }, { status: 400 })
 
   const accessToken = randomBytes(32).toString('base64url')

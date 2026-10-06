@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getSession, type Session } from '@/lib/auth'
 import { getPatientSession, type PatientSession } from '@/lib/patient-session'
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ patientId: string }> }) {
   const { patientId } = await params
 
-  const parsed = sendMessageSchema.safeParse(await request.json())
+  const parsed = sendMessageSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid message payload', details: parsed.error.flatten() }, { status: 400 })
 
   const actor = await resolveActor(patientId, parsed.data.actingAs)

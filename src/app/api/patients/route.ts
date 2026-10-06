@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { patients } from '@/db/schema'
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 
-  const parsed = addClientSchema.safeParse(await request.json())
+  const parsed = addClientSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid new-client payload', details: parsed.error.flatten() }, { status: 400 })
 
   const [firstName, ...rest] = parsed.data.name.trim().split(/\s+/)

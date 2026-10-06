@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { formTemplates } from '@/db/schema'
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
   if (session instanceof NextResponse) return session
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const parsed = createTemplateSchema.safeParse(await request.json())
+  const parsed = createTemplateSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid template payload', details: parsed.error.flatten() }, { status: 400 })
 
   const [created] = await getDb().insert(formTemplates).values(parsed.data).returning()

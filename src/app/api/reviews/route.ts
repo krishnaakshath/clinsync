@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { reviews, formSubmissions } from '@/db/schema'
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
   if (session instanceof NextResponse) return session
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const parsed = sendSurveySchema.safeParse(await request.json())
+  const parsed = sendSurveySchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid send-survey payload', details: parsed.error.flatten() }, { status: 400 })
 
   const [submission] = await getDb().select().from(formSubmissions).where(eq(formSubmissions.id, parsed.data.formSubmissionId))

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { readJsonBody } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { formSubmissions } from '@/db/schema'
@@ -29,7 +30,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (session instanceof NextResponse) return session
   const { id } = await params
 
-  const parsed = updateSubmissionSchema.safeParse(await request.json())
+  const parsed = updateSubmissionSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid submission update', details: parsed.error.flatten() }, { status: 400 })
 
   const existing = await getFormSubmission(Number(id))
