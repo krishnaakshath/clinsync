@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { Role } from '@/lib/auth'
-import { setSessionCookie } from '@/lib/auth'
+import { isStaffRole, setSessionCookie } from '@/lib/auth'
 import { encryptSensitive } from '@/lib/crypto'
 import { generateMfaEnrollment } from '@/lib/mfa'
 import { setPendingStaffMfaCookie } from '@/lib/mfa-pending-session'
@@ -67,7 +67,10 @@ export async function POST(request: NextRequest) {
   }
 
   const user = await findUserByEmail(email)
-  if (user?.passwordHash && verifyPassword(password, user.passwordHash)) {
+  // A row whose role this app doesn't support (see isStaffRole) gets the
+  // same generic 401 -- minting a session/MFA cookie for it would "succeed"
+  // and then bounce the user straight back to /login.
+  if (user?.passwordHash && isStaffRole(user.role) && verifyPassword(password, user.passwordHash)) {
     if (staffMfaDisabled) return completeLoginWithoutMfa(user.role, user.name)
     return startStaffMfaChallenge({ role: user.role, name: user.name, userId: user.id })
   }
