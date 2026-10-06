@@ -118,10 +118,10 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
       zipIntakeq: client.zip,
       phoneIntakeq: client.phone,
       emailIntakeq: client.email,
-      referralType: intake?.referralType ?? null,
-      availability: intake?.availability ?? null,
+      referralType: intake?.referralType || null,
+      availability: intake?.availability || null,
       commConsentSigned: intake?.consentSigned ?? false,
-      commConsentPref: intake?.consentPreference ?? null,
+      commConsentPref: intake?.consentPreference || null,
       ratingScales: intake?.ratingScales ?? [],
     })
     knownIntakeqRefs.add(client.clientId)

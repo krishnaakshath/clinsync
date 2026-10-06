@@ -26,7 +26,7 @@ function soapResponse(body: string, status = 200) {
 
 function makeClient(responses: Array<Response | Error>, extra: Partial<Parameters<typeof createTebraClient>[0]> = {}) {
   const clock = fakeClock()
-  const fetchImpl = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => {
+  const fetchImpl = vi.fn<(url: string | URL | Request, init?: RequestInit) => Promise<Response>>(async () => {
     const next = responses.shift()
     if (!next) throw new Error('unexpected extra fetch')
     if (next instanceof Error) throw next
