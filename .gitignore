@@ -54,3 +54,6 @@ Clinsync-20260917T042827Z-1-001 - Copy/
 
 .vercel
 .env*
+
+# local agent run reports (superpowers) -- never committed
+.superpowers/
