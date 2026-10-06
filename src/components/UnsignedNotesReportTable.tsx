@@ -7,6 +7,10 @@ export interface UnsignedNoteRow {
   patientId: string
   patientName: string
   visitDate: string | null
+  // Preformatted on the server (see the page) -- formatting here with
+  // toLocale*() would use the browser's timezone/locale and mismatch the
+  // server-rendered HTML on hydration (React #418).
+  visitDateLabel: string | null
   noteType: string
   status: string
   assignedUser: string
@@ -21,7 +25,7 @@ const FILTER_FIELDS: DataGridFilterField[] = [
 const COLUMNS: ReportColumn<UnsignedNoteRow>[] = [
   { key: 'assignedUser', label: 'Assigned User', render: (r) => r.assignedUser },
   { key: 'patientName', label: 'Patient', render: (r) => r.patientName },
-  { key: 'visitDate', label: 'Visit Date', render: (r) => (r.visitDate ? new Date(r.visitDate).toLocaleDateString() : '—') },
+  { key: 'visitDate', label: 'Visit Date', render: (r) => r.visitDateLabel ?? '—' },
   { key: 'status', label: 'Status', render: (r) => r.status },
   { key: 'noteType', label: 'Note Type', render: (r) => r.noteType },
   { key: 'noteId', label: 'Note ID', render: (r) => r.noteId },

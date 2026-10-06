@@ -11,5 +11,7 @@ export default async function FaxHistoryPage() {
   const faxes = await listFaxes()
   await logAudit(session, 'viewed fax history', null)
 
-  return <FaxHistoryReportTable rows={faxes} />
+  // Date labels are formatted here on the server and passed down, so the
+  // client table's hydration render can't disagree with this HTML.
+  return <FaxHistoryReportTable rows={faxes.map((f) => ({ ...f, faxDateLabel: new Date(f.faxDate).toLocaleString() }))} />
 }

@@ -13,6 +13,11 @@ export interface DashboardAppointmentRow {
   visitReason: string
   status: AppointmentStatus
   startsAt: string
+  // Preformatted on the server (see the page) -- formatting here with
+  // toLocale*() would use the browser's timezone/locale and mismatch the
+  // server-rendered HTML on hydration (React #418).
+  dateLabel: string
+  timeLabel: string
 }
 
 // Same deterministic-hash approach as PatientAvatar's color assignment --
@@ -88,7 +93,6 @@ export function DashboardAppointmentsTable({ appointments }: { appointments: Das
             </thead>
             <tbody>
               {filtered.map((a) => {
-                const startsAt = new Date(a.startsAt)
                 return (
                   <tr key={a.id} className="border-b border-border last:border-b-0 hover:bg-secondary/50">
                     <td className="py-2.5 pr-3">
@@ -99,8 +103,8 @@ export function DashboardAppointmentsTable({ appointments }: { appointments: Das
                     </td>
                     <td className="py-2.5 pr-3"><ReasonPill reason={a.visitReason} /></td>
                     <td className="py-2.5 pr-3"><AppointmentStatusChip status={a.status} /></td>
-                    <td className="py-2.5 pr-3 text-muted-foreground">{startsAt.toLocaleDateString([], { dateStyle: 'medium' })}</td>
-                    <td className="py-2.5 pr-3 text-muted-foreground">{startsAt.toLocaleTimeString([], { timeStyle: 'short' })}</td>
+                    <td className="py-2.5 pr-3 text-muted-foreground">{a.dateLabel}</td>
+                    <td className="py-2.5 pr-3 text-muted-foreground">{a.timeLabel}</td>
                     <td className="py-2.5 pr-3 text-muted-foreground">{a.providerName}</td>
                   </tr>
                 )
