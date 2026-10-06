@@ -1,4 +1,8 @@
-import { IntakeQClient, IntakeQIntake } from './types'
+import type { IntakeQClient, IntakeQConnector, IntakeQIntake } from './types'
+
+// Demo data for local development and tests ONLY. Selected by
+// getEhrConnectors() (src/connectors/index.ts) solely when EHR_USE_MOCKS=1
+// outside production -- never as a silent fallback.
 
 const CLIENTS: Record<string, IntakeQClient> = {
   // Has a matching Tebra chart (see tebra.mock.ts) -- an existing patient
@@ -37,3 +41,7 @@ export async function listIntakes(): Promise<IntakeQIntake[]> {
 export async function getIntakeByClientId(clientId: string): Promise<IntakeQIntake | null> {
   return Object.values(INTAKES).find((i) => i.clientId === clientId) ?? null
 }
+
+export async function testConnection(): Promise<void> {}
+
+export const intakeqMock: IntakeQConnector = { listClients, getClient, getIntakeByClientId, getFullIntake, testConnection }
