@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listAllTrials } from '@/lib/queries/trials'
@@ -6,6 +8,7 @@ import { PatientsReportTable } from '@/components/PatientsReportTable'
 
 export default async function PatientsReportPage() {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const [patients, trials] = await Promise.all([listPatientsWithStatus(null), listAllTrials()])
   await logAudit(session, 'viewed report: all patients', null)
 

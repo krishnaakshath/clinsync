@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listFormTemplates } from '@/lib/queries/form-templates'
 import { FormTemplateCard } from '@/components/FormTemplateCard'
@@ -6,6 +8,7 @@ import { CreateFormButton } from '@/components/CreateFormButton'
 
 export default async function FormsPage() {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const templates = await listFormTemplates()
   await logAudit(session, 'viewed form templates', null)
 

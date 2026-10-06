@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import type { ComponentType } from 'react'
 import { UserPlus, FileCheck2, ClipboardCheck, Hourglass } from 'lucide-react'
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getPipelinePerformance, getPipelineTrend } from '@/lib/queries/pipeline-dashboard'
 import { PipelineTrendChart } from '@/components/PipelineTrendChart'
@@ -57,6 +59,7 @@ function resolveRange(preset: string | undefined, from: string | undefined, to: 
 
 export default async function PipelineDashboardPage({ searchParams }: { searchParams: Promise<{ preset?: string; from?: string; to?: string }> }) {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const sp = await searchParams
   const range = resolveRange(sp.preset, sp.from, sp.to)
   const [performance, trend] = await Promise.all([

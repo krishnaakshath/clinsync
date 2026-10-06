@@ -41,3 +41,16 @@ export const ROLE_CAPABILITIES: Record<Role, { label: string; summary: string; b
     ],
   },
 }
+
+/**
+ * Roles that get the practice-operations surface: Workbook, Identity
+ * Matching, Form Templates, Billing, Reports, Documents, Broadcasts,
+ * Experience Surveys, Pipeline Dashboard. LeftNav filters its links on this,
+ * and every one of those pages (redirect to /) and their API routes (403)
+ * enforce it server-side -- a hidden nav link alone is not access control.
+ */
+export const OPERATIONS_ROLES: readonly Role[] = ['admin', 'crc']
+
+export function canAccessOperations(role: Role): boolean {
+  return OPERATIONS_ROLES.includes(role)
+}

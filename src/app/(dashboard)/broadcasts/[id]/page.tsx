@@ -1,11 +1,13 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getBroadcast } from '@/lib/queries/broadcasts'
 
 export default async function BroadcastDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const { id } = await params
   const broadcast = await getBroadcast(Number(id))
   if (!broadcast) notFound()

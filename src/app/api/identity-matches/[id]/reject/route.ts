@@ -4,6 +4,7 @@ import { identityMatches } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { rejectCrossOrigin } from '@/lib/csrf'
 
 // The system never auto-selects a candidate — Reject is a first-class action,
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
   const [updated] = await getDb().update(identityMatches).set({ status: 'rejected' }).where(eq(identityMatches.id, Number(id))).returning()

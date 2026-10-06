@@ -1,5 +1,6 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getReview } from '@/lib/queries/reviews'
 import { RecordSurveyResponseForm } from '@/components/RecordSurveyResponseForm'
@@ -9,6 +10,7 @@ const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm ba
 
 export default async function ExperienceSurveyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const { id } = await params
   const review = await getReview(Number(id))
   if (!review) notFound()

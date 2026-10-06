@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listPatientsWithStatus } from '@/lib/queries/patients'
 import { listCharges } from '@/lib/queries/charges'
@@ -10,6 +12,7 @@ export default async function VirtualCardPaymentPage({
   searchParams: Promise<{ patientId?: string; amountCents?: string }>
 }) {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const { patientId, amountCents } = await searchParams
   const [patients, charges] = await Promise.all([listPatientsWithStatus(null), listCharges()])
   await logAudit(session, 'viewed virtual card payment form (demo)', patientId ?? null)

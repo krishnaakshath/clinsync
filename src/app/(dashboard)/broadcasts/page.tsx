@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listBroadcasts } from '@/lib/queries/broadcasts'
 import { listAllTrials } from '@/lib/queries/trials'
@@ -7,6 +9,7 @@ import { BroadcastWizard } from '@/components/BroadcastWizard'
 
 export default async function BroadcastsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const { tab } = await searchParams
   const activeTab = tab === 'history' ? 'history' : 'send'
   await logAudit(session, `viewed broadcasts (${activeTab})`, null)

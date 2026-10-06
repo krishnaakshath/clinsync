@@ -4,6 +4,7 @@ import { getDb } from '@/db/client'
 import { formTemplates } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getFormTemplate, invalidateFormTemplatesList } from '@/lib/queries/form-templates'
 
@@ -21,6 +22,7 @@ const updateTemplateSchema = z.object({
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
   const template = await getFormTemplate(Number(id))
   if (!template) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -30,6 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
   const parsed = updateTemplateSchema.safeParse(await request.json())

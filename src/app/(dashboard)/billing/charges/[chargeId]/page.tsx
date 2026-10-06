@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getCharge } from '@/lib/queries/charges'
 import { formatCents } from '@/lib/format'
@@ -18,6 +19,7 @@ const STATUS_DOT: Record<ChargeStatus, string> = {
 export default async function ChargeCaptureDetailPage({ params }: { params: Promise<{ chargeId: string }> }) {
   // Must be the first statement — see the comment in patients/page.tsx.
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
 
   const { chargeId } = await params
   const charge = await getCharge(Number(chargeId))

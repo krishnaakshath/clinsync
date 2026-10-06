@@ -1,10 +1,13 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listWorkbookRows } from '@/lib/queries/workbook'
 import { WorkbookTable } from '@/components/WorkbookTable'
 
 export default async function WorkbookPage() {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const rows = await listWorkbookRows()
   await logAudit(session, 'viewed full pre-screening workbook', null)
 

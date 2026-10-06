@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getBillingAnalyticsData } from '@/lib/queries/billing-analytics'
 import { formatCents } from '@/lib/format'
@@ -15,6 +17,7 @@ function KpiCard({ label, value }: { label: string; value: string }) {
 
 export default async function BillingAnalyticsPage() {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const data = await getBillingAnalyticsData()
   await logAudit(session, 'viewed billing analytics', null)
 

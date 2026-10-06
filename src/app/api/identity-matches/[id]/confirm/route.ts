@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { rejectCrossOrigin } from '@/lib/csrf'
 import { confirmIdentityMatch } from '@/lib/ehr-sync'
 
@@ -10,6 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
   // Confirming doesn't just flip the queue row's status -- it pulls both

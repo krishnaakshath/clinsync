@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { Star, MessagesSquare, Send } from 'lucide-react'
+import { redirect } from 'next/navigation'
 import { requireSessionOrRedirect } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listReviews, listSurveyableSubmissions } from '@/lib/queries/reviews'
 import { SendSurveyButton } from '@/components/SendSurveyButton'
@@ -12,6 +14,7 @@ const STATUS_LABEL: Record<string, string> = { sent: 'Sent', completed: 'Complet
 
 export default async function ExperienceSurveysPage({ searchParams }: { searchParams: Promise<{ status?: string; dateFrom?: string; dateTo?: string; sortBy?: string; sortDir?: string }> }) {
   const session = await requireSessionOrRedirect()
+  if (!canAccessOperations(session.role)) redirect('/')
   const sp = await searchParams
   const filters = {
     status: sp.status === 'sent' || sp.status === 'completed' ? (sp.status as 'sent' | 'completed') : undefined,
