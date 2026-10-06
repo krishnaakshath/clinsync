@@ -152,6 +152,23 @@ describe('Tebra SOAP client -- responses', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
+  // Captured from the live Kareo 2.1 service with deliberately bogus credentials.
+  it('maps the live "Invalid customer key" response (CustomerKeyValid=false) to auth_failed', async () => {
+    const { client } = makeClient([soapResponse(fixture('live-get-practices-invalid-customer-key.xml'))])
+    expect((await captureError(client.testConnection())).kind).toBe('auth_failed')
+  })
+
+  it('maps a live InternalServiceFault delivered with HTTP 200 to vendor_error', async () => {
+    const { client } = makeClient([soapResponse(fixture('live-get-patient-internal-fault-http200.xml'))])
+    expect((await captureError(client.getPatientById('1'))).kind).toBe('vendor_error')
+  })
+
+  it('always sends a Filter element on GetPatients (the live service null-refs without one)', async () => {
+    const { client, fetchImpl } = makeClient([soapResponse(fixture('get-patients-empty.xml'))])
+    await client.listPatients()
+    expect(String(fetchImpl.mock.calls[0][1]!.body)).toContain('<sch:Filter></sch:Filter>')
+  })
+
   it('maps an HTTP 401 to auth_failed', async () => {
     const { client } = makeClient([new Response('Unauthorized', { status: 401 })])
     expect((await captureError(client.listPatients())).kind).toBe('auth_failed')

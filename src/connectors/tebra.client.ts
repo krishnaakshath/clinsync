@@ -184,8 +184,10 @@ export function createTebraClient(options: TebraClientOptions): TebraConnector {
   }
 
   async function getPatients(filter: Record<string, string | undefined>): Promise<FHIRPatient[]> {
-    const filterXml = members(filter)
-    const result = await call('GetPatients', fieldsXml(PATIENT_FIELDS) + (filterXml ? el('Filter', filterXml) : ''))
+    // Filter is always sent, even empty: verified against the live service,
+    // GetPatients without a Filter element fails server-side with a
+    // NullReferenceException in date validation (before authentication).
+    const result = await call('GetPatients', fieldsXml(PATIENT_FIELDS) + el('Filter', members(filter)))
     const list = child(result, 'Patients')
     if (isNil(list)) return []
     return childrenNamed(list, 'PatientData').map(mapPatient).filter((p) => p.tebraPatientId !== '')
