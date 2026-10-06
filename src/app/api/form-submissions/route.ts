@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { formSubmissions } from '@/db/schema'
 import { requireSession } from '@/lib/auth'
+import { canSendForms } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { listFormSubmissions } from '@/lib/queries/form-submissions'
 
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canSendForms(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = sendFormSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid send-form payload', details: parsed.error.flatten() }, { status: 400 })

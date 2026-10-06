@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { FileClock, ClipboardCheck, LayoutTemplate, Clock, Users, Star, Send, CheckCircle2, Fingerprint, Sparkles, ArrowRight } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
-import { canAccessOperations } from '@/lib/role-capabilities'
+import { canAccessOperations, canSendForms, canAddPatients } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { PortalTileLink } from '@/components/PortalTileLink'
 import { CountUp } from '@/components/CountUp'
@@ -89,7 +89,7 @@ export default async function DashboardHomePage() {
           <h1 className="text-2xl font-bold text-foreground">Hello, {session.name}!</h1>
           <p className="text-sm text-muted-foreground">Here&apos;s what&apos;s happening across the pre-screening workbook today.</p>
         </div>
-        <DashboardHomeClient templates={templates.map((t) => ({ id: t.id, name: t.name }))} patients={patients.map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq, name: p.name }))} />
+        <DashboardHomeClient canSendForm={canSendForms(session.role)} canAddPatient={canAddPatients(session.role)} templates={templates.map((t) => ({ id: t.id, name: t.name }))} patients={patients.map((p) => ({ id: p.id, nameTebra: p.nameTebra, nameIntakeq: p.nameIntakeq, name: p.name }))} />
       </div>
 
       {/* Reference-inspired stat row: a text stat with a trend affordance, a

@@ -3,18 +3,21 @@ import { useState } from 'react'
 import { AddClientModal } from './AddClientModal'
 import { SendFormModal } from './SendFormModal'
 
-export function DashboardHomeClient({ templates, patients }: {
+export function DashboardHomeClient({ templates, patients, canSendForm = false, canAddPatient = false }: {
+  canSendForm?: boolean
+  canAddPatient?: boolean
   templates: { id: number; name: string }[]
   patients: { id: string; nameTebra: string | null; nameIntakeq: string; name: string }[]
 }) {
   const [openModal, setOpenModal] = useState<'client' | 'form' | null>(null)
+  if (!canSendForm && !canAddPatient) return null
 
   return (
     <div className="mb-6 flex gap-3">
-      <button onClick={() => setOpenModal('form')} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90">Send Form to Client</button>
-      <button onClick={() => setOpenModal('client')} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">Add New Patient</button>
-      {openModal === 'client' && <AddClientModal onClose={() => setOpenModal(null)} />}
-      {openModal === 'form' && <SendFormModal templates={templates} patients={patients} onClose={() => setOpenModal(null)} />}
+      {canSendForm && <button onClick={() => setOpenModal('form')} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90">Send Form to Client</button>}
+      {canAddPatient && <button onClick={() => setOpenModal('client')} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">Add New Patient</button>}
+      {canAddPatient && openModal === 'client' && <AddClientModal onClose={() => setOpenModal(null)} />}
+      {canSendForm && openModal === 'form' && <SendFormModal templates={templates} patients={patients} onClose={() => setOpenModal(null)} />}
     </div>
   )
 }

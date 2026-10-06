@@ -12,7 +12,7 @@ export interface DiscrepancyRow {
   createdAt: string
 }
 
-export function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyRow[] }) {
+export function DiscrepancyList({ discrepancies, canResolve = false }: { discrepancies: DiscrepancyRow[]; canResolve?: boolean }) {
   const [resolvingId, setResolvingId] = useState<number | null>(null)
 
   const open = discrepancies.filter((d) => !d.resolved)
@@ -29,7 +29,7 @@ export function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyR
   }
 
   if (discrepancies.length === 0) {
-    return <p className="text-sm text-muted-foreground">No discrepancies found between this patient's form answers and their chart.</p>
+    return <p className="text-sm text-muted-foreground">No discrepancies found between this patient&apos;s form answers and their chart.</p>
   }
 
   return (
@@ -42,13 +42,13 @@ export function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyR
           </div>
           <p className="text-sm text-foreground">Patient said: <span className="font-medium">{d.patientAnswer}</span></p>
           <p className="text-sm text-foreground">Chart shows: <span className="font-medium">{d.chartFinding}</span></p>
-          <button
+          {canResolve && <button
             onClick={() => resolve(d.id)}
             disabled={resolvingId === d.id}
             className="mt-3 rounded-md border border-amber-500/40 bg-card px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
           >
             {resolvingId === d.id ? 'Marking resolved…' : 'Mark resolved'}
-          </button>
+          </button>}
         </div>
       ))}
       {resolved.length > 0 && (
