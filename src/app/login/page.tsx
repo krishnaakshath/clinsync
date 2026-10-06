@@ -53,25 +53,22 @@ export default function LoginPage() {
     return null
   }
 
-  // A plain, centered sign-in -- no marketing panel, no feature bullets, no
-  // dot-pattern background. The prior split-screen design read like a SaaS
-  // landing page; this is a tool clinicians open dozens of times a day, so
-  // it matches the plain, utilitarian login every other enterprise/clinical
-  // system uses (researched via Mobbin: Xero, n8n, OpenAI Platform).
+  // A centered sign-in over an animated aurora backdrop (see LoginBackdrop,
+  // which never depends on WebGL). The form itself stays plain and fast --
+  // this is a tool clinicians open dozens of times a day.
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-10">
-      {/* A faint, slow wash behind the card. LoginBackdrop picks the WebGL
-          Aurora or a CSS fallback, so a browser without WebGL never breaks
-          the sign-in page. */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-10">
+      {/* Animated backdrop: always-on CSS aurora + WebGL Aurora where supported. */}
       <LoginBackdrop />
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <ClinsyncLogo className="h-5 w-5" />
+        <div className="login-brand-in mb-8 flex flex-col items-center gap-3 text-center">
+          <span className="login-logo-ring flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary backdrop-blur-sm">
+            <ClinsyncLogo className="h-6 w-6" />
           </span>
-          <span className="text-lg font-bold tracking-tight text-foreground">Clinsync</span>
+          <span className="login-shimmer text-2xl font-extrabold tracking-tight">Clinsync</span>
+          <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Clinical operations, connected</span>
         </div>
-        <div className="rounded-xl border border-border bg-card p-7 shadow-sm">
+        <div className="login-card-in rounded-2xl border border-white/60 bg-card/80 p-7 shadow-xl shadow-primary/10 backdrop-blur-md">
           {step.kind === 'password' && (
             <>
               <div className="mb-6 text-center">

@@ -9,7 +9,7 @@ import Aurora from '@/components/Aurora'
 // off, remote desktops, headless) -- and for visitors who ask for reduced
 // motion -- a pure-CSS aurora of the same palette is shown instead.
 
-const STOPS = ['#3d4f8f', '#c98a4b', '#3d4f8f']
+const STOPS = ['#3d4f8f', '#2aa6a1', '#c98a4b']
 
 function supportsWebGL2(): boolean {
   try {
@@ -29,6 +29,7 @@ function CssAurora() {
       <span className="login-aurora-blob login-aurora-blob-a" />
       <span className="login-aurora-blob login-aurora-blob-b" />
       <span className="login-aurora-blob login-aurora-blob-c" />
+      <span className="login-aurora-blob login-aurora-blob-d" />
     </div>
   )
 }
@@ -57,14 +58,18 @@ export function LoginBackdrop() {
     setMode(!reduced && supportsWebGL2() ? 'webgl' : 'css')
   }, [])
 
+  // The CSS aurora is always the base layer (so the page is never plain);
+  // the WebGL Aurora is an enhancement drawn over it where it is supported.
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[500px] opacity-[0.25]">
-      {mode === 'webgl' ? (
-        <WebGLBoundary fallback={<CssAurora />}>
-          <Aurora colorStops={STOPS} amplitude={0.5} blend={0.4} lightMode />
-        </WebGLBoundary>
-      ) : (
-        <CssAurora />
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+      <CssAurora />
+      <div className="login-dotgrid" />
+      {mode === 'webgl' && (
+        <div className="absolute inset-0 opacity-60 mix-blend-multiply">
+          <WebGLBoundary fallback={null}>
+            <Aurora colorStops={STOPS} amplitude={0.9} blend={0.5} lightMode />
+          </WebGLBoundary>
+        </div>
       )}
     </div>
   )
