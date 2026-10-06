@@ -6,10 +6,9 @@ import { updateEhrCredentials, getSettingsSummary } from '@/lib/queries/settings
 
 // Every field optional and only ever set, never read back -- a blank field
 // means "leave what's already stored alone" (see the comment in
-// updateEhrCredentials). This pilot has a signed BAA but no real Tebra/
-// IntakeQ API access yet, so nothing reads these credentials to make an
-// outbound call today; this just gives an admin a place to provision them
-// ahead of that access being granted.
+// updateEhrCredentials). The saved credentials are decrypted server-side
+// only by the connector factory (src/connectors/index.ts) for real IntakeQ/
+// Tebra calls; see ./test (validate) and ./sync (Sync now).
 const ehrCredentialsSchema = z.object({
   intakeqApiKey: z.string().trim().optional(),
   tebraCustomerKey: z.string().trim().optional(),

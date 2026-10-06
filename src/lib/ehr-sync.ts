@@ -1,13 +1,22 @@
 import { getDb } from '@/db/client'
 import { patients, identityMatches, diagnoses, medicationEpisodes } from '@/db/schema'
 import { eq } from 'drizzle-orm'
-import * as intakeq from '@/connectors/intakeq.mock'
-import * as tebra from '@/connectors/tebra.mock'
+import { getEhrConnectors, requireEhrConnectors } from '@/connectors'
+import type { FHIRPatient } from '@/connectors/types'
 import { invalidateCache, patientDetailCacheKey, patientListCacheKey } from '@/lib/cache'
 
 function unwrapRef(ref: string): string {
   const match = ref.match(/^ENC\[(.+)\]$/)
   return match ? match[1] : ref
+}
+
+const normName = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
+
+/** Exact (normalised) name + DOB match -- the same rule the mock's searchPatient() applies. */
+function findTebraCandidates(tebraPatients: FHIRPatient[], fullName: string, dob: string): FHIRPatient[] {
+  if (!dob) return []
+  const wanted = normName(fullName)
+  return tebraPatients.filter((p) => p.birthDate === dob && normName(`${p.firstName} ${p.lastName}`) === wanted)
 }
 
 async function nextAnonId(): Promise<string> {
@@ -42,19 +51,33 @@ async function nextAnonId(): Promise<string> {
  *    same invariant the per-patient "Refresh from source systems" button
  *    already promises.
  *
- * No real IntakeQ/Tebra credentials exist yet (see EhrConnectionsForm) --
- * this runs against the project's mock connectors, but the reconciliation
- * logic itself is real and is what a live integration would plug into.
+ * Connectors come from getEhrConnectors(): the real IntakeQ/Tebra clients
+ * built from the credentials saved on Settings -> EHR Connections, or the
+ * demo mocks only when EHR_USE_MOCKS=1 outside production. With either side
+ * unconfigured this throws EhrNotConfiguredError ("EHR connections are not
+ * configured") before touching the database.
+ *
+ * Tebra is listed ONCE per sync and matched/refreshed in memory: the real
+ * SOAP API is throttled (>= 1s between calls), so a per-client search or
+ * per-patient GetPatient would make a sync take minutes. Diagnoses and
+ * medications are only replaced when the connector actually provides them
+ * (tebra.supportsClinicalData) -- the real Tebra SOAP API does not, and
+ * "replacing" with an empty list would wipe the chart.
  */
 export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches: number; refreshedPatients: number }> {
+  const { intakeq, tebra } = await requireEhrConnectors()
   const db = getDb()
   let newPatients = 0
   let newMatches = 0
   let refreshedPatients = 0
 
-  const [allPatients, allClients, pendingMatches] = await Promise.all([
+  // Vendor calls are sequential, not parallel: both APIs are rate limited.
+  const allClients = await intakeq.listClients()
+  const tebraPatients = await tebra.listPatients()
+  const tebraById = new Map(tebraPatients.map((p) => [p.tebraPatientId, p]))
+
+  const [allPatients, pendingMatches] = await Promise.all([
     db.select().from(patients),
-    intakeq.listClients(),
     db.select({ intakeqClientIdRef: identityMatches.intakeqClientIdRef }).from(identityMatches),
   ])
 
@@ -63,9 +86,9 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
 
   // New IntakeQ clients: either queue for identity match, or create outright.
   for (const client of allClients) {
-    if (knownIntakeqRefs.has(client.clientId) || queuedIntakeqRefs.has(client.clientId)) continue
+    if (!client.clientId || knownIntakeqRefs.has(client.clientId) || queuedIntakeqRefs.has(client.clientId)) continue
 
-    const candidates = await tebra.searchPatient(`${client.firstName} ${client.lastName}`, client.dateOfBirth)
+    const candidates = findTebraCandidates(tebraPatients, `${client.firstName} ${client.lastName}`, client.dateOfBirth)
     if (candidates.length > 0) {
       const candidate = candidates[0]
       await db.insert(identityMatches).values({
@@ -75,7 +98,7 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
         candidateTebraPatientIdRef: `ENC[${candidate.tebraPatientId}]`,
         candidateName: `${candidate.firstName} ${candidate.lastName}`,
         candidateDob: candidate.birthDate,
-        confidence: 95, // mock connector only returns exact name+DOB matches
+        confidence: 95, // exact (normalised) name + DOB match
         status: 'pending',
       })
       newMatches++
@@ -110,14 +133,8 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
   for (const patient of allPatients) {
     if (!patient.tebraPatientIdRef) continue
     const tebraId = unwrapRef(patient.tebraPatientIdRef)
-    const tebraPatient = await tebra.getPatientById(tebraId)
+    const tebraPatient = tebraById.get(tebraId)
     if (!tebraPatient) continue
-
-    const [activeMeds, inactiveMeds, conditions] = await Promise.all([
-      tebra.getActiveMedications(tebraId),
-      tebra.getInactiveMedications(tebraId),
-      tebra.getConditions(tebraId),
-    ])
 
     await db.update(patients).set({
       nameTebra: `${tebraPatient.firstName} ${tebraPatient.lastName}`,
@@ -131,14 +148,20 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
 
     // Tebra is this app's sole source of diagnoses/medications (every seeded
     // row is source: 'tebra') -- safe to replace wholesale on each refresh
-    // rather than trying to diff against what's already there.
-    await db.delete(diagnoses).where(eq(diagnoses.patientId, patient.id))
-    await db.delete(medicationEpisodes).where(eq(medicationEpisodes.patientId, patient.id))
-    for (const c of conditions) {
-      await db.insert(diagnoses).values({ patientId: patient.id, code: c.code, description: c.description, source: 'tebra', date: c.date })
-    }
-    for (const m of [...activeMeds, ...inactiveMeds]) {
-      await db.insert(medicationEpisodes).values({ patientId: patient.id, name: m.name, medicationClass: m.medicationClass, dose: m.dose, startDate: m.startDate, stopDate: m.stopDate, status: m.status })
+    // rather than trying to diff against what's already there. But ONLY when
+    // the connector can actually provide them; otherwise leave them alone.
+    if (tebra.supportsClinicalData) {
+      const activeMeds = await tebra.getActiveMedications(tebraId)
+      const inactiveMeds = await tebra.getInactiveMedications(tebraId)
+      const conditions = await tebra.getConditions(tebraId)
+      await db.delete(diagnoses).where(eq(diagnoses.patientId, patient.id))
+      await db.delete(medicationEpisodes).where(eq(medicationEpisodes.patientId, patient.id))
+      for (const c of conditions) {
+        await db.insert(diagnoses).values({ patientId: patient.id, code: c.code, description: c.description, source: 'tebra', date: c.date })
+      }
+      for (const m of [...activeMeds, ...inactiveMeds]) {
+        await db.insert(medicationEpisodes).values({ patientId: patient.id, name: m.name, medicationClass: m.medicationClass, dose: m.dose, startDate: m.startDate, stopDate: m.stopDate, status: m.status })
+      }
     }
 
     refreshedPatients++
@@ -158,8 +181,11 @@ export async function syncFromEhrs(): Promise<{ newPatients: number; newMatches:
  * was to produce. This is the other half: pull both systems' data for the
  * confirmed pair and populate a real patient chart from it, same as
  * syncFromEhrs() would for an unambiguous match. Falls back to the match
- * row's own snapshot fields when a mock lookup misses (covers the
- * hand-seeded demo matches, which don't correspond to real mock records).
+ * row's own snapshot fields when a lookup misses (covers the hand-seeded
+ * demo matches, which don't correspond to real records) or when that
+ * vendor isn't configured. A vendor that IS configured but fails (auth,
+ * network...) throws EhrConnectorError rather than silently producing a
+ * half-populated chart.
  */
 export async function confirmIdentityMatch(matchId: number): Promise<{ patientId: string } | null> {
   const db = getDb()
@@ -178,7 +204,9 @@ export async function confirmIdentityMatch(matchId: number): Promise<{ patientId
 
   const intakeqId = unwrapRef(match.intakeqClientIdRef)
   const tebraId = unwrapRef(match.candidateTebraPatientIdRef)
-  const [client, tebraPatient] = await Promise.all([intakeq.getClient(intakeqId), tebra.getPatientById(tebraId)])
+  const { intakeq, tebra } = await getEhrConnectors()
+  const client = intakeq ? await intakeq.getClient(intakeqId) : null
+  const tebraPatient = tebra ? await tebra.getPatientById(tebraId) : null
 
   const id = await nextAnonId()
   await db.insert(patients).values({
@@ -201,12 +229,10 @@ export async function confirmIdentityMatch(matchId: number): Promise<{ patientId
     currentProvider: tebraPatient?.generalPractitioner ?? null,
   })
 
-  if (tebraPatient) {
-    const [activeMeds, inactiveMeds, conditions] = await Promise.all([
-      tebra.getActiveMedications(tebraId),
-      tebra.getInactiveMedications(tebraId),
-      tebra.getConditions(tebraId),
-    ])
+  if (tebra && tebraPatient && tebra.supportsClinicalData) {
+    const activeMeds = await tebra.getActiveMedications(tebraId)
+    const inactiveMeds = await tebra.getInactiveMedications(tebraId)
+    const conditions = await tebra.getConditions(tebraId)
     for (const c of conditions) {
       await db.insert(diagnoses).values({ patientId: id, code: c.code, description: c.description, source: 'tebra', date: c.date })
     }
