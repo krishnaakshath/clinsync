@@ -2,6 +2,12 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 
+// The EHR connector factory (src/connectors/index.ts) only uses the demo
+// IntakeQ/Tebra mocks when this is set explicitly (and never in production).
+// The DB-backed test suite exercises sync/confirm/add-patient against those
+// mocks; tests of the factory itself pass their own env.
+process.env.EHR_USE_MOCKS ??= '1'
+
 // @testing-library/react doesn't auto-register DOM cleanup for Vitest the way
 // it does for Jest — without this, multiple `it()` blocks in the same
 // component test file accumulate renders in the same jsdom document, causing

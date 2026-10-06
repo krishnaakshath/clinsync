@@ -3,6 +3,7 @@ import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
 import { rejectCrossOrigin } from '@/lib/csrf'
 import { confirmIdentityMatch } from '@/lib/ehr-sync'
+import { EhrConnectorError } from '@/connectors/errors'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const csrfRejection = rejectCrossOrigin(request)
@@ -15,7 +16,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Confirming doesn't just flip the queue row's status -- it pulls both
   // systems' data for the matched pair and creates the actual patient chart,
   // which is the entire point of running the match in the first place.
-  const result = await confirmIdentityMatch(Number(id))
+  let result: Awaited<ReturnType<typeof confirmIdentityMatch>>
+  try {
+    result = await confirmIdentityMatch(Number(id))
+  } catch (err) {
+    // A configured IntakeQ/Tebra that fails (auth, network...) -- surface a
+    // safe message instead of creating a half-populated chart.
+    if (err instanceof EhrConnectorError) return NextResponse.json({ error: err.message }, { status: 502 })
+    throw err
+  }
   if (!result) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   await logAudit(session, `confirmed identity match ${id}`, result.patientId)
 
