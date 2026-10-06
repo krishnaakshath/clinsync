@@ -15,7 +15,7 @@ function apiClient(id: number, first = `First${id}`, last = `Last${id}`) {
 
 function makeClient(responses: Array<Response | Error>) {
   const sleep = vi.fn(async () => {})
-  const fetchImpl = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => {
+  const fetchImpl = vi.fn<(url: string | URL | Request, init?: RequestInit) => Promise<Response>>(async () => {
     const next = responses.shift()
     if (!next) throw new Error('unexpected extra fetch')
     if (next instanceof Error) throw next

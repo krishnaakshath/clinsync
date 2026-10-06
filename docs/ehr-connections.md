@@ -32,6 +32,9 @@ not authenticate, and Settings only shows Tebra as configured once all three are
   clients plus **2 requests per new client** (intake summary + full intake). Clinsync retries a
   429 up to 3 attempts, honouring `Retry-After`; beyond that the sync stops with a
   "rate limit reached" message — run it again later or ask IntakeQ to raise the limit.
+  Progress is kept: clients already imported are skipped next time. The **first** sync of a
+  practice with many existing IntakeQ clients can exceed the daily quota (e.g. 300 new clients
+  ≈ 600 requests) and need several runs.
 - **Tebra:** Clinsync spaces SOAP calls **≥ 1 second apart** and retries 429/502/503/504.
   Tebra recommends polling no more often than every 5–15 minutes. A sync makes one
   `GetPatients` call (all patients) regardless of patient count.
