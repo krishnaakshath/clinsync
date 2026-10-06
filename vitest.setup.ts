@@ -7,6 +7,10 @@ import { cleanup } from '@testing-library/react'
 // The DB-backed test suite exercises sync/confirm/add-patient against those
 // mocks; tests of the factory itself pass their own env.
 process.env.EHR_USE_MOCKS ??= '1'
+// A developer's .env.local is often `vercel env pull`ed from production and so
+// carries VERCEL_ENV=production, which would make the factory refuse the mocks
+// in every DB-backed test. Tests are never production.
+delete process.env.VERCEL_ENV
 
 // @testing-library/react doesn't auto-register DOM cleanup for Vitest the way
 // it does for Jest — without this, multiple `it()` blocks in the same
