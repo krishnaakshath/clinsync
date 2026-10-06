@@ -53,22 +53,22 @@ export default function LoginPage() {
     return null
   }
 
-  // A centered sign-in over an animated aurora backdrop (see LoginBackdrop,
-  // which never depends on WebGL). The form itself stays plain and fast --
+  // A centered sign-in over a quiet animated grid (see LoginBackdrop; plain
+  // canvas, single brand hue). The form itself stays plain and fast --
   // this is a tool clinicians open dozens of times a day.
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-10">
-      {/* Animated backdrop: always-on CSS aurora + WebGL Aurora where supported. */}
+      {/* Subtle animated grid backdrop (canvas 2D, single brand hue). */}
       <LoginBackdrop />
       <div className="w-full max-w-sm">
         <div className="login-brand-in mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="login-logo-ring flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary backdrop-blur-sm">
+          <span className="login-logo-ring flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary ">
             <ClinsyncLogo className="h-6 w-6" />
           </span>
-          <span className="login-shimmer text-2xl font-extrabold tracking-tight">Clinsync</span>
+          <span className="text-2xl font-extrabold tracking-tight text-foreground">Clinsync</span>
           <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Clinical operations, connected</span>
         </div>
-        <div className="login-card-in rounded-2xl border border-white/60 bg-card/80 p-7 shadow-xl shadow-primary/10 backdrop-blur-md">
+        <div className="login-card-in rounded-2xl border border-border bg-card/95 p-7 shadow-lg shadow-primary/5 backdrop-blur-sm">
           {step.kind === 'password' && (
             <>
               <div className="mb-6 text-center">
