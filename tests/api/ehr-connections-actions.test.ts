@@ -37,11 +37,11 @@ describe.each([
     expect((await getRoute()(post(url))).status).toBe(401)
   })
 
-  it('returns 403 "Forbidden — admin only" for non-admins', async () => {
+  it('returns exact 403 Forbidden for non-admins', async () => {
     vi.mocked(auth.requireSession).mockResolvedValueOnce({ role: 'crc', name: 'Test CRC' })
     const res = await getRoute()(post(url))
     expect(res.status).toBe(403)
-    expect(await res.json()).toEqual({ error: 'Forbidden — admin only' })
+    expect(await res.json()).toEqual({ error: 'Forbidden' })
   })
 
   it('rejects cross-origin posts', async () => {
