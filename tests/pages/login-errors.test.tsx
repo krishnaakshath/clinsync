@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }))
+const push = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh: vi.fn() }) }))
 vi.mock('@/components/LoginBackdrop', () => ({ LoginBackdrop: () => null }))
 afterEach(() => vi.unstubAllGlobals())
 
@@ -30,5 +31,12 @@ describe('staff login error messages', () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
     await submitStaffLogin()
     expect(await screen.findByText(/Could not reach the server/)).toBeInTheDocument()
+  })
+
+  it('goes straight to the app when the server completes login without MFA (DISABLE_STAFF_MFA)', async () => {
+    push.mockClear()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })))
+    await submitStaffLogin()
+    await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/'))
   })
 })

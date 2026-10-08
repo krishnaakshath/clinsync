@@ -25,7 +25,7 @@ export default function LoginPage() {
     e.preventDefault()
     setSubmitting(true)
     setError(null)
-    const res = await sendJson<{ mode: 'enroll'; qrDataUrl: string; manualKey: string } | { mode: 'verify' }>('/api/login', {
+    const res = await sendJson<{ mfaRequired: true; mode: 'enroll'; qrDataUrl: string; manualKey: string } | { mfaRequired: true; mode: 'verify' } | { ok: true; mfaRequired?: undefined }>('/api/login', {
       method: 'POST',
       body: { email, password },
       fallbackError: 'Could not sign in. Please try again.',
@@ -38,6 +38,13 @@ export default function LoginPage() {
       return
     }
     const body = res.data
+    // With DISABLE_STAFF_MFA the route has already set the session and
+    // answers {ok: true} -- there is no code to ask for.
+    if (!body?.mfaRequired) {
+      router.push('/')
+      router.refresh()
+      return
+    }
     setStep(body.mode === 'enroll' ? { kind: 'enroll', qrDataUrl: body.qrDataUrl, manualKey: body.manualKey } : { kind: 'verify' })
   }
 
