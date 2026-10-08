@@ -85,6 +85,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ patientId: string }> }) {
   const { patientId } = await params
 
+  // `actingAs` lives in the body, so the body has to be parsed before the
+  // actor can be picked -- but a caller with no session of either kind is
+  // turned away first, without parsing anything.
+  const [staffSession, patientSession] = await Promise.all([getSession(), getPatientSession()])
+  if (!staffSession && !patientSession) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const parsed = sendMessageSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid message payload', details: parsed.error.flatten() }, { status: 400 })
 

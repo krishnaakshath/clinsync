@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, MessageSquareText, Users, Send } from 'lucide-react'
@@ -85,38 +86,33 @@ export function BroadcastWizard({ trials }: { trials: Trial[] }) {
     if (trialId) params.set('trialId', trialId)
     if (overallStatus) params.set('overallStatus', overallStatus)
     if (formStatus) params.set('formStatus', formStatus)
-    const res = await fetch(`/api/broadcasts/recipients?${params.toString()}`)
+    const res = await sendJson<typeof candidates>(`/api/broadcasts/recipients?${params.toString()}`, { fallbackError: 'Could not load recipients for this filter.' })
     setLoadingCandidates(false)
-    if (res.ok) {
-      setCandidates(await res.json())
-    } else {
-      setError('Could not load recipients for this filter.')
-    }
+    if (res.ok) setCandidates(res.data)
+    else setError(res.error)
   }
 
   async function send() {
     setSending(true)
     setError(null)
-    const res = await fetch('/api/broadcasts', {
+    const res = await sendJson<{ recipientCount: number }>('/api/broadcasts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      fallbackError: 'Could not send broadcast.',
+      body: {
         subject: subject || undefined,
         message,
         channel,
         filterTrialId: trialId || undefined,
         filterOverallStatus: overallStatus || undefined,
         filterFormStatus: formStatus || undefined,
-      }),
+      },
     })
     setSending(false)
     if (res.ok) {
-      const created = await res.json()
-      setSent({ recipientCount: created.recipientCount })
+      setSent({ recipientCount: res.data.recipientCount })
       router.refresh()
     } else {
-      const body = await res.json()
-      setError(body.error ?? 'Could not send broadcast.')
+      setError(res.error)
     }
   }
 

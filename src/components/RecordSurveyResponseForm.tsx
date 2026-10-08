@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -14,18 +15,10 @@ export function RecordSurveyResponseForm({ reviewId }: { reviewId: number }) {
   async function save() {
     setSaving(true)
     setError(null)
-    const res = await fetch(`/api/reviews/${reviewId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ratingOverall, ratingFormsClarity, ratingCommunication, comments: comments || undefined }),
-    })
+    const res = await sendJson(`/api/reviews/${reviewId}`, { method: 'PUT', body: { ratingOverall, ratingFormsClarity, ratingCommunication, comments: comments || undefined }, fallbackError: 'Could not record this response.' })
     setSaving(false)
-    if (res.ok) {
-      router.refresh()
-    } else {
-      const body = await res.json()
-      setError(body.error ?? 'Could not record this response.')
-    }
+    if (res.ok) router.refresh()
+    else setError(res.error)
   }
 
   function ratingField(id: string, label: string, value: number, onChange: (v: number) => void) {

@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 
 export function PatientPortalAccessPanel({ anonId, initialConfigured, mfaEnabled, isAdmin }: { anonId: string; initialConfigured: boolean; mfaEnabled: boolean; isAdmin: boolean }) {
@@ -12,20 +13,19 @@ export function PatientPortalAccessPanel({ anonId, initialConfigured, mfaEnabled
   async function generate() {
     setBusy(true)
     setError(null)
-    const res = await fetch(`/api/patients/${anonId}/portal-password`, { method: 'POST' })
+    const res = await sendJson<{ password: string }>(`/api/patients/${anonId}/portal-password`, { method: 'POST', fallbackError: 'Could not generate a portal password.' })
     setBusy(false)
-    if (!res.ok) { setError('Could not generate a portal password.'); return }
-    const body = await res.json()
-    setGeneratedPassword(body.password)
+    if (!res.ok) { setError(res.error); return }
+    setGeneratedPassword(res.data.password)
     setConfigured(true)
   }
 
   async function revoke() {
     setBusy(true)
     setError(null)
-    const res = await fetch(`/api/patients/${anonId}/portal-password`, { method: 'DELETE' })
+    const res = await sendJson(`/api/patients/${anonId}/portal-password`, { method: 'DELETE', fallbackError: 'Could not revoke portal access.' })
     setBusy(false)
-    if (!res.ok) { setError('Could not revoke portal access.'); return }
+    if (!res.ok) { setError(res.error); return }
     setConfigured(false)
     setGeneratedPassword(null)
   }
@@ -33,9 +33,9 @@ export function PatientPortalAccessPanel({ anonId, initialConfigured, mfaEnabled
   async function resetMfa() {
     setMfaResetting(true)
     setError(null)
-    const res = await fetch(`/api/patients/${anonId}/reset-mfa`, { method: 'POST' })
+    const res = await sendJson(`/api/patients/${anonId}/reset-mfa`, { method: 'POST', fallbackError: 'Could not reset MFA.' })
     setMfaResetting(false)
-    if (!res.ok) { setError('Could not reset MFA.'); return }
+    if (!res.ok) { setError(res.error); return }
     setMfaWasReset(true)
   }
 

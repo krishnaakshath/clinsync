@@ -195,7 +195,12 @@ export function createIntakeQClient(options: IntakeQClientOptions): IntakeQConne
     async testConnection() {
       // A name search that matches nobody: proves the key works with one
       // request and moves no patient data.
-      await getArray<ApiClient>(`/clients?search=${encodeURIComponent('clinsync-connection-test-zzzz')}`)
+      // getJson treats 404 as "no such record" (right for a lookup), but for
+      // this probe it means the endpoint itself is wrong, so it must not
+      // read as "Connected".
+      const data = await getJson<unknown>(`/clients?search=${encodeURIComponent('clinsync-connection-test-zzzz')}`)
+      if (data === null) throw new EhrConnectorError('intakeq', 'vendor_error', 'IntakeQ answered 404 Not Found for the clients endpoint. The API may have moved; contact support.')
+      if (!Array.isArray(data)) throw new EhrConnectorError('intakeq', 'invalid_response')
     },
   }
 }

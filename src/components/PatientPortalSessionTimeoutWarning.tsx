@@ -11,18 +11,23 @@ export function PatientPortalSessionTimeoutWarning() {
   const warnTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const logoutTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const reset = useCallback(() => {
+  // Timers only, no state update -- safe to call from the mount effect.
+  const schedule = useCallback(() => {
     clearTimeout(warnTimer.current)
     clearTimeout(logoutTimer.current)
-    setShowWarning(false)
     warnTimer.current = setTimeout(() => setShowWarning(true), WARN_AFTER_MS)
     logoutTimer.current = setTimeout(() => {
       fetch('/api/patient-portal/logout', { method: 'POST' }).finally(() => router.push('/patient-portal/login'))
     }, LOGOUT_AFTER_MS)
   }, [router])
 
+  const reset = useCallback(() => {
+    setShowWarning(false)
+    schedule()
+  }, [schedule])
+
   useEffect(() => {
-    reset()
+    schedule()
     window.addEventListener('mousemove', reset)
     window.addEventListener('keydown', reset)
     return () => {
@@ -31,7 +36,7 @@ export function PatientPortalSessionTimeoutWarning() {
       window.removeEventListener('mousemove', reset)
       window.removeEventListener('keydown', reset)
     }
-  }, [reset])
+  }, [reset, schedule])
 
   if (!showWarning) return null
 

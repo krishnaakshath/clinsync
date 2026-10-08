@@ -51,14 +51,14 @@ describe('GET /api/identity-matches', () => {
 
   it('returns 401 when there is no authenticated session', async () => {
     vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
-    const response = await listMatches(new NextRequest('http://localhost/api/identity-matches'))
+    const response = await listMatches()
     expect(response.status).toBe(401)
   })
 
   it('lists pending matches', async () => {
     const match = await createTempMatch()
     tempMatchIds.push(match.id)
-    const response = await listMatches(new NextRequest('http://localhost/api/identity-matches'))
+    const response = await listMatches()
     const body = await response.json()
     expect(body.matches.some((m: { id: number }) => m.id === match.id)).toBe(true)
   })

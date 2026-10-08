@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -65,18 +66,10 @@ export function ChargesTable({ charges, patients }: { charges: Charge[]; patient
   async function advance(chargeId: number, nextStatus: Charge['status']) {
     setPending(chargeId)
     setError(null)
-    const res = await fetch(`/api/charges/${chargeId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: nextStatus }),
-    })
+    const res = await sendJson(`/api/charges/${chargeId}`, { method: 'PATCH', body: { status: nextStatus }, fallbackError: 'Could not update this charge.' })
     setPending(null)
-    if (res.ok) {
-      router.refresh()
-    } else {
-      const body = await res.json()
-      setError(body.error ?? 'Could not update this charge.')
-    }
+    if (res.ok) router.refresh()
+    else setError(res.error)
   }
 
   const show = (key: string) => visibleColumns.includes(key)

@@ -103,6 +103,9 @@ function mapPatient(p: XmlElement): FHIRPatient {
   }
 }
 
+export const TEBRA_INVALID_CUSTOMER_KEY_MESSAGE = 'Tebra rejected the customer key. Copy it again from Tebra (Settings → Get Customer Key) and re-enter it in Settings → EHR Connections.'
+export const TEBRA_BAD_LOGIN_MESSAGE = 'Tebra accepted the customer key but rejected the API user or password. Re-enter them in Settings → EHR Connections.'
+
 export function createTebraClient(options: TebraClientOptions): TebraConnector {
   const {
     customerKey, user, password,
@@ -170,7 +173,11 @@ export function createTebraClient(options: TebraClientOptions): TebraConnector {
 
     const flag = (node: XmlElement | null, name: string) => (childText(node, name) ?? '').trim().toLowerCase()
     const security = child(result, 'SecurityResponse')
-    if (flag(security, 'CustomerKeyValid') === 'false' || flag(security, 'Authenticated') === 'false') throw new EhrConnectorError('tebra', 'auth_failed')
+    // Two different fixes for the admin, so two different (fixed) messages:
+    // a bad customer key is checked before the user/password, and Tebra
+    // reports it with CustomerKeyValid=false.
+    if (flag(security, 'CustomerKeyValid') === 'false') throw new EhrConnectorError('tebra', 'auth_failed', TEBRA_INVALID_CUSTOMER_KEY_MESSAGE)
+    if (flag(security, 'Authenticated') === 'false') throw new EhrConnectorError('tebra', 'auth_failed', TEBRA_BAD_LOGIN_MESSAGE)
     if (flag(security, 'Authorized') === 'false') throw new EhrConnectorError('tebra', 'not_authorized')
 
     const error = child(result, 'ErrorResponse')

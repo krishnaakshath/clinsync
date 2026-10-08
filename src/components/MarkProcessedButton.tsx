@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -10,18 +11,10 @@ export function MarkProcessedButton({ documentId, disabled }: { documentId: numb
   async function markProcessed() {
     setSaving(true)
     setError(null)
-    const res = await fetch(`/api/documents/${documentId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'processed' }),
-    })
+    const res = await sendJson(`/api/documents/${documentId}`, { method: 'PATCH', body: { status: 'processed' }, fallbackError: 'Could not mark this document processed.' })
     setSaving(false)
-    if (res.ok) {
-      router.refresh()
-    } else {
-      const body = await res.json()
-      setError(body.error ?? 'Could not mark this document processed.')
-    }
+    if (res.ok) router.refresh()
+    else setError(res.error)
   }
 
   if (disabled) return <span className="text-xs text-muted-foreground">Processed</span>

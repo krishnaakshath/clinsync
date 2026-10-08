@@ -26,6 +26,12 @@ export async function getSettingsSummary() {
   }
 }
 
+/** Which Tebra credential fields are on file (booleans only, never values). */
+export async function getStoredTebraFields(): Promise<{ customerKey: boolean; user: boolean; password: boolean }> {
+  const s = await getAppSettings()
+  return { customerKey: !!s.tebraCustomerKeyEncrypted, user: !!s.tebraUserEncrypted, password: !!s.tebraPasswordEncrypted }
+}
+
 export async function updateAutoClassifySetting(value: boolean) {
   const current = await getAppSettings()
   await getDb().update(appSettings).set({ autoClassifyOnComplete: value }).where(eq(appSettings.id, current.id))
@@ -61,6 +67,8 @@ export async function updateEhrCredentials(input: EhrCredentialsInput) {
 export interface EhrCredentials {
   intakeq: { apiKey: string } | null
   tebra: { customerKey: string; user: string; password: string } | null
+  /** Tebra fields not on file when only some were saved (labels only, never values). */
+  tebraMissing?: string[]
 }
 
 /**
@@ -82,6 +90,11 @@ export async function getEhrCredentials(): Promise<EhrCredentials> {
           password: decryptSensitive(s.tebraPasswordEncrypted),
         }
       : null,
+    tebraMissing: [
+      !s.tebraCustomerKeyEncrypted && 'customer key',
+      !s.tebraUserEncrypted && 'API user',
+      !s.tebraPasswordEncrypted && 'API password',
+    ].filter((x): x is string => !!x),
   }
 }
 

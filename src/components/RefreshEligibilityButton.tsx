@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 
 export function RefreshEligibilityButton({ anonId }: { anonId: string }) {
@@ -8,8 +9,8 @@ export function RefreshEligibilityButton({ anonId }: { anonId: string }) {
   async function run() {
     setRunning(true)
     setError(null)
-    const res = await fetch(`/api/patients/${anonId}/refresh`, { method: 'POST' })
-    if (!res.ok) { setRunning(false); setError('Could not refresh eligibility.'); return }
+    const res = await sendJson(`/api/patients/${anonId}/refresh`, { method: 'POST', fallbackError: 'Could not refresh eligibility.' })
+    if (!res.ok) { setRunning(false); setError(res.error); return }
     // A full reload rather than router.refresh() -- this page's data comes
     // from a Redis-cached query (getPatientDetail), and the freshly
     // regenerated criteria only reliably show up on a real navigation, not

@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LockKeyhole } from 'lucide-react'
@@ -24,30 +25,32 @@ export default function LoginPage() {
     e.preventDefault()
     setSubmitting(true)
     setError(null)
-    const res = await fetch('/api/login', {
+    const res = await sendJson<{ mfaRequired: true; mode: 'enroll'; qrDataUrl: string; manualKey: string } | { mfaRequired: true; mode: 'verify' } | { ok: true; mfaRequired?: undefined }>('/api/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: { email, password },
+      fallbackError: 'Could not sign in. Please try again.',
     })
     setSubmitting(false)
     if (!res.ok) {
-      setError('Invalid email or password.')
+      // Wrong credentials stay deliberately generic; anything else (rate
+      // limit, server problem, offline) says what actually happened.
+      setError(res.status === 401 ? 'Invalid email or password.' : res.error)
       return
     }
-    const body = await res.json()
+    const body = res.data
+    // With DISABLE_STAFF_MFA the route has already set the session and
+    // answers {ok: true} -- there is no code to ask for.
+    if (!body?.mfaRequired) {
+      router.push('/')
+      router.refresh()
+      return
+    }
     setStep(body.mode === 'enroll' ? { kind: 'enroll', qrDataUrl: body.qrDataUrl, manualKey: body.manualKey } : { kind: 'verify' })
   }
 
   async function submitMfaCode(code: string): Promise<string | null> {
-    const res = await fetch('/api/login/mfa', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      return body?.error ?? 'Could not verify that code.'
-    }
+    const res = await sendJson('/api/login/mfa', { method: 'POST', body: { code }, fallbackError: 'Could not verify that code.' })
+    if (!res.ok) return res.error
     router.push('/')
     router.refresh()
     return null

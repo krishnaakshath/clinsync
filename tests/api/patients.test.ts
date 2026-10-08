@@ -46,7 +46,7 @@ describe('GET /api/patients', () => {
   it('filters by trialId when provided', async () => {
     const response = await listPatients(new NextRequest('http://localhost/api/patients?trialId=nct06911112'))
     const body = await response.json()
-    expect(body.patients.every((p: any) => p.trialId === 'nct06911112')).toBe(true)
+    expect(body.patients.every((p: { trialId: string | null }) => p.trialId === 'nct06911112')).toBe(true)
   })
 })
 

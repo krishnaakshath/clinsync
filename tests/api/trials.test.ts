@@ -22,7 +22,7 @@ vi.mock('@/lib/auth', async () => {
 // (no seed() per Task 4's ruling — this only touches the one row this file
 // mutates).
 const TRIAL_ID = 'nct-adhd-demo-01'
-let originalMedicationClasses: unknown
+let originalMedicationClasses: (typeof trials.$inferSelect)['medicationClasses']
 
 beforeAll(async () => {
   const [row] = await getDb().select().from(trials).where(eq(trials.id, TRIAL_ID))
@@ -30,18 +30,18 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await getDb().update(trials).set({ medicationClasses: originalMedicationClasses as any }).where(eq(trials.id, TRIAL_ID))
+  await getDb().update(trials).set({ medicationClasses: originalMedicationClasses }).where(eq(trials.id, TRIAL_ID))
 })
 
 describe('GET /api/trials', () => {
   it('returns 401 when there is no authenticated session', async () => {
     vi.mocked(auth.requireSession).mockResolvedValueOnce(UNAUTHORIZED())
-    const response = await listTrials(new NextRequest('http://localhost/api/trials'))
+    const response = await listTrials()
     expect(response.status).toBe(401)
   })
 
   it('lists all configured trials with their per-trial rules', async () => {
-    const response = await listTrials(new NextRequest('http://localhost/api/trials'))
+    const response = await listTrials()
     const body = await response.json()
     expect(body.trials.length).toBe(2)
     expect(body.trials[0].diagnosisCodes).toBeDefined()
@@ -65,9 +65,9 @@ describe('PUT /api/trials/[trialId]/criteria', () => {
     )
     expect(response.status).toBe(200)
 
-    const listResponse = await listTrials(new NextRequest('http://localhost/api/trials'))
+    const listResponse = await listTrials()
     const { trials } = await listResponse.json()
-    const other = trials.find((t: any) => t.id === 'nct06911112')
+    const other = trials.find((t: { id: string }) => t.id === 'nct06911112')
     expect(other.medicationClasses).not.toEqual([{ className: 'Stimulant', washoutDays: 21, rule: 'Updated rule', ruleType: 'washout_exclusion' as const }])
   })
 
@@ -78,9 +78,9 @@ describe('PUT /api/trials/[trialId]/criteria', () => {
     )
     expect(response.status).toBe(400)
 
-    const listResponse = await listTrials(new NextRequest('http://localhost/api/trials'))
+    const listResponse = await listTrials()
     const { trials } = await listResponse.json()
-    expect(trials.find((t: any) => t.id === TRIAL_ID)).toBeDefined()
-    expect(trials.find((t: any) => t.id === 'hijacked-id')).toBeUndefined()
+    expect(trials.find((t: { id: string }) => t.id === TRIAL_ID)).toBeDefined()
+    expect(trials.find((t: { id: string }) => t.id === 'hijacked-id')).toBeUndefined()
   })
 })

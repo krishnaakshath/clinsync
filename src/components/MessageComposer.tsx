@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Send } from 'lucide-react'
@@ -23,18 +24,13 @@ export function MessageComposer({ patientId, viewerRole }: { patientId: string; 
     if (!body.trim()) return
     setSending(true)
     setError(null)
-    const res = await fetch(`/api/messages/${patientId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body, actingAs: viewerRole }),
-    })
+    const res = await sendJson(`/api/messages/${patientId}`, { method: 'POST', body: { body, actingAs: viewerRole }, fallbackError: 'Could not send this message.' })
     setSending(false)
     if (res.ok) {
       setBody('')
       router.refresh()
     } else {
-      const data = await res.json()
-      setError(data.error ?? 'Could not send this message.')
+      setError(res.error)
     }
   }
 

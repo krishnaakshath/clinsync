@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 
 interface Question { id: string; label: string; type: 'text' | 'textarea' | 'date' | 'select' | 'checkbox'; options?: string[]; required: boolean }
@@ -26,13 +27,9 @@ export function IntakePortalForm({ token, questions, existingAnswers, autofill }
   async function submit(complete: boolean) {
     setSubmitting(true)
     setError(null)
-    const res = await fetch(`/api/intake/${token}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers, complete }),
-    })
+    const res = await sendJson(`/api/intake/${token}`, { method: 'PUT', body: { answers, complete }, fallbackError: 'Something went wrong saving your answers. Please try again.' })
     setSubmitting(false)
-    if (!res.ok) { setError('Something went wrong saving your answers. Please try again.'); return }
+    if (!res.ok) { setError(res.error); return }
     if (complete) setSubmitted(true)
   }
 

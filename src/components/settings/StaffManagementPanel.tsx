@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserPlus, Copy, Check } from 'lucide-react'
@@ -30,18 +31,14 @@ function AddStaffForm({ onCreated }: { onCreated: (row: StaffRow, password: stri
     e.preventDefault()
     setSaving(true)
     setError(null)
-    const res = await fetch('/api/users', {
+    const res = await sendJson<{ id: number; name: string; email: string; role: StaffRow['role']; password: string }>('/api/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, role }),
+      body: { name, email, role },
+      fallbackError: 'Could not create this account.',
     })
     setSaving(false)
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      setError(body?.error ?? 'Could not create this account.')
-      return
-    }
-    const created = await res.json()
+    if (!res.ok) { setError(res.error); return }
+    const created = res.data
     onCreated({ id: created.id, name: created.name, email: created.email, role: created.role, mfaEnabled: false }, created.password)
     setName('')
     setEmail('')
@@ -119,6 +116,7 @@ export function StaffManagementPanel({ staff, isAdmin }: { staff: StaffRow[]; is
   const router = useRouter()
   const [newCredential, setNewCredential] = useState<{ row: StaffRow; password: string } | null>(null)
   const [resetting, setResetting] = useState<number | null>(null)
+  const [resetError, setResetError] = useState<{ id: number; message: string } | null>(null)
 
   function handleCreated(row: StaffRow, password: string) {
     setNewCredential({ row, password })
@@ -127,8 +125,10 @@ export function StaffManagementPanel({ staff, isAdmin }: { staff: StaffRow[]; is
 
   async function resetMfa(id: number) {
     setResetting(id)
-    await fetch(`/api/users/${id}/reset-mfa`, { method: 'POST' })
+    setResetError(null)
+    const res = await sendJson(`/api/users/${id}/reset-mfa`, { method: 'POST', fallbackError: 'Could not reset MFA.' })
     setResetting(null)
+    if (!res.ok) { setResetError({ id, message: res.error }); return }
     router.refresh()
   }
 
@@ -156,6 +156,7 @@ export function StaffManagementPanel({ staff, isAdmin }: { staff: StaffRow[]; is
                     {resetting === s.id ? 'Resetting…' : 'Reset MFA'}
                   </button>
                 )}
+                {resetError?.id === s.id && <span role="alert" className="text-[11px] text-destructive">{resetError.message}</span>}
               </div>
             </li>
           ))}

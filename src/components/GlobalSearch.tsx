@@ -1,10 +1,16 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search } from 'lucide-react'
 import type { SearchResults } from '@/lib/queries/search'
 
 const EMPTY_RESULTS: SearchResults = { patients: [], trials: [], formTemplates: [] }
+
+function isSearchResults(value: unknown): value is SearchResults {
+  const v = value as Partial<SearchResults> | null
+  return !!v && Array.isArray(v.patients) && Array.isArray(v.trials) && Array.isArray(v.formTemplates)
+}
 const SECTIONS: { key: keyof SearchResults; label: string }[] = [
   { key: 'patients', label: 'Patients' },
   { key: 'trials', label: 'Trials & Protocols' },
@@ -15,25 +21,28 @@ export function GlobalSearch({ triggerClassName = 'text-sidebar-foreground/80' }
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS)
+  // The query the current `results` answer (null while a search is in flight).
+  const [answeredQuery, setAnsweredQuery] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (query.trim().length === 0) {
-      setResults(EMPTY_RESULTS)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    const timeout = setTimeout(() => {
-      fetch(`/api/search?q=${encodeURIComponent(query)}`)
-        .then((r) => r.json())
-        .then((data: SearchResults) => setResults(data))
-        .finally(() => setLoading(false))
+    if (query.trim().length === 0) return
+    let cancelled = false
+    const timeout = setTimeout(async () => {
+      const res = await sendJson<SearchResults>(`/api/search?q=${encodeURIComponent(query)}`)
+      // A slower response for an older query must not overwrite a newer one.
+      if (cancelled) return
+      const usable = res.ok && isSearchResults(res.data)
+      setResults(usable ? res.data : EMPTY_RESULTS)
+      setFailed(!usable)
+      setAnsweredQuery(query)
     }, 200)
-    return () => clearTimeout(timeout)
+    return () => { cancelled = true; clearTimeout(timeout) }
   }, [query])
+
+  const loading = query.trim().length > 0 && answeredQuery !== query
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -67,6 +76,8 @@ export function GlobalSearch({ triggerClassName = 'text-sidebar-foreground/80' }
         <div className="absolute left-0 top-full z-50 mt-2 max-h-96 w-96 overflow-y-auto rounded-lg border border-border bg-card p-2 text-left shadow-lg">
           {loading ? (
             <p className="p-3 text-sm text-muted-foreground">Searching…</p>
+          ) : failed ? (
+            <p role="alert" className="p-3 text-sm text-destructive">Search is unavailable right now. If this keeps happening, sign in again.</p>
           ) : !hasAnyResults ? (
             <p className="p-3 text-sm text-muted-foreground">No results found.</p>
           ) : (

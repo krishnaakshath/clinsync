@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
@@ -14,13 +15,16 @@ export interface DiscrepancyRow {
 
 export function DiscrepancyList({ discrepancies, canResolve = false }: { discrepancies: DiscrepancyRow[]; canResolve?: boolean }) {
   const [resolvingId, setResolvingId] = useState<number | null>(null)
+  const [error, setError] = useState<{ id: number; message: string } | null>(null)
 
   const open = discrepancies.filter((d) => !d.resolved)
   const resolved = discrepancies.filter((d) => d.resolved)
 
   async function resolve(id: number) {
     setResolvingId(id)
-    await fetch(`/api/discrepancies/${id}/resolve`, { method: 'POST' })
+    setError(null)
+    const res = await sendJson(`/api/discrepancies/${id}/resolve`, { method: 'POST', fallbackError: 'Could not mark this resolved.' })
+    if (!res.ok) { setResolvingId(null); setError({ id, message: res.error }); return }
     // A full reload rather than router.refresh() -- this page's data comes
     // from a Redis-cached query (getPatientDetail), and the freshly
     // invalidated cache only reliably shows up on a real navigation, not a
@@ -49,6 +53,7 @@ export function DiscrepancyList({ discrepancies, canResolve = false }: { discrep
           >
             {resolvingId === d.id ? 'Marking resolved…' : 'Mark resolved'}
           </button>}
+          {error?.id === d.id && <p role="alert" className="mt-2 text-xs text-destructive">{error.message}</p>}
         </div>
       ))}
       {resolved.length > 0 && (
