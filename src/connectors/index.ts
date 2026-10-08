@@ -31,6 +31,8 @@ export interface EhrConnectors {
   source: 'mock' | 'live'
   intakeq: IntakeQConnector | null
   tebra: TebraConnector | null
+  /** When Tebra is null because only some of its fields are saved: which are missing. */
+  tebraMissing?: string[]
 }
 
 export function isProductionEnv(env: Env = process.env): boolean {
@@ -63,6 +65,7 @@ export async function getEhrConnectors(options: FactoryOptions = {}): Promise<Eh
     source: 'live',
     intakeq: creds.intakeq ? createIntakeQClient({ apiKey: creds.intakeq.apiKey, ...transport }) : null,
     tebra: creds.tebra ? createTebraClient({ ...creds.tebra, ...transport }) : null,
+    tebraMissing: creds.tebraMissing,
   }
 }
 
@@ -93,7 +96,15 @@ export async function testEhrConnections(options: FactoryOptions = {}): Promise<
   }
 
   async function check(vendor: EhrVendor, connector: { testConnection(): Promise<void> } | null): Promise<ConnectionCheck> {
-    if (!connector) return { ok: false, message: 'Not configured' }
+    if (!connector) {
+      // All three Tebra fields missing = never set up; some missing = a
+      // half-saved setup the admin needs to finish, which is a different fix.
+      const missing = vendor === 'tebra' ? (c.tebraMissing ?? []) : []
+      if (missing.length > 0 && missing.length < 3) {
+        return { ok: false, message: `Setup incomplete: missing ${missing.join(', ')}. Re-enter the customer key, API user and API password together.` }
+      }
+      return { ok: false, message: 'Not configured' }
+    }
     try {
       await connector.testConnection()
       return { ok: true, message: c.source === 'mock' ? 'Connected (demo data — EHR_USE_MOCKS=1)' : 'Connected' }

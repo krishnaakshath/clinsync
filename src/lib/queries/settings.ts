@@ -67,6 +67,8 @@ export async function updateEhrCredentials(input: EhrCredentialsInput) {
 export interface EhrCredentials {
   intakeq: { apiKey: string } | null
   tebra: { customerKey: string; user: string; password: string } | null
+  /** Tebra fields not on file when only some were saved (labels only, never values). */
+  tebraMissing?: string[]
 }
 
 /**
@@ -88,6 +90,11 @@ export async function getEhrCredentials(): Promise<EhrCredentials> {
           password: decryptSensitive(s.tebraPasswordEncrypted),
         }
       : null,
+    tebraMissing: [
+      !s.tebraCustomerKeyEncrypted && 'customer key',
+      !s.tebraUserEncrypted && 'API user',
+      !s.tebraPasswordEncrypted && 'API password',
+    ].filter((x): x is string => !!x),
   }
 }
 

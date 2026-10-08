@@ -115,3 +115,15 @@ describe('EhrConnectorError', () => {
     expect(e.message).toMatch(/Tebra/)
   })
 })
+
+describe('testEhrConnections -- partially saved Tebra credentials', () => {
+  it('names the missing Tebra fields instead of a bare "Not configured"', async () => {
+    const result = await testEhrConnections({
+      env: { NODE_ENV: 'production' },
+      loadCredentials: async () => ({ intakeq: null, tebra: null, tebraMissing: ['API password'] }),
+    })
+    expect(result.tebra.ok).toBe(false)
+    expect(result.tebra.message).toMatch(/incomplete/i)
+    expect(result.tebra.message).toMatch(/API password/)
+  })
+})

@@ -140,3 +140,17 @@ describe('IntakeQ client', () => {
     expect(String(fetchImpl.mock.calls[0][0])).toMatch(/^https:\/\/intakeq\.com\/api\/v1\/clients\?search=/)
   })
 })
+
+describe('IntakeQ client -- Test connection error accuracy', () => {
+  it('does not report Connected when the clients endpoint answers 404', async () => {
+    const { client } = makeClient([new Response('Not Found', { status: 404 })])
+    const err = await captureError(client.testConnection())
+    expect(err.kind).toBe('vendor_error')
+    expect(err.message).toMatch(/404|not found/i)
+  })
+
+  it('does not report Connected when the clients endpoint answers something other than a list', async () => {
+    const { client } = makeClient([json({ message: 'hello' })])
+    expect((await captureError(client.testConnection())).kind).toBe('invalid_response')
+  })
+})

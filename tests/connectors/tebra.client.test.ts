@@ -250,3 +250,22 @@ describe('Tebra SOAP client -- connection test and capabilities', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('Tebra client -- Test connection error accuracy', () => {
+  it('says the customer key is wrong when Tebra reports CustomerKeyValid=false', async () => {
+    const { client } = makeClient([soapResponse(fixture('live-get-practices-invalid-customer-key.xml'))])
+    const err = await captureError(client.testConnection())
+    expect(err.kind).toBe('auth_failed')
+    expect(err.message).toMatch(/customer key/i)
+    expect(err.message).not.toMatch(/user|password/i)
+    expectNoSecrets(err)
+  })
+
+  it('says the API user or password is wrong when the key is valid but authentication fails', async () => {
+    const { client } = makeClient([soapResponse(fixture('get-patients-auth-failed.xml'))])
+    const err = await captureError(client.listPatients())
+    expect(err.kind).toBe('auth_failed')
+    expect(err.message).toMatch(/API user or password/i)
+    expectNoSecrets(err)
+  })
+})
