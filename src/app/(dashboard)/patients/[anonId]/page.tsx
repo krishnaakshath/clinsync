@@ -8,12 +8,13 @@ import { RefreshEligibilityButton } from '@/components/RefreshEligibilityButton'
 import { PatientPortalAccessPanel } from '@/components/PatientPortalAccessPanel'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { PatientQuickGlance } from '@/components/PatientQuickGlance'
+import { IdentityVerificationForm } from '@/components/IdentityVerificationForm'
 import { DiscrepancyList } from '@/components/DiscrepancyList'
 import { Tabs } from '@/components/Tabs'
 import { DeletePatientButton } from '@/components/DeletePatientButton'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { canSendForms } from '@/lib/role-capabilities'
+import { canSendForms, canAccessOperations } from '@/lib/role-capabilities'
 import { getPatientDetail } from '@/lib/queries/patients'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-primary/25 hover:shadow-md'
@@ -106,6 +107,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <span className="text-foreground">Verification pending{patient.identityVerification ? ` (${patient.identityVerification.idType.replace('_', ' ')} on file)` : ' — no ID on file'}</span>
           </div>
         )}
+        {!patient.identityVerification?.verified && canAccessOperations(session.role) && <IdentityVerificationForm anonId={patient.id} />}
       </section>
 
       <section className={SECTION}>
