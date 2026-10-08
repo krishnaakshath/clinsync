@@ -26,6 +26,12 @@ export async function getSettingsSummary() {
   }
 }
 
+/** Which Tebra credential fields are on file (booleans only, never values). */
+export async function getStoredTebraFields(): Promise<{ customerKey: boolean; user: boolean; password: boolean }> {
+  const s = await getAppSettings()
+  return { customerKey: !!s.tebraCustomerKeyEncrypted, user: !!s.tebraUserEncrypted, password: !!s.tebraPasswordEncrypted }
+}
+
 export async function updateAutoClassifySetting(value: boolean) {
   const current = await getAppSettings()
   await getDb().update(appSettings).set({ autoClassifyOnComplete: value }).where(eq(appSettings.id, current.id))

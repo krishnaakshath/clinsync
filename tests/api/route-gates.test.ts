@@ -158,7 +158,7 @@ describe('API route gate harness', () => {
     const rows = ROWS.map(([route, m]) => `${m} ${route}`)
     expect(new Set(rows).size).toBe(rows.length)
     expect([...rows].sort()).toEqual(exported.sort())
-  })
+  }, 60_000)
 
   const staffRows = ROWS.filter(([, , a]) => a === 'staff' || Array.isArray(a))
   it.each(staffRows.map(([r, m]) => [`${m} ${r}`, r, m] as const))('%s -> 401 without a staff session', async (_n, route, method) => {

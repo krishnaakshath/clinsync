@@ -87,14 +87,38 @@ describe('PUT /api/settings/ehr-connections', () => {
     expect(JSON.stringify(body)).not.toContain('test-intakeq-key-12345')
   })
 
-  it('storing partial Tebra credentials does not mark Tebra configured until all three fields are set', async () => {
-    const res = await updateEhrConnections(req('http://localhost/api/settings/ehr-connections', { tebraCustomerKey: 'ck', tebraUser: 'u' }))
+  it('refuses a Tebra save that would leave the connection half-configured, naming what is missing', async () => {
+    await getDb().update(appSettings).set({ tebraCustomerKeyEncrypted: null, tebraUserEncrypted: null, tebraPasswordEncrypted: null })
+    const res = await updateEhrConnections(req('http://localhost/api/settings/ehr-connections', { tebraCustomerKey: 'ck1234567', tebraUser: 'api@example.com' }))
+    expect(res.status).toBe(400)
     const body = await res.json()
-    expect(body.tebraConfigured).toBe(false)
+    expect(body.error).toMatch(/API password/)
+    expect(JSON.stringify(body)).not.toContain('ck1234567')
+    expect((await getSettingsSummary()).tebraConfigured).toBe(false)
 
-    const res2 = await updateEhrConnections(req('http://localhost/api/settings/ehr-connections', { tebraPassword: 'pw' }))
-    const body2 = await res2.json()
-    expect(body2.tebraConfigured).toBe(true)
+    const res2 = await updateEhrConnections(req('http://localhost/api/settings/ehr-connections', { tebraCustomerKey: 'ck1234567', tebraUser: 'api@example.com', tebraPassword: 'pw' }))
+    expect(res2.status).toBe(200)
+    expect((await res2.json()).tebraConfigured).toBe(true)
+
+    // Once all three are stored, rotating just the password is fine.
+    const res3 = await updateEhrConnections(req('http://localhost/api/settings/ehr-connections', { tebraPassword: 'pw2' }))
+    expect(res3.status).toBe(200)
+    expect((await res3.json()).tebraConfigured).toBe(true)
+  })
+
+  it('rejects malformed credentials with a field-level error and stores nothing', async () => {
+    const before = await getAppSettings()
+    const res = await updateEhrConnections(req('http://localhost/api/settings/ehr-connections', { intakeqApiKey: 'short key' }))
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.fieldErrors.intakeqApiKey).toMatch(/IntakeQ API key/)
+    expect((await getAppSettings()).intakeqApiKeyEncrypted).toBe(before.intakeqApiKeyEncrypted)
+  })
+
+  it('answers a malformed JSON body with 400, not a 500', async () => {
+    const bad = new NextRequest('http://localhost/api/settings/ehr-connections', { method: 'PUT', body: '{not json', headers: { 'content-type': 'application/json' } })
+    const res = await updateEhrConnections(bad)
+    expect(res.status).toBe(400)
   })
 
   it('an empty payload leaves existing credentials untouched', async () => {
