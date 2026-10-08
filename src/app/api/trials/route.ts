@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { requireSession } from '@/lib/auth'
 import { listAllTrials } from '@/lib/queries/trials'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
 

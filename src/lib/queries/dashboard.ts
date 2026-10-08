@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { formSubmissions, formTemplates, patients, patientTrialScreenings, auditLog, appointments, reviews } from '@/db/schema'
-import { eq, desc, isNull, or, inArray, sql } from 'drizzle-orm'
+import { eq, desc, or, inArray, sql } from 'drizzle-orm'
 import { getOrSetCache, dashboardCacheKey } from '@/lib/cache'
 import { getAverageExperienceRating } from '@/lib/queries/reviews'
 

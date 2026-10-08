@@ -1,6 +1,6 @@
 'use client'
 import { sendJson } from '@/lib/send-json'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Send, Info } from 'lucide-react'
 
@@ -15,19 +15,14 @@ export function SendSurveyButton({ candidates }: { candidates: Candidate[] }) {
 
   // `candidates` shrinks after a successful send (router.refresh()), so a
   // `selected` id from before that refresh can point at a patient no longer
-  // in the list -- re-sync whenever the candidate set changes instead of
-  // only initializing once at mount.
-  useEffect(() => {
-    if (!candidates.some((c) => c.formSubmissionId === selected)) {
-      setSelected(candidates[0]?.formSubmissionId ?? null)
-    }
-  }, [candidates, selected])
+  // in the list -- fall back to the first candidate whenever that happens.
+  const current = candidates.some((c) => c.formSubmissionId === selected) ? selected : (candidates[0]?.formSubmissionId ?? null)
 
   async function send() {
-    if (selected === null) return
+    if (current === null) return
     setSending(true)
     setError(null)
-    const res = await sendJson('/api/reviews', { method: 'POST', body: { formSubmissionId: selected }, fallbackError: 'Could not send survey.' })
+    const res = await sendJson('/api/reviews', { method: 'POST', body: { formSubmissionId: current }, fallbackError: 'Could not send survey.' })
     setSending(false)
     if (res.ok) {
       setOpen(false)
@@ -59,7 +54,7 @@ export function SendSurveyButton({ candidates }: { candidates: Candidate[] }) {
               <label htmlFor="survey-candidate" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</label>
               <select
                 id="survey-candidate"
-                value={selected ?? ''}
+                value={current ?? ''}
                 onChange={(e) => setSelected(Number(e.target.value))}
                 className="mb-3 w-full rounded-md border border-border bg-card px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
               >

@@ -14,10 +14,10 @@ export function SessionTimeoutWarning() {
   // Shared by the idle-activity listeners AND the "Stay signed in" button —
   // both must reschedule the same timers, or clicking the button would leave
   // the original logout timer running and silently sign the user out anyway.
-  const reset = useCallback(() => {
+  // Timers only, no state update -- safe to call from the mount effect.
+  const schedule = useCallback(() => {
     clearTimeout(warnTimer.current)
     clearTimeout(logoutTimer.current)
-    setShowWarning(false)
     warnTimer.current = setTimeout(() => setShowWarning(true), WARN_AFTER_MS)
     logoutTimer.current = setTimeout(() => {
       // The session cookie is httpOnly (can't be read or cleared from JS --
@@ -29,8 +29,13 @@ export function SessionTimeoutWarning() {
     }, LOGOUT_AFTER_MS)
   }, [router])
 
+  const reset = useCallback(() => {
+    setShowWarning(false)
+    schedule()
+  }, [schedule])
+
   useEffect(() => {
-    reset()
+    schedule()
     window.addEventListener('mousemove', reset)
     window.addEventListener('keydown', reset)
     return () => {
@@ -39,14 +44,14 @@ export function SessionTimeoutWarning() {
       window.removeEventListener('mousemove', reset)
       window.removeEventListener('keydown', reset)
     }
-  }, [reset])
+  }, [reset, schedule])
 
   if (!showWarning) return null
 
   return (
     <div role="alertdialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="rounded-lg bg-card p-6 shadow-lg">
-        <p className="mb-2 font-semibold text-foreground">You'll be signed out soon</p>
+        <p className="mb-2 font-semibold text-foreground">You&apos;ll be signed out soon</p>
         <p className="mb-4 text-sm text-muted-foreground">For patient data protection, inactive sessions end automatically.</p>
         <button onClick={reset} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90">
           Stay signed in

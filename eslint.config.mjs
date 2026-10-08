@@ -12,7 +12,16 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Nested checkouts of other branches (see vitest.config.ts's matching exclude).
+    ".worktrees/**",
   ]),
+  {
+    rules: {
+      // A leading underscore marks a parameter kept only for its type (e.g.
+      // a vi.fn() signature whose mock.calls the test reads).
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    },
+  },
 ]);
 
 export default eslintConfig;
