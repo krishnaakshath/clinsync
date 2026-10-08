@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 
@@ -24,10 +25,10 @@ export function DeletePatientDialog({ target, onClose, onDeleted }: { target: De
     if (!target) return
     setDeleting(true)
     setError(null)
-    const res = await fetch(`/api/patients/${target.id}`, { method: 'DELETE' })
+    const res = await sendJson(`/api/patients/${target.id}`, { method: 'DELETE', fallbackError: 'Could not delete this patient. Please try again.' })
     setDeleting(false)
     if (!res.ok) {
-      setError('Could not delete this patient. Please try again.')
+      setError(res.error)
       return
     }
     onClose()

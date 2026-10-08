@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { MfaEnrollStep } from '@/components/mfa/MfaEnrollStep'
 
@@ -13,22 +14,15 @@ export function PatientPortalSecurityPanel({ initialMfaEnabled }: { initialMfaEn
   async function startEnroll() {
     setBusy(true)
     setError(null)
-    const res = await fetch('/api/patient-portal/account/mfa/enroll', { method: 'POST' })
+    const res = await sendJson<NonNullable<typeof enrollment>>('/api/patient-portal/account/mfa/enroll', { method: 'POST', fallbackError: 'Could not start enrollment.' })
     setBusy(false)
-    if (!res.ok) { setError('Could not start enrollment.'); return }
-    setEnrollment(await res.json())
+    if (!res.ok) { setError(res.error); return }
+    setEnrollment(res.data)
   }
 
   async function confirmEnroll(code: string): Promise<string | null> {
-    const res = await fetch('/api/patient-portal/account/mfa/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      return body?.error ?? 'Could not confirm that code.'
-    }
+    const res = await sendJson('/api/patient-portal/account/mfa/confirm', { method: 'POST', body: { code }, fallbackError: 'Could not confirm that code.' })
+    if (!res.ok) return res.error
     setEnrollment(null)
     setMfaEnabled(true)
     return null
@@ -38,15 +32,10 @@ export function PatientPortalSecurityPanel({ initialMfaEnabled }: { initialMfaEn
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const res = await fetch('/api/patient-portal/account/mfa/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: resetPassword }),
-    })
+    const res = await sendJson('/api/patient-portal/account/mfa/reset', { method: 'POST', body: { password: resetPassword }, fallbackError: 'Could not turn off two-factor authentication.' })
     setBusy(false)
     if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      setError(body?.error ?? 'Could not turn off two-factor authentication.')
+      setError(res.error)
       return
     }
     setMfaEnabled(false)

@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -31,10 +32,10 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
     if (!confirmed) return
     setSubmitting(true)
     setError(null)
-    const res = await fetch('/api/patients', {
+    const res = await sendJson<{ id: string }>('/api/patients', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      fallbackError: 'Could not add this patient. Please check the details and try again.',
+      body: {
         name: form.name,
         dob: form.dob,
         email: form.email || undefined,
@@ -42,17 +43,19 @@ export function AddClientModal({ onClose }: { onClose: () => void }) {
         city: form.city || undefined,
         zip: form.zip || undefined,
         currentProvider: form.currentProvider || undefined,
-      }),
+      },
     })
     setSubmitting(false)
     if (!res.ok) {
-      setError('Could not add this patient. Please check the details and try again.')
+      // The route's message says what actually went wrong (Tebra not
+      // connected, Tebra rejected the chart, invalid details).
+      setError(res.error)
       return
     }
     // Navigate straight to the new patient's detail page rather than just
     // refreshing the current page -- an admin who just added a patient
     // wants to see it, not go find it themselves in the list.
-    const created = await res.json()
+    const created = res.data
     onClose()
     router.push(`/patients/${created.id}`)
   }

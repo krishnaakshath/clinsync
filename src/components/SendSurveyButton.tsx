@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Send, Info } from 'lucide-react'
@@ -26,18 +27,13 @@ export function SendSurveyButton({ candidates }: { candidates: Candidate[] }) {
     if (selected === null) return
     setSending(true)
     setError(null)
-    const res = await fetch('/api/reviews', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ formSubmissionId: selected }),
-    })
+    const res = await sendJson('/api/reviews', { method: 'POST', body: { formSubmissionId: selected }, fallbackError: 'Could not send survey.' })
     setSending(false)
     if (res.ok) {
       setOpen(false)
       router.refresh()
     } else {
-      const body = await res.json()
-      setError(body.error ?? 'Could not send survey.')
+      setError(res.error)
     }
   }
 

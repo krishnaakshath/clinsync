@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 
 // Lost-device recovery while still holding a trusted, signed-in session --
@@ -16,15 +17,10 @@ export function StaffMfaSelfResetForm({ email }: { email: string }) {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const res = await fetch('/api/account/mfa/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
+    const res = await sendJson('/api/account/mfa/reset', { method: 'POST', body: { email, password }, fallbackError: 'Could not reset MFA.' })
     setBusy(false)
     if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      setError(body?.error ?? 'Could not reset MFA.')
+      setError(res.error)
       return
     }
     setDone(true)

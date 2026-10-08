@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -28,18 +29,13 @@ export function NewChargeModal({ patients }: { patients: { id: string; name: str
   async function submit() {
     setSaving(true)
     setError(null)
-    const res = await fetch('/api/charges', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patientId, providerName, dateOfService, diagnosisCodes: dx, procedureCodes: proc }),
-    })
+    const res = await sendJson('/api/charges', { method: 'POST', body: { patientId, providerName, dateOfService, diagnosisCodes: dx, procedureCodes: proc }, fallbackError: 'Failed to create charge.' })
     setSaving(false)
     if (res.ok) {
       setOpen(false)
       router.refresh()
     } else {
-      const body = await res.json()
-      setError(body.error ?? 'Failed to create charge.')
+      setError(res.error)
     }
   }
 

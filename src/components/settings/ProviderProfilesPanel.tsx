@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Pencil } from 'lucide-react'
@@ -32,13 +33,9 @@ function ProviderRowItem({ provider, isAdmin }: { provider: ProviderRow; isAdmin
   async function save() {
     setSaving(true)
     setError(null)
-    const res = await fetch(`/api/providers/${provider.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    })
+    const res = await sendJson(`/api/providers/${provider.id}`, { method: 'PUT', body: { name }, fallbackError: 'Could not save.' })
     setSaving(false)
-    if (!res.ok) { setError('Could not save.'); return }
+    if (!res.ok) { setError(res.error); return }
     setEditing(false)
     // provider.name is a prop from the server-rendered roster -- without
     // this, the row immediately snaps back to displaying the pre-edit name

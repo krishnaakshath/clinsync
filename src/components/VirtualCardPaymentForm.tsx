@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 
 interface Patient { id: string; name: string }
@@ -26,10 +27,10 @@ export function VirtualCardPaymentForm({
     setSubmitting(true)
     setError(null)
     setOutcome(null)
-    const res = await fetch('/api/mock-payments', {
+    const res = await sendJson<{ result: NonNullable<typeof outcome>['result']; cardLast4: string }>('/api/mock-payments', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      fallbackError: 'Could not record this demo payment.',
+      body: {
         patientId,
         chargeId: null,
         amountCents: Math.round(Number(amount) * 100),
@@ -37,15 +38,13 @@ export function VirtualCardPaymentForm({
         expMonth: Number(expMonth),
         expYear: Number(expYear),
         cvc,
-      }),
+      },
     })
     setSubmitting(false)
     if (res.ok) {
-      const body = await res.json()
-      setOutcome({ result: body.result, cardLast4: body.cardLast4 })
+      setOutcome({ result: res.data.result, cardLast4: res.data.cardLast4 })
     } else {
-      const body = await res.json()
-      setError(body.error ?? 'Could not record this demo payment.')
+      setError(res.error)
     }
   }
 

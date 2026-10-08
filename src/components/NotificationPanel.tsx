@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
 
@@ -10,9 +11,10 @@ export function NotificationPanel({ triggerClassName = 'text-muted-foreground ho
 
   useEffect(() => {
     if (open) {
-      fetch('/api/audit-log?limit=10')
-        .then((r) => r.json())
-        .then((data) => setEvents((data.entries ?? []).slice(0, 10)))
+      sendJson<{ entries?: typeof events }>('/api/audit-log?limit=10').then((res) => {
+        // A failed load just leaves the list empty; the bell is a convenience feed.
+        if (res.ok) setEvents((res.data?.entries ?? []).slice(0, 10))
+      })
     }
   }, [open])
 

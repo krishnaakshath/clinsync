@@ -1,4 +1,5 @@
 'use client'
+import { sendJson } from '@/lib/send-json'
 import { useState } from 'react'
 
 const TIMEZONES = ['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York']
@@ -17,13 +18,9 @@ export function PracticeInfoForm({ initial, isAdmin }: {
   async function save() {
     setSaving(true)
     setError(null)
-    const res = await fetch('/api/settings/practice-info', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ practiceName, practiceSite, practiceTimezone }),
-    })
+    const res = await sendJson('/api/settings/practice-info', { method: 'PUT', body: { practiceName, practiceSite, practiceTimezone }, fallbackError: 'Could not save practice information.' })
     setSaving(false)
-    if (!res.ok) { setError('Could not save practice information.'); return }
+    if (!res.ok) { setError(res.error); return }
     setSavedAt(Date.now())
   }
 
