@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client'
 import { charges, patients } from '@/db/schema'
 import { eq, desc } from 'drizzle-orm'
-import { getOrSetCache, invalidateCache, chargesListCacheKey, chargeDetailCacheKey } from '@/lib/cache'
+import { getOrSetCache, invalidateCache, invalidateBillingCaches, chargesListCacheKey, chargeDetailCacheKey } from '@/lib/cache'
 
 // Re-exported for existing importers -- the actual definitions live in the
 // DB-free src/lib/charge-status.ts so client components (ChargesTable) can
@@ -57,6 +57,7 @@ export async function getCharge(id: number) {
 export async function createCharge(input: CreateChargeInput) {
   const [created] = await getDb().insert(charges).values({ ...input, status: 'draft' }).returning()
   await invalidateChargesList()
+  await invalidateBillingCaches()
   return created
 }
 
@@ -64,6 +65,7 @@ export async function updateChargeStatus(id: number, status: ChargeStatus) {
   await getDb().update(charges).set({ status }).where(eq(charges.id, id))
   await invalidateChargesList()
   await invalidateCache(chargeDetailCacheKey(id))
+  await invalidateBillingCaches()
 }
 
 export async function invalidateChargesList() {

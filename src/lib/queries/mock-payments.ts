@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { mockPayments } from '@/db/schema'
 import { luhnCheck } from '@/lib/mock-payment'
+import { invalidateBillingCaches } from '@/lib/cache'
 
 export interface CreateMockPaymentInput {
   patientId: string
@@ -28,5 +29,6 @@ export async function createMockPayment(input: CreateMockPaymentInput) {
     expYear: input.expYear,
     result,
   }).returning()
+  await invalidateBillingCaches()
   return created
 }
