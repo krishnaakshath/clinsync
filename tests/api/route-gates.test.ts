@@ -73,6 +73,7 @@ const ROWS: [string, Method, Access][] = [
   ['form-templates', 'POST', OPS],
   ['form-templates/[id]', 'GET', OPS],
   ['form-templates/[id]', 'PUT', OPS],
+  ['form-templates/[id]', 'DELETE', OPS],
   ['identity-matches', 'GET', OPS],
   ['identity-matches/[id]/confirm', 'POST', OPS],
   ['identity-matches/[id]/reject', 'POST', OPS],
@@ -116,7 +117,7 @@ const ROWS: [string, Method, Access][] = [
   ['users', 'GET', ADMIN],
   ['users', 'POST', ADMIN],
   ['users/[id]/reset-mfa', 'POST', ADMIN],
-  ['workbook/export', 'GET', 'staff'],
+  ['workbook/export', 'GET', OPS],
   ['workbook/full', 'GET', OPS],
 ]
 

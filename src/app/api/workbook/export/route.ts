@@ -5,12 +5,14 @@ import { desc, eq } from 'drizzle-orm'
 import { buildWorkbookXlsx, type ExportablePatient } from '@/lib/excel-export'
 import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
+import { canAccessOperations } from '@/lib/role-capabilities'
 import { getPatientDetail, listPatientsWithStatus } from '@/lib/queries/patients'
 import { listAllTrials } from '@/lib/queries/trials'
 
 export async function GET() {
   const session = await requireSession()
   if (session instanceof NextResponse) return session
+  if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   // `listPatientsWithStatus(null)` (not a raw `select().from(patients)`) so a
   // patient screened against multiple trials appears once per screening, each
