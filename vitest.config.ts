@@ -19,6 +19,14 @@ export default defineConfig({
     // file reading real rows concurrently (e.g. tests/api/patients.test.ts).
     // Run files sequentially to keep the shared-state suite deterministic.
     fileParallelism: false,
+    // Several suites (login/MFA, intake-portal, pipeline-dashboard, ...)
+    // chain many sequential round trips against the live Neon DB (one HTTPS
+    // request per query, no connection pooling) and Redis, sometimes on top
+    // of a real scrypt verify (~400ms since the OWASP-cost bump) -- the
+    // default 5000ms timeout is a false positive under any load, not a sign
+    // of a hang (confirmed per-case by raising it and watching the same
+    // assertions pass).
+    testTimeout: 15000,
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },

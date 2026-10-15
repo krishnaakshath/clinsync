@@ -131,8 +131,8 @@ function mfaReq(body: unknown, cookie?: string) {
 
 // Every test here exercises a real scrypt verify (~400ms since the OWASP
 // cost bump in 71a823f) plus several uncached round trips to the live Neon
-// DB and Redis -- comfortably past vitest's 5000ms default on this machine,
-// confirmed by raising the timeout and watching the same assertions pass.
+// DB and Redis -- relies on vitest.config.ts's testTimeout, not a local
+// override (see that file for why these suites need more than the default).
 describe('two-step staff login', () => {
   let enrollCode: string
 
@@ -202,4 +202,4 @@ describe('two-step staff login', () => {
     const res = await loginMfa(mfaReq({ code: '000000' }, `clinsync_pending_staff_mfa=${pendingCookie}`))
     expect(res.status).toBe(429)
   })
-}, 15000)
+})
