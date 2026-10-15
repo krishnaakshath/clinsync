@@ -1,10 +1,69 @@
-import { neon } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-http'
+import net from 'net'
+import { lookup } from 'dns'
+import { Pool } from 'pg'
+import { drizzle } from 'drizzle-orm/node-postgres'
 import * as schema from './schema'
+import { sslFor } from './url'
+
+// TCP (node-postgres), not Neon's HTTP driver -- ported from the
+// hims-platform lineage so this app can run against a plain local Postgres
+// (Docker Compose) as well as cloud Neon, which also accepts raw TCP on
+// port 5432. A real TCP connection pool also unlocks genuine multi-statement
+// transactions, which the HTTP driver never supported.
+//
+// Neon's pooler hostname resolves to both IPv4 and IPv6 addresses; some
+// sandboxes' IPv6 egress is broken even though IPv4 works fine, and `pg` has
+// no config option to prefer a DNS family -- its Connection class calls the
+// plain two-argument `socket.connect(port, host)`, which can't carry a
+// custom `lookup` function. A custom `stream` factory can, though: pg calls
+// it fresh per pooled connection (`typeof config.stream === 'function'`),
+// so this intercepts just the DNS step and resolves to IPv4 itself before
+// handing off to the real `net.Socket.prototype.connect`.
+//
+// Crucially, this passes the ORIGINAL hostname through to pg's TLS upgrade
+// (`Connection#upgradeToSSL`), not the resolved IP -- that function sets
+// SNI's `servername` from the `host` argument `Connection#connect(port,
+// host)` was called with, which never changes here, only what the
+// underlying socket actually dials. Neon's pooler is a multi-tenant TLS
+// proxy that routes by SNI, so substituting a bare IP for `host` instead
+// would risk connecting to the wrong backend entirely, not just breaking
+// certificate validation.
+function createIPv4PreferringStream(): net.Socket {
+  const socket = new net.Socket()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- monkey-patching a socket method with a signature TS can't express cleanly across net.Socket#connect's overloads
+  const nativeConnect: any = net.Socket.prototype.connect
+  socket.connect = ((port: number, host?: string, connectListener?: () => void) => {
+    if (typeof host !== 'string' || net.isIP(host) !== 0) {
+      return nativeConnect.call(socket, port, host, connectListener)
+    }
+    lookup(host, { family: 4 }, (err, address) => {
+      if (err) { socket.emit('error', err); return }
+      nativeConnect.call(socket, port, address, connectListener)
+    })
+    return socket
+  }) as typeof socket.connect
+  return socket
+}
 
 function createDb() {
-  const sql = neon(process.env.DATABASE_URL!)
-  return drizzle(sql, { schema })
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL!,
+    // No TLS for a local database, TLS for every hosted one (src/db/url.ts).
+    ssl: sslFor(process.env.DATABASE_URL),
+    stream: createIPv4PreferringStream,
+    // Fail fast instead of hanging forever when the pool is exhausted or
+    // Neon is unreachable, and recycle idle clients before Neon resets them.
+    connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: 30_000,
+  })
+  // An idle client whose connection Neon resets emits 'error' on the pool;
+  // with no listener Node treats it as unhandled and terminates the process.
+  // pg discards the dead client itself, so logging is all that is needed.
+  // Message only: the raw error can carry the connection string or query text.
+  pool.on('error', (err) => {
+    console.error(`[db] idle pool client error (${err.name}${(err as NodeJS.ErrnoException).code ? `: ${(err as NodeJS.ErrnoException).code}` : ''})`)
+  })
+  return drizzle(pool, { schema })
 }
 
 let _db: ReturnType<typeof createDb> | null = null

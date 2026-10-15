@@ -1,0 +1,99 @@
+# Local development/self-hosting stack: Postgres + Redis (with an
+# Upstash-compatible REST endpoint, since the app talks to Redis over HTTP
+# like Upstash does) + the app itself.
+#
+#   docker compose up -d --build
+#   docker compose exec app npm run db:push
+#   docker compose exec -e ALLOW_PRODUCTION_SEED=1 app npm run db:seed
+#
+# This stack is entirely separate from clinsync's Vercel/Neon cloud
+# deployment -- nothing here touches that project's credentials or data.
+#
+# Redis REST is two services: `redis-http` (serverless-redis-http, internal
+# only) and `redis-rest`, a tiny Node proxy (scripts/dev/redis-rest-shim.mjs,
+# ported from the hims-platform lineage) published on 8080. Upstash's
+# rate-limit library sends Lua scripts with a flag (allow-key-locking) that
+# only Upstash's own Redis accepts; the proxy strips it. Set REDIS_REST_PORT
+# to publish it on another host port.
+# Local only: the credentials below are throwaway development values.
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: clinsync_local_dev
+      POSTGRES_DB: clinsync
+    ports:
+      - "55433:5432"
+    volumes:
+      - clinsync_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d clinsync"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - clinsync_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis-http:
+    image: hiett/serverless-redis-http:latest
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: clinsync_local_redis_token
+      SRH_CONNECTION_STRING: redis://redis:6379
+  redis-rest:
+    image: node:22-alpine
+    restart: unless-stopped
+    depends_on:
+      - redis-http
+    command: ["node", "/shim/redis-rest-shim.mjs"]
+    environment:
+      SHIM_HOST: 0.0.0.0
+      SHIM_PORT: "8080"
+      SHIM_TARGET: http://redis-http:80
+    volumes:
+      - ./scripts/dev/redis-rest-shim.mjs:/shim/redis-rest-shim.mjs:ro
+    ports:
+      - "${REDIS_REST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/',{method:'POST',headers:{authorization:'Bearer clinsync_local_redis_token','content-type':'application/json'},body:'[\"PING\"]'}).then((r)=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  # The app itself. Talks to postgres/redis-rest by their in-network service
+  # names, not the host-published ports above (those are only for running
+  # `npm run dev` on the host against this same stack). Secrets live in
+  # .env.docker (gitignored), not here.
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-rest:
+        condition: service_healthy
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgres://postgres:clinsync_local_dev@postgres:5432/clinsync
+      KV_REST_API_URL: http://redis-rest:8080
+      KV_REST_API_TOKEN: clinsync_local_redis_token
+    ports:
+      - "${APP_PORT:-3000}:3000"
+volumes:
+  clinsync_pg:
+  clinsync_redis:
