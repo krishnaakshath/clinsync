@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readJsonBody } from '@/lib/http'
+import { readJsonBody, parseIntParam } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { appointments } from '@/db/schema'
@@ -20,11 +20,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const session = await requireSession()
   if (session instanceof NextResponse) return session
   const { id } = await params
+  const appointmentId = parseIntParam(id)
+  if (appointmentId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
   const parsed = updateAppointmentSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid appointment update', details: parsed.error.flatten() }, { status: 400 })
 
-  const existing = await getAppointment(Number(id))
+  const existing = await getAppointment(appointmentId)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const patch: Record<string, unknown> = { ...parsed.data }
@@ -41,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'endsAt must be a valid time after startsAt' }, { status: 400 })
   }
 
-  await getDb().update(appointments).set(patch).where(eq(appointments.id, Number(id)))
+  await getDb().update(appointments).set(patch).where(eq(appointments.id, appointmentId))
 
   const action = parsed.data.status ? `marked appointment ${id} as ${parsed.data.status}` : `updated appointment ${id}`
   await logAudit(session, action, existing.patientId)

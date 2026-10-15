@@ -4,11 +4,14 @@ import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { getFormSubmission } from '@/lib/queries/form-submissions'
 import { formatAnswerDisplay } from '@/lib/form-answers'
+import { parseIntParam } from '@/lib/http'
 
 export default async function ClientFormDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSessionOrRedirect()
   const { id } = await params
-  const submission = await getFormSubmission(Number(id))
+  const submissionId = parseIntParam(id)
+  if (submissionId === null) notFound()
+  const submission = await getFormSubmission(submissionId)
   if (!submission) notFound()
   await logAudit(session, `viewed client form ${id}`, submission.patientId)
 

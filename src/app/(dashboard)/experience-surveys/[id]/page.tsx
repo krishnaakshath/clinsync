@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit'
 import { getReview } from '@/lib/queries/reviews'
 import { RecordSurveyResponseForm } from '@/components/RecordSurveyResponseForm'
 import { BackLink } from '@/components/BackLink'
+import { parseIntParam } from '@/lib/http'
 
 const SECTION = 'rounded-xl border border-primary/10 bg-card/80 p-5 shadow-sm backdrop-blur-sm'
 
@@ -12,7 +13,9 @@ export default async function ExperienceSurveyDetailPage({ params }: { params: P
   const session = await requireSessionOrRedirect()
   if (!canAccessOperations(session.role)) redirect('/')
   const { id } = await params
-  const review = await getReview(Number(id))
+  const reviewId = parseIntParam(id)
+  if (reviewId === null) notFound()
+  const review = await getReview(reviewId)
   if (!review) notFound()
   await logAudit(session, `viewed pre-screening experience survey ${id}`, review.patientId)
 
