@@ -34,7 +34,12 @@ const COLUMNS: ReportColumn<UnsignedNoteRow>[] = [
 function matchesFilters(row: UnsignedNoteRow, filters: Record<string, string>): boolean {
   if (filters.patientName && !row.patientName.toLowerCase().includes(filters.patientName.toLowerCase())) return false
   if (filters.noteType && !row.noteType.toLowerCase().includes(filters.noteType.toLowerCase())) return false
-  if (filters.visitDate && (!row.visitDate || new Date(row.visitDate).toDateString() !== new Date(filters.visitDate).toDateString())) return false
+  // Compare as plain YYYY-MM-DD strings -- row.visitDate is a full ISO
+  // timestamp and filters.visitDate comes from a native date input already
+  // in that format, so going through `new Date(...).toDateString()` would
+  // reinterpret both in the browser's local timezone and can shift either
+  // side across midnight relative to the other.
+  if (filters.visitDate && row.visitDate?.slice(0, 10) !== filters.visitDate) return false
   return true
 }
 
