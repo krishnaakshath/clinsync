@@ -5,20 +5,27 @@ import { getDb } from '@/db/client'
 import { syncRuns } from '@/db/schema'
 import { recordSyncRun } from '@/lib/queries/sync-runs'
 
-// A startedAt timestamp unique to this test run, used as a collision-proof
-// marker to find (and clean up) only the rows this file inserted, rather
-// than a fixed literal that could collide with another run against the
-// shared dev DB.
-const MARKER_STARTED_AT = new Date(`2026-01-01T00:00:00.${String(Date.now() % 1000).padStart(3, '0')}Z`)
+// A startedAt timestamp unique to this test run (the real current time, down
+// to the millisecond), used as a collision-proof marker to find (and clean
+// up) only the rows this file inserted, rather than a fixed literal that
+// could collide with another run against the shared dev DB.
+const RUN_MARKER = Date.now()
+const startedAtForTest = (offsetMs: number) => new Date(RUN_MARKER + offsetMs)
+const insertedStartedAts: Date[] = []
 
 afterEach(async () => {
-  await getDb().delete(syncRuns).where(and(eq(syncRuns.entityType, 'charge'), eq(syncRuns.startedAt, MARKER_STARTED_AT)))
+  await Promise.all(
+    insertedStartedAts.splice(0).map((startedAt) =>
+      getDb().delete(syncRuns).where(and(eq(syncRuns.entityType, 'charge'), eq(syncRuns.startedAt, startedAt))),
+    ),
+  )
 })
 
 describe('recordSyncRun', () => {
   it('inserts a row readable back with all fields intact', async () => {
-    const startedAt = MARKER_STARTED_AT
+    const startedAt = startedAtForTest(0)
     const finishedAt = new Date(startedAt.getTime() + 5000)
+    insertedStartedAts.push(startedAt)
 
     await recordSyncRun('charge', startedAt, finishedAt, 42, 'ok')
 
@@ -36,8 +43,9 @@ describe('recordSyncRun', () => {
   })
 
   it('records an optional errorKind on a failed outcome', async () => {
-    const startedAt = new Date(MARKER_STARTED_AT.getTime() + 1)
+    const startedAt = startedAtForTest(1)
     const finishedAt = new Date(startedAt.getTime() + 1000)
+    insertedStartedAts.push(startedAt)
 
     await recordSyncRun('charge', startedAt, finishedAt, 0, 'failed', 'rate_limited')
 
@@ -47,7 +55,5 @@ describe('recordSyncRun', () => {
       .where(and(eq(syncRuns.entityType, 'charge'), eq(syncRuns.startedAt, startedAt)))
     expect(row.outcome).toBe('failed')
     expect(row.errorKind).toBe('rate_limited')
-
-    await getDb().delete(syncRuns).where(and(eq(syncRuns.entityType, 'charge'), eq(syncRuns.startedAt, startedAt)))
   })
 })
