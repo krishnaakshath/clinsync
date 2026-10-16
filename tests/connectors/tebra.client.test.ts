@@ -269,3 +269,102 @@ describe('Tebra client -- Test connection error accuracy', () => {
     expectNoSecrets(err)
   })
 })
+
+describe('Tebra SOAP client -- appointments/charges/payments/providers/locations/procedures/encounters', () => {
+  it('maps GetAppointments AppointmentData into TebraAppointment records, deriving status from ConfirmationStatus', async () => {
+    const { client, fetchImpl } = makeClient([soapResponse(fixture('get-appointments-ok.xml'))])
+    const appointments = await client.getAppointments({ fromLastModifiedDate: '2026-10-01' })
+    expect(appointments).toEqual([
+      { tebraId: '9001', patientId: '5001', providerId: '301', startsAt: '2026-10-20T10:00:00', endsAt: '2026-10-20T11:00:00', visitReason: 'Follow-up visit', status: 'scheduled' },
+      { tebraId: '9002', patientId: '5001', providerId: '301', startsAt: '2026-10-27T14:00:00', endsAt: '2026-10-27T14:30:00', visitReason: 'Medication review', status: 'cancelled' },
+    ])
+    const body = String(fetchImpl.mock.calls[0][1]!.body)
+    expect(body).toContain('<sch:FromLastModifiedDate>2026-10-01</sch:FromLastModifiedDate>')
+    expect(new Headers(fetchImpl.mock.calls[0][1]!.headers).get('SOAPAction')).toContain('/GetAppointments')
+  })
+
+  it('maps GetCharges ChargeData, including EncounterID and primary insurance fields, with no secondary/tertiary insurance and no diagnosis codes', async () => {
+    const { client } = makeClient([soapResponse(fixture('get-charges-ok.xml'))])
+    const charges = await client.getCharges({})
+    expect(charges).toEqual([
+      {
+        tebraId: '70001',
+        patientId: '5001',
+        encounterId: '8001',
+        dateOfService: '2026-10-15',
+        diagnosisCodes: [],
+        procedureCodes: [{ code: '90837', description: 'Psychotherapy, 60 minutes', units: 1, chargeCents: 15000 }],
+        amountCents: 15000,
+        status: 'Approved',
+        primaryInsurance: { payerName: 'Blue Cross Blue Shield', billedAmountCents: 15000, paidAmountCents: 12000, status: 'Insurance Payment' },
+        secondaryInsurance: null,
+        tertiaryInsurance: null,
+      },
+    ])
+  })
+
+  it('maps GetPayments PaymentData, leaving patientId/chargeId unset (not exposed by SOAP 2.1 PaymentData)', async () => {
+    const { client } = makeClient([soapResponse(fixture('get-payments-ok.xml'))])
+    const payments = await client.getPayments({ fromLastModifiedDate: '2026-10-01' })
+    expect(payments).toEqual([
+      { tebraId: '60001', patientId: '', chargeId: null, payerName: 'Blue Cross Blue Shield', payerType: 'Insurance', amountCents: 12000, method: 'EFT', postedDate: '2026-10-18' },
+    ])
+  })
+
+  it('maps GetProviders ProviderData, with a null credentials when Degree is nil', async () => {
+    const { client } = makeClient([soapResponse(fixture('get-providers-ok.xml'))])
+    const providers = await client.getProviders()
+    expect(providers).toEqual([
+      { tebraId: '301', name: 'Dr. R. Kunam', credentials: 'MD', specialty: 'Psychiatry' },
+      { tebraId: '302', name: 'Dr. A. Chen', credentials: null, specialty: 'Neurology' },
+    ])
+  })
+
+  it('maps GetServiceLocations ServiceLocationData, sending Fields in the xsd7 (no-trailing-slash) schema namespace', async () => {
+    const { client, fetchImpl } = makeClient([soapResponse(fixture('get-service-locations-ok.xml'))])
+    const locations = await client.getServiceLocations()
+    expect(locations).toEqual([
+      { tebraId: '401', name: 'Main Office' },
+      { tebraId: '402', name: 'Downtown Clinic' },
+    ])
+    const body = String(fetchImpl.mock.calls[0][1]!.body)
+    expect(body).toContain('xmlns:sch2="http://www.kareo.com/api/schemas"')
+    expect(body).toContain('<sch2:Fields>')
+    expect(body).toContain('<sch2:ID>true</sch2:ID>')
+    expect(body).not.toContain('<sch:Fields>')
+  })
+
+  it('maps GetProcedureCodes ProcedureCodeData, also in the xsd7 schema namespace', async () => {
+    const { client, fetchImpl } = makeClient([soapResponse(fixture('get-procedure-codes-ok.xml'))])
+    const codes = await client.getProcedureCodes()
+    expect(codes).toEqual([
+      { tebraId: '501', code: '90837', description: 'Psychotherapy, 60 minutes' },
+      { tebraId: '502', code: '90834', description: 'Psychotherapy, 45 minutes' },
+    ])
+    const body = String(fetchImpl.mock.calls[0][1]!.body)
+    expect(body).toContain('<sch2:Fields>')
+    expect(body).not.toContain('<sch:Fields>')
+  })
+
+  it('getEncounterDetails sends only EncounterID in the Filter (no date range) and maps the result', async () => {
+    const { client, fetchImpl } = makeClient([soapResponse(fixture('get-encounter-details-ok.xml'))])
+    const detail = await client.getEncounterDetails('8001')
+    expect(detail).toEqual({
+      tebraId: '8001',
+      patientId: '5001',
+      providerId: 'Dr. R. Kunam',
+      serviceLocationId: '401',
+      serviceStartDate: '2026-10-15',
+      serviceEndDate: '2026-10-15',
+      status: 'Completed',
+    })
+    const body = String(fetchImpl.mock.calls[0][1]!.body)
+    expect(body).toContain('<sch:Filter><sch:EncounterID>8001</sch:EncounterID></sch:Filter>')
+    expect(body).not.toContain('LastModifiedDate')
+  })
+
+  it('getEncounterDetails returns null when EncounterDetails is nil', async () => {
+    const { client } = makeClient([soapResponse(fixture('get-encounter-details-empty.xml'))])
+    expect(await client.getEncounterDetails('404')).toBeNull()
+  })
+})
