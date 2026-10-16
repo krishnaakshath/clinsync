@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client'
 import { appointments, patients, providers } from '@/db/schema'
-import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
+import type { TebraAppointment } from '@/connectors/types'
 
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show'
 
@@ -79,4 +80,57 @@ export async function getAppointment(id: number): Promise<AppointmentWithDetails
     .innerJoin(providers, eq(appointments.providerId, providers.id))
     .where(eq(appointments.id, id))
   return row ? mapAppointmentRow(row) : null
+}
+
+/**
+ * Upserts an appointment synced from Tebra, matched on `tebraId` -- inserts
+ * if absent, updates if present. Never touches a `source: 'clinsync'` row:
+ * the unique index on `tebraId` (Task 1) is partial (`WHERE tebra_id IS NOT
+ * NULL`), so `ON CONFLICT` inference needs `targetWhere` to match that
+ * predicate (see `upsertProviderFromTebra`'s comment for the full
+ * reasoning) -- a clinsync-origin appointment always has `tebraId: null`,
+ * so it can never be the row Postgres finds conflicting here.
+ *
+ * `TebraAppointment.providerId` is Tebra's own provider id (a string) --
+ * resolved here to our internal serial `providers.id` via the
+ * `providers.tebraId` column `upsertProviderFromTebra` populates (providers
+ * sync as daily reference data, ahead of this entity's more frequent pull,
+ * so the lookup should normally hit; this throws rather than silently
+ * dropping the appointment if it doesn't, since `providerId` is a NOT NULL
+ * FK). `patientId` is passed straight through: `TebraAppointment.patientId`
+ * and `patients.id` are both plain text, and resolving a raw Tebra patient
+ * id into Clinsync's own anonymised patient id is the sync orchestrator's
+ * job (a later task), not this function's.
+ */
+export async function upsertAppointmentFromTebra(data: TebraAppointment): Promise<void> {
+  const db = getDb()
+  const [provider] = await db.select({ id: providers.id }).from(providers).where(eq(providers.tebraId, data.providerId))
+  if (!provider) {
+    throw new Error(`upsertAppointmentFromTebra: no provider found for Tebra providerId "${data.providerId}" -- sync providers before appointments`)
+  }
+
+  await db
+    .insert(appointments)
+    .values({
+      patientId: data.patientId,
+      providerId: provider.id,
+      startsAt: new Date(data.startsAt),
+      endsAt: new Date(data.endsAt),
+      visitReason: data.visitReason,
+      status: data.status,
+      source: 'tebra',
+      tebraId: data.tebraId,
+    })
+    .onConflictDoUpdate({
+      target: [appointments.tebraId],
+      targetWhere: sql`${appointments.tebraId} is not null`,
+      set: {
+        patientId: data.patientId,
+        providerId: provider.id,
+        startsAt: new Date(data.startsAt),
+        endsAt: new Date(data.endsAt),
+        visitReason: data.visitReason,
+        status: data.status,
+      },
+    })
 }
