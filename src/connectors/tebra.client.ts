@@ -82,8 +82,10 @@ const CHARGE_FIELDS = [
   'TotalCharges', 'Units',
 ]
 // PaymentData has no PatientID/ChargeID field at all (confirmed against the
-// live schema) -- see mapPayment().
-const PAYMENT_FIELDS = ['Amount', 'ID', 'PayerName', 'PayerType', 'PaymentMethod', 'PostDate']
+// live schema) -- see mapPayment(). AppointmentID is real and is the only
+// available link back to a patient (resolved by the sync orchestrator via
+// the same run's already-pulled appointments).
+const PAYMENT_FIELDS = ['Amount', 'AppointmentID', 'ID', 'PayerName', 'PayerType', 'PaymentMethod', 'PostDate']
 const PROVIDER_FIELDS = ['Degree', 'FullName', 'ID', 'SpecialtyName']
 const SERVICE_LOCATION_FIELDS = ['ID', 'Name']
 const PROCEDURE_CODE_FIELDS = ['ID', 'OfficialDescription', 'ProcedureCode']
@@ -253,6 +255,7 @@ function mapPayment(p: XmlElement): TebraPayment {
     // a patient or charge by this operation), so these are never guessed.
     patientId: '',
     chargeId: null,
+    appointmentId: t('AppointmentID') || null,
     payerName: t('PayerName'),
     payerType: t('PayerType'),
     amountCents: toCentsOrNull(childText(p, 'Amount')) ?? 0,

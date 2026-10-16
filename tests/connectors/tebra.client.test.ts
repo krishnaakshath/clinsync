@@ -303,11 +303,11 @@ describe('Tebra SOAP client -- appointments/charges/payments/providers/locations
     ])
   })
 
-  it('maps GetPayments PaymentData, leaving patientId/chargeId unset (not exposed by SOAP 2.1 PaymentData)', async () => {
+  it('maps GetPayments PaymentData, leaving patientId/chargeId unset (not exposed by SOAP 2.1 PaymentData), capturing AppointmentID', async () => {
     const { client } = makeClient([soapResponse(fixture('get-payments-ok.xml'))])
     const payments = await client.getPayments({ fromLastModifiedDate: '2026-10-01' })
     expect(payments).toEqual([
-      { tebraId: '60001', patientId: '', chargeId: null, payerName: 'Blue Cross Blue Shield', payerType: 'Insurance', amountCents: 12000, method: 'EFT', postedDate: '2026-10-18' },
+      { tebraId: '60001', patientId: '', chargeId: null, appointmentId: '70001', payerName: 'Blue Cross Blue Shield', payerType: 'Insurance', amountCents: 12000, method: 'EFT', postedDate: '2026-10-18' },
     ])
   })
 

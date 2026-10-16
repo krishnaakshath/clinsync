@@ -105,6 +105,13 @@ export interface TebraPayment {
   tebraId: string
   patientId: string
   chargeId: string | null
+  // Tebra's own appointment id for this payment (real field: PaymentData.AppointmentID).
+  // PaymentData has no patient reference of its own -- this is the only link back to a
+  // patient, resolved by joining against the same sync run's already-pulled appointments
+  // (appointment.tebraId -> appointment.patientId), then through the usual raw-Tebra-id ->
+  // Clinsync-patients.id lookup. Null when absent or when the payment predates any synced
+  // appointment.
+  appointmentId: string | null
   payerName: string
   payerType: string
   amountCents: number

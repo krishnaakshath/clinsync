@@ -35,6 +35,7 @@ describe('Tebra mock connector new methods', () => {
     expect(payments.length).toBeGreaterThan(0)
     expect(payments[0]).toHaveProperty('tebraId')
     expect(payments[0]).toHaveProperty('patientId')
+    expect(payments[0]).toHaveProperty('appointmentId')
     expect(payments[0]).toHaveProperty('payerName')
     expect(payments[0]).toHaveProperty('payerType')
     expect(payments[0]).toHaveProperty('amountCents')

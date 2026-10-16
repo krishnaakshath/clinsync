@@ -24,6 +24,7 @@ function basePayment(overrides: Partial<TebraPayment> = {}): TebraPayment {
     tebraId: TEST_PAYMENT_TEBRA_ID,
     patientId: TEST_PATIENT_ID,
     chargeId: null,
+    appointmentId: null,
     payerName: 'Blue Cross',
     payerType: 'insurance',
     amountCents: 15000,
