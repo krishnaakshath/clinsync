@@ -1,13 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { getDb } from '@/db/client'
-import { charges, patients, encounters, providers } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { charges, patients, encounters, providers, insuranceClaims } from '@/db/schema'
+import { eq, like } from 'drizzle-orm'
 import { upsertChargeFromTebra, TEBRA_CHARGE_PROVIDER_PLACEHOLDER } from '@/lib/queries/charges'
 import type { TebraCharge } from '@/connectors/types'
 
 // Unique per test-run identifiers so repeated runs against the shared dev DB
 // never collide with rows a previous run left behind.
+// `TEST_PATIENT_ID` is Clinsync's own internal id; `TEST_PATIENT_TEBRA_ID` is
+// the raw Tebra id a TebraCharge payload would carry -- the two are
+// unrelated strings (see resolvePatientIdFromTebraId's doc comment in
+// appointments.ts), so the fixture patient must have its
+// `tebraPatientIdRef` set explicitly, the same way `confirmIdentityMatch()`
+// would in production.
 const TEST_PATIENT_ID = `RD-TEST-CHG-${Date.now()}`
+const TEST_PATIENT_TEBRA_ID = `tebra-test-patient-chg-${Date.now()}`
+const TEST_UNMATCHED_PATIENT_TEBRA_ID = `tebra-test-patient-chg-unmatched-${Date.now()}`
 const TEST_CHARGE_TEBRA_ID = `tebra-test-charge-${Date.now()}`
 const TEST_ENCOUNTER_TEBRA_ID = `tebra-test-enc-${Date.now()}`
 const TEST_PROVIDER_TEBRA_ID = `tebra-test-provider-chg-${Date.now()}`
@@ -16,7 +24,7 @@ const TEST_MISSING_ENCOUNTER_TEBRA_ID = `tebra-test-enc-missing-${Date.now()}`
 function baseCharge(overrides: Partial<TebraCharge> = {}): TebraCharge {
   return {
     tebraId: TEST_CHARGE_TEBRA_ID,
-    patientId: TEST_PATIENT_ID,
+    patientId: TEST_PATIENT_TEBRA_ID,
     encounterId: null,
     dateOfService: '2026-10-15',
     diagnosisCodes: [{ code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' }],
@@ -31,6 +39,7 @@ function baseCharge(overrides: Partial<TebraCharge> = {}): TebraCharge {
 }
 
 async function cleanup() {
+  await getDb().delete(insuranceClaims).where(like(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:%`))
   await getDb().delete(charges).where(eq(charges.tebraId, TEST_CHARGE_TEBRA_ID))
   await getDb().delete(encounters).where(eq(encounters.tebraId, TEST_ENCOUNTER_TEBRA_ID))
   await getDb().delete(providers).where(eq(providers.tebraId, TEST_PROVIDER_TEBRA_ID))
@@ -41,6 +50,7 @@ beforeEach(async () => {
   await getDb().insert(patients).values({
     id: TEST_PATIENT_ID,
     intakeqClientIdRef: `ENC[test-chg-${Date.now()}]`,
+    tebraPatientIdRef: `ENC[${TEST_PATIENT_TEBRA_ID}]`,
     nameIntakeq: 'Test Patient',
     name: 'Test Patient',
     dobIntakeq: '1990-01-01',
@@ -51,6 +61,13 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('upsertChargeFromTebra', () => {
+  it('no-ops (no throw, no insert) when the Tebra patient has not been identity-matched into Clinsync yet', async () => {
+    await expect(upsertChargeFromTebra(baseCharge({ patientId: TEST_UNMATCHED_PATIENT_TEBRA_ID }))).resolves.toBeUndefined()
+
+    const rows = await getDb().select().from(charges).where(eq(charges.tebraId, TEST_CHARGE_TEBRA_ID))
+    expect(rows.length).toBe(0)
+  })
+
   it('inserts on first call and updates the same row (not a duplicate) on a second call with changed fields', async () => {
     await upsertChargeFromTebra(baseCharge())
 
@@ -124,5 +141,66 @@ describe('upsertChargeFromTebra', () => {
     const after = await getDb().select().from(charges)
     const clinsyncCountAfter = after.filter((c) => c.source === 'clinsync').length
     expect(clinsyncCountAfter).toBe(clinsyncCountBefore)
+  })
+
+  describe('insuranceClaims', () => {
+    it('upserts exactly one row per non-null tier when all three are populated', async () => {
+      await upsertChargeFromTebra(
+        baseCharge({
+          primaryInsurance: { payerName: 'Blue Cross', billedAmountCents: 15000, paidAmountCents: 12000, status: 'paid' },
+          secondaryInsurance: { payerName: 'Aetna', billedAmountCents: 3000, paidAmountCents: null, status: 'waiting_adjudication' },
+          tertiaryInsurance: { payerName: 'Medicare', billedAmountCents: 0, paidAmountCents: 0, status: 'denied' },
+        })
+      )
+
+      const rows = await getDb().select().from(insuranceClaims).where(like(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:%`))
+      expect(rows.length).toBe(3)
+      const byTier = Object.fromEntries(rows.map((r) => [r.tebraId, r]))
+      expect(byTier[`${TEST_CHARGE_TEBRA_ID}:primary`].payerName).toBe('Blue Cross')
+      expect(byTier[`${TEST_CHARGE_TEBRA_ID}:primary`].status).toBe('paid')
+      expect(byTier[`${TEST_CHARGE_TEBRA_ID}:secondary`].payerName).toBe('Aetna')
+      expect(byTier[`${TEST_CHARGE_TEBRA_ID}:tertiary`].payerName).toBe('Medicare')
+      expect(rows.every((r) => r.patientId === TEST_PATIENT_ID)).toBe(true)
+      expect(rows.every((r) => r.source === 'tebra')).toBe(true)
+    })
+
+    it('updates an existing tier row in place (not a duplicate) when re-synced with changed fields', async () => {
+      await upsertChargeFromTebra(
+        baseCharge({ primaryInsurance: { payerName: 'Blue Cross', billedAmountCents: 15000, paidAmountCents: null, status: 'waiting_adjudication' } })
+      )
+      const [firstRow] = await getDb().select().from(insuranceClaims).where(eq(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:primary`))
+      expect(firstRow.status).toBe('waiting_adjudication')
+
+      await upsertChargeFromTebra(
+        baseCharge({ primaryInsurance: { payerName: 'Blue Cross', billedAmountCents: 15000, paidAmountCents: 12000, status: 'paid' } })
+      )
+      const rowsAfter = await getDb().select().from(insuranceClaims).where(eq(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:primary`))
+      expect(rowsAfter.length).toBe(1)
+      expect(rowsAfter[0].id).toBe(firstRow.id)
+      expect(rowsAfter[0].status).toBe('paid')
+      expect(rowsAfter[0].paidAmountCents).toBe(12000)
+    })
+
+    it('leaves a previously-synced tier untouched when a later payload omits it (Tebra not reporting a tier is not the same as removing it)', async () => {
+      await upsertChargeFromTebra(
+        baseCharge({
+          primaryInsurance: { payerName: 'Blue Cross', billedAmountCents: 15000, paidAmountCents: 12000, status: 'paid' },
+          secondaryInsurance: { payerName: 'Aetna', billedAmountCents: 3000, paidAmountCents: null, status: 'waiting_adjudication' },
+        })
+      )
+      const rowsAfterFirst = await getDb().select().from(insuranceClaims).where(like(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:%`))
+      expect(rowsAfterFirst.length).toBe(2)
+
+      // Second sync only reports primary -- secondary must survive untouched.
+      await upsertChargeFromTebra(
+        baseCharge({ primaryInsurance: { payerName: 'Blue Cross', billedAmountCents: 15000, paidAmountCents: 12000, status: 'paid' } })
+      )
+
+      const rowsAfterSecond = await getDb().select().from(insuranceClaims).where(like(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:%`))
+      expect(rowsAfterSecond.length).toBe(2)
+      const secondaryRow = rowsAfterSecond.find((r) => r.tebraId === `${TEST_CHARGE_TEBRA_ID}:secondary`)
+      expect(secondaryRow).toBeDefined()
+      expect(secondaryRow?.payerName).toBe('Aetna')
+    })
   })
 })

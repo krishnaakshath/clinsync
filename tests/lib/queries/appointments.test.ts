@@ -40,9 +40,28 @@ describe('listUpcomingAppointments', () => {
 describe('upsertAppointmentFromTebra', () => {
   // Unique per test-run identifiers so repeated runs against the shared dev
   // DB never collide with rows a previous run left behind.
+  // `testPatientId` is Clinsync's own internal id; `testPatientTebraId` is
+  // the raw Tebra id a TebraAppointment payload would carry -- the two are
+  // unrelated strings (see resolvePatientIdFromTebraId's doc comment), so
+  // tests must set up the `patients.tebraPatientIdRef` mapping explicitly,
+  // the same way `confirmIdentityMatch()` would in production.
   const testPatientId = `RD-TEST-APT-${Date.now()}`
+  const testPatientTebraId = `tebra-test-patient-apt-${Date.now()}`
   const testProviderTebraId = `tebra-test-provider-apt-${Date.now()}`
   const testApptTebraId = `tebra-test-apt-${Date.now()}`
+  const testUnmatchedPatientTebraId = `tebra-test-patient-unmatched-${Date.now()}`
+
+  async function insertTestPatient() {
+    await getDb().insert(patients).values({
+      id: testPatientId,
+      intakeqClientIdRef: `ENC[test-apt-${Date.now()}]`,
+      tebraPatientIdRef: `ENC[${testPatientTebraId}]`,
+      nameIntakeq: 'Test Patient',
+      name: 'Test Patient',
+      dobIntakeq: '1990-01-01',
+      dob: '1990-01-01',
+    })
+  }
 
   afterEach(async () => {
     await getDb().delete(appointments).where(eq(appointments.tebraId, testApptTebraId))
@@ -50,11 +69,34 @@ describe('upsertAppointmentFromTebra', () => {
     await getDb().delete(patients).where(eq(patients.id, testPatientId))
   })
 
-  it('throws when no provider exists for the given Tebra providerId', async () => {
+  it('no-ops (no throw, no insert) when the Tebra patient has not been identity-matched into Clinsync yet', async () => {
+    await getDb()
+      .insert(providers)
+      .values({ name: 'Dr. Test Sync', credentials: 'MD', specialty: 'Psychiatry', colorTag: 'chart-1', source: 'tebra', tebraId: testProviderTebraId })
+
     await expect(
       upsertAppointmentFromTebra({
         tebraId: testApptTebraId,
-        patientId: testPatientId,
+        patientId: testUnmatchedPatientTebraId,
+        providerId: testProviderTebraId,
+        startsAt: '2026-11-01T10:00:00Z',
+        endsAt: '2026-11-01T11:00:00Z',
+        visitReason: 'Initial consult',
+        status: 'scheduled',
+      })
+    ).resolves.toBeUndefined()
+
+    const rows = await getDb().select().from(appointments).where(eq(appointments.tebraId, testApptTebraId))
+    expect(rows.length).toBe(0)
+  })
+
+  it('throws when no provider exists for the given Tebra providerId', async () => {
+    await insertTestPatient()
+
+    await expect(
+      upsertAppointmentFromTebra({
+        tebraId: testApptTebraId,
+        patientId: testPatientTebraId,
         providerId: 'nonexistent-provider-tebra-id',
         startsAt: '2026-11-01T10:00:00Z',
         endsAt: '2026-11-01T11:00:00Z',
@@ -65,14 +107,7 @@ describe('upsertAppointmentFromTebra', () => {
   })
 
   it('inserts on first call and updates the same row (not a duplicate) on a second call with changed fields', async () => {
-    await getDb().insert(patients).values({
-      id: testPatientId,
-      intakeqClientIdRef: `ENC[test-apt-${Date.now()}]`,
-      nameIntakeq: 'Test Patient',
-      name: 'Test Patient',
-      dobIntakeq: '1990-01-01',
-      dob: '1990-01-01',
-    })
+    await insertTestPatient()
     const [provider] = await getDb()
       .insert(providers)
       .values({ name: 'Dr. Test Sync', credentials: 'MD', specialty: 'Psychiatry', colorTag: 'chart-1', source: 'tebra', tebraId: testProviderTebraId })
@@ -80,7 +115,7 @@ describe('upsertAppointmentFromTebra', () => {
 
     await upsertAppointmentFromTebra({
       tebraId: testApptTebraId,
-      patientId: testPatientId,
+      patientId: testPatientTebraId,
       providerId: testProviderTebraId,
       startsAt: '2026-11-01T10:00:00Z',
       endsAt: '2026-11-01T11:00:00Z',
@@ -98,7 +133,7 @@ describe('upsertAppointmentFromTebra', () => {
 
     await upsertAppointmentFromTebra({
       tebraId: testApptTebraId,
-      patientId: testPatientId,
+      patientId: testPatientTebraId,
       providerId: testProviderTebraId,
       startsAt: '2026-11-01T13:00:00Z',
       endsAt: '2026-11-01T14:00:00Z',
@@ -118,21 +153,14 @@ describe('upsertAppointmentFromTebra', () => {
     const before = await getDb().select().from(appointments)
     const clinsyncCountBefore = before.filter((a) => a.source === 'clinsync').length
 
-    await getDb().insert(patients).values({
-      id: testPatientId,
-      intakeqClientIdRef: `ENC[test-apt2-${Date.now()}]`,
-      nameIntakeq: 'Test Patient',
-      name: 'Test Patient',
-      dobIntakeq: '1990-01-01',
-      dob: '1990-01-01',
-    })
+    await insertTestPatient()
     await getDb()
       .insert(providers)
       .values({ name: 'Dr. Test Sync', credentials: 'MD', specialty: 'Psychiatry', colorTag: 'chart-1', source: 'tebra', tebraId: testProviderTebraId })
 
     await upsertAppointmentFromTebra({
       tebraId: testApptTebraId,
-      patientId: testPatientId,
+      patientId: testPatientTebraId,
       providerId: testProviderTebraId,
       startsAt: '2026-11-01T10:00:00Z',
       endsAt: '2026-11-01T11:00:00Z',
