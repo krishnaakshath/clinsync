@@ -116,6 +116,7 @@ describe('Tebra sync schema', () => {
   it('can insert into syncCursors with only required fields', async () => {
     const result = await getDb().insert(syncCursors).values({
       entityType: 'patient',
+      practiceId: 'test-practice-1',
       lastSyncedAt: new Date('2024-01-01'),
       status: 'idle',
     }).returning()
@@ -127,6 +128,7 @@ describe('Tebra sync schema', () => {
 
     expect(inserted.length).toBe(1)
     expect(inserted[0].entityType).toBe('patient')
+    expect(inserted[0].practiceId).toBe('test-practice-1')
   })
 
   it('can insert into syncRuns with only required fields', async () => {
@@ -183,5 +185,89 @@ describe('Tebra sync schema', () => {
     const [charge] = await getDb().select().from(charges).limit(1)
     expect(charge).toBeDefined()
     expect('encounterId' in charge).toBe(true)
+  })
+
+  // --- Fix Round 1 (review findings) ---
+  // The following tests depend on DDL hand-written in drizzle/0006_task1_fixes.sql
+  // that this task is NOT permitted to apply to the live dev database (db:generate/
+  // db:push are both broken in this worktree; see task-1-report.md's Fix Round 1
+  // section). They are written now so they pass the moment the controller applies
+  // that migration by hand. Until then, expect them to fail/error against the
+  // live (pre-fix) schema for the reasons noted in each test.
+
+  it('rejects a duplicate tebraId on encounters (NOT NULL tebraId, plain unique index) [pending drizzle/0006_task1_fixes.sql]', async () => {
+    const [patient] = await getDb().select().from(appointments).limit(1)
+    const [provider] = await getDb().select().from(providers).limit(1)
+    const [serviceLocation] = await getDb().select().from(serviceLocations).limit(1)
+    const dupeTebraId = `dupe-encounter-${Date.now()}`
+    const insertOnce = () => getDb().insert(encounters).values({
+      tebraId: dupeTebraId,
+      patientId: patient.patientId,
+      providerId: provider.id,
+      serviceLocationId: serviceLocation.id,
+      serviceStartDate: '2024-01-01',
+      serviceEndDate: '2024-01-01',
+      status: 'completed',
+    })
+    await insertOnce()
+    await expect(insertOnce()).rejects.toThrow()
+  })
+
+  it('rejects a duplicate non-null tebraId on appointments (nullable tebraId, partial unique index) [pending drizzle/0006_task1_fixes.sql]', async () => {
+    const [patient] = await getDb().select().from(appointments).limit(1)
+    const [provider] = await getDb().select().from(providers).limit(1)
+    const dupeTebraId = `dupe-appointment-${Date.now()}`
+    const insertOnce = () => getDb().insert(appointments).values({
+      patientId: patient.patientId,
+      providerId: provider.id,
+      startsAt: new Date('2024-01-01T10:00:00Z'),
+      endsAt: new Date('2024-01-01T10:30:00Z'),
+      visitReason: 'Fix Round 1 duplicate-tebraId test',
+      source: 'tebra',
+      tebraId: dupeTebraId,
+    })
+    await insertOnce()
+    await expect(insertOnce()).rejects.toThrow()
+  })
+
+  it('allows multiple appointments with null tebraId (partial index only covers non-null values)', async () => {
+    const [patient] = await getDb().select().from(appointments).limit(1)
+    const [provider] = await getDb().select().from(providers).limit(1)
+    const insertOne = () => getDb().insert(appointments).values({
+      patientId: patient.patientId,
+      providerId: provider.id,
+      startsAt: new Date('2024-01-01T11:00:00Z'),
+      endsAt: new Date('2024-01-01T11:30:00Z'),
+      visitReason: 'Fix Round 1 null-tebraId test',
+    })
+    await expect(insertOne()).resolves.toBeDefined()
+    await expect(insertOne()).resolves.toBeDefined()
+  })
+
+  it('rejects a charges.encounterId that does not reference a real encounter (new FK) [pending drizzle/0006_task1_fixes.sql]', async () => {
+    const [patient] = await getDb().select().from(appointments).limit(1)
+    await expect(
+      getDb().insert(charges).values({
+        patientId: patient.patientId,
+        providerName: 'Fix Round 1 FK test',
+        dateOfService: '2024-01-01',
+        diagnosisCodes: [],
+        procedureCodes: [],
+        amountCents: 100,
+        encounterId: 99999999, // does not exist in encounters
+      })
+    ).rejects.toThrow()
+  })
+
+  it('rejects a duplicate (entityType, practiceId) pair on syncCursors (new composite unique index) [pending drizzle/0006_task1_fixes.sql]', async () => {
+    const practiceId = `dupe-practice-${Date.now()}`
+    const insertOnce = () => getDb().insert(syncCursors).values({
+      entityType: 'charge',
+      practiceId,
+      lastSyncedAt: new Date('2024-01-01'),
+      status: 'idle',
+    })
+    await insertOnce()
+    await expect(insertOnce()).rejects.toThrow()
   })
 })

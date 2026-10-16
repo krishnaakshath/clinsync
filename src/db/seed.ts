@@ -26,6 +26,12 @@ import {
   faxes,
   broadcasts,
   reviews,
+  encounters,
+  payments,
+  serviceLocations,
+  procedureCodes,
+  syncCursors,
+  syncRuns,
 } from './schema'
 
 const MDD_TRIAL = {
@@ -522,8 +528,15 @@ async function clearExistingData() {
   await db.delete(documents)
   await db.delete(mockPayments)
   await db.delete(patientStatements)
+  // payments.chargeId -> charges.id (nullable) and payments.patientId -> patients.id:
+  // must go before charges/patients below.
+  await db.delete(payments)
   await db.delete(insuranceClaims)
   await db.delete(charges)
+  // charges.encounterId -> encounters.id: encounters must be deleted after
+  // charges (above) but before patients/providers (below), since
+  // encounters.patientId/providerId reference those tables.
+  await db.delete(encounters)
   await db.delete(reviews)
   await db.delete(broadcasts)
   await db.delete(screeningCriteriaResults)
@@ -537,6 +550,11 @@ async function clearExistingData() {
   await db.delete(appSettings)
   await db.delete(formTemplates)
   await db.delete(appointments)
+  // No FK dependents reference these -- order among themselves doesn't matter.
+  await db.delete(serviceLocations)
+  await db.delete(procedureCodes)
+  await db.delete(syncCursors)
+  await db.delete(syncRuns)
   await db.delete(patients)
   await db.delete(providers)
   await db.delete(users)

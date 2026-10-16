@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { pgTable, text, timestamp, date, boolean, jsonb, integer, pgEnum, serial, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const verdictEnum = pgEnum('verdict', ['green', 'yellow', 'red'])
 export const roleEnum = pgEnum('role', ['crc', 'pi', 'admin'])
@@ -213,9 +214,19 @@ export const charges = pgTable('charges', {
   notes: text('notes'),
   source: sourceEnum('source').default('clinsync').notNull(),
   tebraId: text('tebra_id'),
-  encounterId: integer('encounter_id'),
+  // Nullable: Tebra's ChargeData.EncounterID join key -- null for charges
+  // created before encounters existed, or for clinsync-sourced charges with
+  // no encounter concept of their own. References `encounters` via a
+  // callback (forward reference -- `encounters` is declared later in this
+  // file), same pattern used elsewhere in this file for forward references.
+  encounterId: integer('encounter_id').references(() => encounters.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  // Partial unique index: tebraId is nullable (clinsync-originated rows have
+  // no Tebra id), so only non-null values must be unique -- prevents two
+  // sync runs from double-inserting the same Tebra charge.
+  uniqueIndex('charges_tebra_id_unique_idx').on(table.tebraId).where(sql`${table.tebraId} is not null`),
+])
 
 export const insuranceClaims = pgTable('insurance_claims', {
   id: serial('id').primaryKey(),
@@ -230,7 +241,9 @@ export const insuranceClaims = pgTable('insurance_claims', {
   source: sourceEnum('source').default('clinsync').notNull(),
   tebraId: text('tebra_id'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('insurance_claims_tebra_id_unique_idx').on(table.tebraId).where(sql`${table.tebraId} is not null`),
+])
 
 export const patientStatements = pgTable('patient_statements', {
   id: serial('id').primaryKey(),
@@ -421,7 +434,9 @@ export const providers = pgTable('providers', {
   source: sourceEnum('source').default('clinsync').notNull(),
   tebraId: text('tebra_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('providers_tebra_id_unique_idx').on(table.tebraId).where(sql`${table.tebraId} is not null`),
+])
 
 export const appointments = pgTable('appointments', {
   id: serial('id').primaryKey(),
@@ -435,7 +450,9 @@ export const appointments = pgTable('appointments', {
   source: sourceEnum('source').default('clinsync').notNull(),
   tebraId: text('tebra_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('appointments_tebra_id_unique_idx').on(table.tebraId).where(sql`${table.tebraId} is not null`),
+])
 
 export const documentStatusEnum = pgEnum('document_status', ['new', 'processed'])
 // Was 'document_label' with 3 values -- the hims-platform branch renamed this
@@ -468,7 +485,9 @@ export const documents = pgTable('documents', {
   uploadedBy: text('uploaded_by'),
   patientVisible: boolean('patient_visible').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('documents_tebra_id_unique_idx').on(table.tebraId).where(sql`${table.tebraId} is not null`),
+])
 
 // `deliveryStatus` is a SIMULATED value set at seed/creation time by a mock
 // rule -- this app never performs a real fax transmission. See the on-screen
@@ -515,7 +534,11 @@ export const encounters = pgTable('encounters', {
   serviceEndDate: date('service_end_date').notNull(),
   status: appointmentStatusEnum('status').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  // tebraId is NOT NULL here (Tebra-only reference/record table, no
+  // `source` column) -- a plain unique index/constraint suffices.
+  uniqueIndex('encounters_tebra_id_unique_idx').on(table.tebraId),
+])
 
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
@@ -528,14 +551,18 @@ export const payments = pgTable('payments', {
   method: text('method').notNull(),
   postedDate: date('posted_date').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('payments_tebra_id_unique_idx').on(table.tebraId),
+])
 
 export const serviceLocations = pgTable('service_locations', {
   id: serial('id').primaryKey(),
   tebraId: text('tebra_id').notNull(),
   name: text('name').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('service_locations_tebra_id_unique_idx').on(table.tebraId),
+])
 
 export const procedureCodes = pgTable('procedure_codes', {
   id: serial('id').primaryKey(),
@@ -543,16 +570,25 @@ export const procedureCodes = pgTable('procedure_codes', {
   code: text('code').notNull(),
   description: text('description').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('procedure_codes_tebra_id_unique_idx').on(table.tebraId),
+])
 
 export const syncCursors = pgTable('sync_cursors', {
   id: serial('id').primaryKey(),
   entityType: syncCursorEntityEnum('entity_type').notNull(),
+  // One row per entity type per practice -- a sync against multiple Tebra
+  // practices must not share a single cursor across them. See spec §3 and
+  // Task 7's getCursor(entityType, practiceId)/claimCursor/releaseCursor
+  // contract, which is keyed on this exact column.
+  practiceId: text('practice_id').notNull(),
   lastSyncedAt: timestamp('last_synced_at').notNull(),
   status: syncStatusEnum('status').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => [
+  uniqueIndex('sync_cursors_entity_type_practice_id_unique_idx').on(table.entityType, table.practiceId),
+])
 
 export const syncRuns = pgTable('sync_runs', {
   id: serial('id').primaryKey(),
