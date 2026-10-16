@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import {
   appointments,
@@ -47,12 +48,12 @@ describe('Tebra sync schema', () => {
       serviceStartDate: new Date('2024-01-01'),
       serviceEndDate: new Date('2024-01-01'),
       status: 'completed',
-    })
+    }).returning()
 
     const inserted = await getDb()
       .select()
       .from(encounters)
-      .where((t) => t.id.eq(result[0].id))
+      .where(eq(encounters.id, result[0].id))
 
     expect(inserted.length).toBe(1)
     expect(inserted[0].tebraId).toBe('test-encounter-1')
@@ -70,12 +71,12 @@ describe('Tebra sync schema', () => {
       amountCents: 10000,
       method: 'electronic',
       postedDate: new Date('2024-01-01'),
-    })
+    }).returning()
 
     const inserted = await getDb()
       .select()
       .from(payments)
-      .where((t) => t.id.eq(result[0].id))
+      .where(eq(payments.id, result[0].id))
 
     expect(inserted.length).toBe(1)
     expect(inserted[0].tebraId).toBe('test-payment-1')
@@ -85,12 +86,12 @@ describe('Tebra sync schema', () => {
     const result = await getDb().insert(serviceLocations).values({
       tebraId: 'test-location-1',
       name: 'Test Location',
-    })
+    }).returning()
 
     const inserted = await getDb()
       .select()
       .from(serviceLocations)
-      .where((t) => t.id.eq(result[0].id))
+      .where(eq(serviceLocations.id, result[0].id))
 
     expect(inserted.length).toBe(1)
     expect(inserted[0].name).toBe('Test Location')
@@ -101,12 +102,12 @@ describe('Tebra sync schema', () => {
       tebraId: 'test-code-1',
       code: 'TEST-001',
       description: 'Test Procedure',
-    })
+    }).returning()
 
     const inserted = await getDb()
       .select()
       .from(procedureCodes)
-      .where((t) => t.id.eq(result[0].id))
+      .where(eq(procedureCodes.id, result[0].id))
 
     expect(inserted.length).toBe(1)
     expect(inserted[0].code).toBe('TEST-001')
@@ -117,12 +118,12 @@ describe('Tebra sync schema', () => {
       entityType: 'patient',
       lastSyncedAt: new Date('2024-01-01'),
       status: 'idle',
-    })
+    }).returning()
 
     const inserted = await getDb()
       .select()
       .from(syncCursors)
-      .where((t) => t.id.eq(result[0].id))
+      .where(eq(syncCursors.id, result[0].id))
 
     expect(inserted.length).toBe(1)
     expect(inserted[0].entityType).toBe('patient')
@@ -134,12 +135,12 @@ describe('Tebra sync schema', () => {
       startedAt: new Date('2024-01-01'),
       recordsProcessed: 10,
       outcome: 'ok',
-    })
+    }).returning()
 
     const inserted = await getDb()
       .select()
       .from(syncRuns)
-      .where((t) => t.id.eq(result[0].id))
+      .where(eq(syncRuns.id, result[0].id))
 
     expect(inserted.length).toBe(1)
     expect(inserted[0].outcome).toBe('ok')
