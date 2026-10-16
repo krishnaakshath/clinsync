@@ -45,5 +45,18 @@ CREATE UNIQUE INDEX "payments_tebra_id_unique_idx" ON "payments" USING btree ("t
 CREATE UNIQUE INDEX "service_locations_tebra_id_unique_idx" ON "service_locations" USING btree ("tebra_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "procedure_codes_tebra_id_unique_idx" ON "procedure_codes" USING btree ("tebra_id");--> statement-breakpoint
 
+-- Finding 3 (continued): dedup before the composite unique index below, for
+-- the same reason as the Finding 1/4 dedups above -- every existing
+-- sync_cursors row was just backfilled to practice_id='unknown' (line 28), so
+-- any two rows that already shared an entity_type now collide on
+-- (entity_type, practice_id) too. Verified against the live dev DB: 5 existing
+-- rows, all entity_type='patient', all now practice_id='unknown' -- the
+-- composite unique index below would fail outright without this. No other
+-- table references sync_cursors (no FK to it anywhere in schema.ts), so
+-- deleting duplicates here is safe. Keeps the lowest id (earliest-inserted
+-- row) per duplicate (entity_type, practice_id) group, same convention as the
+-- other dedups in this file.
+DELETE FROM "sync_cursors" a USING "sync_cursors" b WHERE a."entity_type" = b."entity_type" AND a."practice_id" = b."practice_id" AND a."id" > b."id";--> statement-breakpoint
+
 -- Finding 3 (continued): one row per entity type per practice
 CREATE UNIQUE INDEX "sync_cursors_entity_type_practice_id_unique_idx" ON "sync_cursors" USING btree ("entity_type","practice_id");
