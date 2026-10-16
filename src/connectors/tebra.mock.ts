@@ -10,7 +10,6 @@ import type {
   TebraServiceLocation,
   TebraProcedureCode,
   TebraEncounterDetail,
-  InsuranceClaimDetail,
 } from './types'
 
 // Demo data for local development and tests ONLY. Selected by
@@ -185,17 +184,17 @@ export async function getConditions(patientId: string): Promise<ConditionResult[
 
 export async function testConnection(): Promise<void> {}
 
-export async function getAppointments(filter: { fromLastModifiedDate?: string }): Promise<TebraAppointment[]> {
+export async function getAppointments(_filter: { fromLastModifiedDate?: string }): Promise<TebraAppointment[]> {
   // In a real implementation, would filter by fromLastModifiedDate
   return APPOINTMENTS
 }
 
-export async function getCharges(filter: { fromLastModifiedDate?: string }): Promise<TebraCharge[]> {
+export async function getCharges(_filter: { fromLastModifiedDate?: string }): Promise<TebraCharge[]> {
   // In a real implementation, would filter by fromLastModifiedDate
   return CHARGES
 }
 
-export async function getPayments(filter: { fromLastModifiedDate?: string }): Promise<TebraPayment[]> {
+export async function getPayments(_filter: { fromLastModifiedDate?: string }): Promise<TebraPayment[]> {
   // In a real implementation, would filter by fromLastModifiedDate
   return PAYMENTS
 }
