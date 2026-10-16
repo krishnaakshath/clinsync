@@ -28,13 +28,36 @@ ALTER TABLE "sync_cursors" ADD COLUMN "practice_id" text;--> statement-breakpoin
 UPDATE "sync_cursors" SET "practice_id" = 'unknown' WHERE "practice_id" IS NULL;--> statement-breakpoint
 ALTER TABLE "sync_cursors" ALTER COLUMN "practice_id" SET NOT NULL;--> statement-breakpoint
 
--- Finding 2: charges.encounterId -> encounters.id (nullable FK)
+-- Finding 2: charges.encounterId -> encounters.id (nullable FK). First clean
+-- up orphaned rows: the fix-round's own new test
+-- ("rejects a charges.encounterId that does not reference a real encounter")
+-- inserts a charges row with encounterId=99999999 and expects it to be
+-- rejected -- but since this constraint doesn't exist yet on the live DB when
+-- that test runs, the insert silently succeeds instead, leaving a dangling
+-- charges.encounter_id behind every time the suite runs. Confirmed via a
+-- read-only query: exactly 3 such rows exist, all with
+-- provider_name='Fix Round 1 FK test' (this fix round's own test marker,
+-- not real/production data). Deleting any charges row whose encounter_id
+-- doesn't match a real encounters.id (not just the literal 99999999 value,
+-- so this stays correct if the test value ever changes) before adding the
+-- constraint that would otherwise reject the ALTER itself.
+DELETE FROM "charges" c WHERE c."encounter_id" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "encounters" e WHERE e."id" = c."encounter_id");--> statement-breakpoint
 ALTER TABLE "charges" ADD CONSTRAINT "charges_encounter_id_encounters_id_fk" FOREIGN KEY ("encounter_id") REFERENCES "public"."encounters"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 
 -- Finding 1: unique indexes on tebraId, preventing two sync runs from ever
 -- double-inserting the same Tebra record. Partial (WHERE ... IS NOT NULL) for
 -- the 5 tables where tebraId is nullable (clinsync-originated rows have no
 -- Tebra id); plain for the 4 Tebra-only tables where tebraId is NOT NULL.
+--
+-- appointments needs its own dedup first (unlike charges/providers/
+-- insurance_claims/documents, which have zero non-null tebra_id rows on the
+-- live dev DB, verified read-only): the fix round's new test
+-- ("rejects a duplicate non-null tebraId on appointments") inserts two
+-- appointments sharing a tebraId and expects the second to be rejected, but
+-- since this index doesn't exist yet when that test runs, both succeed,
+-- leaving a duplicate pair behind every run. Confirmed 3 such pairs exist
+-- (one per prior run, each with its own timestamp-based tebraId).
+DELETE FROM "appointments" a USING "appointments" b WHERE a."tebra_id" = b."tebra_id" AND a."tebra_id" IS NOT NULL AND a."id" > b."id";--> statement-breakpoint
 CREATE UNIQUE INDEX "appointments_tebra_id_unique_idx" ON "appointments" USING btree ("tebra_id") WHERE "appointments"."tebra_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "charges_tebra_id_unique_idx" ON "charges" USING btree ("tebra_id") WHERE "charges"."tebra_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "providers_tebra_id_unique_idx" ON "providers" USING btree ("tebra_id") WHERE "providers"."tebra_id" is not null;--> statement-breakpoint

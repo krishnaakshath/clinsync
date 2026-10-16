@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { getDb } from '@/db/client'
 import {
   appointments,
@@ -40,6 +40,12 @@ describe('Tebra sync schema', () => {
     const [serviceLocation] = await getDb().select().from(serviceLocations).limit(1)
     expect(serviceLocation).toBeDefined()
 
+    // Idempotent: this fixed literal tebraId is now protected by a real
+    // unique index (drizzle/0006_task1_fixes.sql), so a prior run's row
+    // (seed() never clears this table on an already-seeded shared dev DB --
+    // see seed.ts's "top-up" branch) must be removed before re-inserting.
+    await getDb().delete(encounters).where(eq(encounters.tebraId, 'test-encounter-1'))
+
     const result = await getDb().insert(encounters).values({
       tebraId: 'test-encounter-1',
       patientId: patient.patientId,
@@ -63,6 +69,8 @@ describe('Tebra sync schema', () => {
     const [patient] = await getDb().select().from(appointments).limit(1)
     expect(patient).toBeDefined()
 
+    await getDb().delete(payments).where(eq(payments.tebraId, 'test-payment-1'))
+
     const result = await getDb().insert(payments).values({
       tebraId: 'test-payment-1',
       patientId: patient.patientId,
@@ -83,6 +91,8 @@ describe('Tebra sync schema', () => {
   })
 
   it('can insert into serviceLocations with only required fields', async () => {
+    await getDb().delete(serviceLocations).where(eq(serviceLocations.tebraId, 'test-location-1'))
+
     const result = await getDb().insert(serviceLocations).values({
       tebraId: 'test-location-1',
       name: 'Test Location',
@@ -98,6 +108,8 @@ describe('Tebra sync schema', () => {
   })
 
   it('can insert into procedureCodes with only required fields', async () => {
+    await getDb().delete(procedureCodes).where(eq(procedureCodes.tebraId, 'test-code-1'))
+
     const result = await getDb().insert(procedureCodes).values({
       tebraId: 'test-code-1',
       code: 'TEST-001',
@@ -114,6 +126,8 @@ describe('Tebra sync schema', () => {
   })
 
   it('can insert into syncCursors with only required fields', async () => {
+    await getDb().delete(syncCursors).where(and(eq(syncCursors.entityType, 'patient'), eq(syncCursors.practiceId, 'test-practice-1')))
+
     const result = await getDb().insert(syncCursors).values({
       entityType: 'patient',
       practiceId: 'test-practice-1',
