@@ -40,4 +40,12 @@ describe('PatientsTable', () => {
     fireEvent.click(screen.getByLabelText('Clear search'))
     expect(screen.getByText('Maria Alvarez')).toBeInTheDocument()
   })
+
+  it('links each patient card to that patient\'s message thread', () => {
+    render(<PatientsTable patients={ROWS} />)
+    const messageLinks = screen.getAllByRole('link', { name: 'Message' })
+    expect(messageLinks).toHaveLength(2)
+    expect(messageLinks[0]).toHaveAttribute('href', '/messages?patientId=RD-0001')
+    expect(messageLinks[1]).toHaveAttribute('href', '/messages?patientId=RD-0002')
+  })
 })

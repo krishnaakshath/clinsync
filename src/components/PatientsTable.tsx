@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Search, FileText } from 'lucide-react'
+import { Search, FileText, MessageSquare } from 'lucide-react'
 import { StatusChip } from '@/components/StatusChip'
 import { PatientAvatar } from '@/components/PatientAvatar'
 
@@ -78,13 +78,22 @@ function PatientCard({ patient }: { patient: PatientRow }) {
 
       <div className="relative flex items-center justify-between gap-2 border-t border-border pt-3">
         <p className="truncate text-xs text-muted-foreground">{patient.currentProvider ?? 'Unassigned'}</p>
-        <Link
-          href={`/patients/${patient.id}/medical-record`}
-          className="relative inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
-        >
-          <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-          Medical Record
-        </Link>
+        <div className="flex shrink-0 items-center gap-1">
+          <Link
+            href={`/messages?patientId=${patient.id}`}
+            className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+            Message
+          </Link>
+          <Link
+            href={`/patients/${patient.id}/medical-record`}
+            className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+            Medical Record
+          </Link>
+        </div>
       </div>
     </div>
   )
