@@ -1,4 +1,4 @@
 { "crons": [
-  { "path": "/api/cron/tebra-sync", "schedule": "*/10 * * * *" },
+  { "path": "/api/cron/tebra-sync", "schedule": "0 2 * * *" },
   { "path": "/api/cron/tebra-sync-reference", "schedule": "0 3 * * *" }
 ]}
