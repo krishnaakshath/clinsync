@@ -1,6 +1,6 @@
 import { getDb } from '@/db/client'
 import { encounters, providers, serviceLocations } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { resolvePatientIdFromTebraId } from '@/lib/queries/appointments'
 import type { AppointmentStatus } from '@/lib/queries/appointments'
 import type { TebraEncounterDetail } from '@/connectors/types'
@@ -18,13 +18,12 @@ export async function getEncounterByTebraId(tebraId: string): Promise<{ id: numb
  * Upserts an encounter synced from Tebra, matched on `tebraId` -- inserts if
  * absent, updates if present.
  *
- * `encounters.tebraId` is `text(...).notNull()` with a PLAIN unique index
- * (no `source` column on this table -- it's Tebra-only reference/record
- * data, confirmed against `src/db/schema.ts`), so the bare
- * `target: [encounters.tebraId]` below is correct and sufficient -- no
- * `targetWhere`, unlike Task 5's `appointments`/`charges`/`providers`/
- * `insuranceClaims`, whose nullable `tebraId` needs a partial index and a
- * matching `targetWhere` predicate.
+ * `encounters.tebraId` is nullable with a PARTIAL unique index (corrected to
+ * match appointments/charges/providers/insuranceClaims/documents -- native
+ * encounter creation needed `source`/nullable `tebraId` too, per the design
+ * spec's §4 "Native creates" list), so `onConflictDoUpdate` needs both
+ * `target: [encounters.tebraId]` AND a matching `targetWhere` predicate, same
+ * pattern as Task 5's upserts.
  *
  * Three raw-Tebra-id fields need resolving to Clinsync's own internal ids
  * before this can write a row:
@@ -85,9 +84,11 @@ export async function upsertEncounterFromTebra(data: TebraEncounterDetail): Prom
       serviceStartDate: data.serviceStartDate,
       serviceEndDate: data.serviceEndDate,
       status: data.status as AppointmentStatus,
+      source: 'tebra',
     })
     .onConflictDoUpdate({
       target: [encounters.tebraId],
+      targetWhere: sql`${encounters.tebraId} is not null`,
       set: {
         patientId,
         providerId: provider.id,

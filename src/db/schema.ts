@@ -526,18 +526,23 @@ export const messages = pgTable('messages', {
 
 export const encounters = pgTable('encounters', {
   id: serial('id').primaryKey(),
-  tebraId: text('tebra_id').notNull(),
+  // Nullable + source-tagged like appointments/charges/providers/
+  // insuranceClaims/documents (Task 1 originally built this table as
+  // Tebra-only with a NOT NULL tebraId and no source column -- corrected
+  // here per the design spec's §4 "Native creates" list, which explicitly
+  // includes POST /api/encounters inserting source: 'clinsync', tebraId:
+  // null, same as the other native-create routes).
+  tebraId: text('tebra_id'),
   patientId: text('patient_id').notNull().references(() => patients.id),
   providerId: integer('provider_id').notNull().references(() => providers.id),
   serviceLocationId: integer('service_location_id').notNull(),
   serviceStartDate: date('service_start_date').notNull(),
   serviceEndDate: date('service_end_date').notNull(),
   status: appointmentStatusEnum('status').notNull(),
+  source: sourceEnum('source').default('clinsync').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
-  // tebraId is NOT NULL here (Tebra-only reference/record table, no
-  // `source` column) -- a plain unique index/constraint suffices.
-  uniqueIndex('encounters_tebra_id_unique_idx').on(table.tebraId),
+  uniqueIndex('encounters_tebra_id_unique_idx').on(table.tebraId).where(sql`${table.tebraId} is not null`),
 ])
 
 export const payments = pgTable('payments', {
