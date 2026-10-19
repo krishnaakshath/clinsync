@@ -63,6 +63,15 @@ const ROWS: [string, Method, Access][] = [
   ['charges', 'POST', OPS],
   ['charges/[id]', 'GET', OPS],
   ['charges/[id]', 'PATCH', OPS],
+  // Gated by `Authorization: Bearer ${CRON_SECRET}` (Vercel Cron's own
+  // convention), not a staff/patient session -- there's no Access variant
+  // for that here, so 'public' is the closest honest fit (it opts these two
+  // rows out of this harness's session-based 401/403 assertions, which
+  // don't apply). Their real auth behavior -- 401 before any sync/credential
+  // work without the correct bearer token, 200 with it -- is covered by
+  // tests/api/cron-tebra-sync.test.ts instead.
+  ['cron/tebra-sync', 'GET', 'public'],
+  ['cron/tebra-sync-reference', 'GET', 'public'],
   ['discrepancies/[id]/resolve', 'POST', OPS],
   ['documents/[id]', 'PATCH', OPS],
   ['form-submissions', 'GET', 'staff'],

@@ -18,6 +18,25 @@ import { upsertProcedureCodeFromTebra } from '@/lib/queries/procedure-codes'
 const realNow = (): Date => new Date()
 
 /**
+ * Fixed `practiceId` for both cron endpoints (Task 8). Nothing in this
+ * codebase resolves a real Tebra practice id -- Clinsync is single-tenant
+ * per deployment (one set of Tebra credentials per instance, via the
+ * `app_settings` singleton row; see `src/connectors/index.ts`'s
+ * `getEhrConnectors()`), so there is no per-practice loop anywhere and no
+ * real id to plug in here.
+ *
+ * `getCursor`/`claimCursor`/`releaseCursor`/`recordSyncRun` (sync-cursors.ts,
+ * sync-runs.ts) only need `practiceId` to be STABLE and CONSISTENT across
+ * runs for the same practice -- it's a bookkeeping key, not required to
+ * literally equal Tebra's own numeric practice id. A constant string
+ * satisfies that exactly for a single-tenant deployment. A future
+ * multi-practice deployment would need to resolve a real per-practice id
+ * (and loop over practices) when wiring up its own cron trigger -- that is
+ * out of this plan's scope.
+ */
+export const DEFAULT_PRACTICE_ID = 'default'
+
+/**
  * Shared per-entity claim -> attempt -> release/record bookkeeping used by
  * both runIncrementalSync (3 entities) and runReferenceSync (3 entities) --
  * see Correction 4. `attempt` does the entity-specific fetch+upsert work and
