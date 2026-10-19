@@ -17,8 +17,8 @@ vi.mock('@/lib/tebra-sync', async () => {
 })
 
 const { DEFAULT_PRACTICE_ID } = await import('@/lib/tebra-sync')
-const { GET: incrementalGet } = await import('@/app/api/cron/tebra-sync/route')
-const { GET: referenceGet } = await import('@/app/api/cron/tebra-sync-reference/route')
+const { GET: incrementalGet, maxDuration: incrementalMaxDuration } = await import('@/app/api/cron/tebra-sync/route')
+const { GET: referenceGet, maxDuration: referenceMaxDuration } = await import('@/app/api/cron/tebra-sync-reference/route')
 
 const CORRECT_SECRET = 'test-cron-secret'
 const fakeTebraConnector = { id: 'fake-tebra-connector' }
@@ -36,6 +36,16 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs()
+})
+
+// Fix I6: both cron routes must set the same maxDuration=300 precedent
+// already established by api/settings/ehr-connections/sync/route.ts (real
+// Tebra calls are rate limited, >= 1s apart -- a large pull can take a while).
+describe('maxDuration', () => {
+  it('sets the route config export to 300 on both cron routes', () => {
+    expect(incrementalMaxDuration).toBe(300)
+    expect(referenceMaxDuration).toBe(300)
+  })
 })
 
 describe.each([

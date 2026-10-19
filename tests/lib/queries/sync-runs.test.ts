@@ -56,4 +56,24 @@ describe('recordSyncRun', () => {
     expect(row.outcome).toBe('failed')
     expect(row.errorKind).toBe('rate_limited')
   })
+
+  // Fix C1: errorKind's type is widened locally (not on EhrErrorKind itself)
+  // to also accept the literal 'unknown', which syncEntity (tebra-sync.ts)
+  // now records for any non-EhrConnectorError exception. errorKind is a
+  // plain `text` column (not a DB enum), so this literal writes/reads back
+  // exactly like any other value.
+  it('records the literal "unknown" errorKind for a non-connector exception', async () => {
+    const startedAt = startedAtForTest(2)
+    const finishedAt = new Date(startedAt.getTime() + 1000)
+    insertedStartedAts.push(startedAt)
+
+    await recordSyncRun('charge', startedAt, finishedAt, 0, 'failed', 'unknown')
+
+    const [row] = await getDb()
+      .select()
+      .from(syncRuns)
+      .where(and(eq(syncRuns.entityType, 'charge'), eq(syncRuns.startedAt, startedAt)))
+    expect(row.outcome).toBe('failed')
+    expect(row.errorKind).toBe('unknown')
+  })
 })

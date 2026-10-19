@@ -12,6 +12,7 @@ const PRACTICE_FIRST_CLAIM = `sync-cursor-test-first-claim-${Date.now()}`
 const PRACTICE_CONCURRENT = `sync-cursor-test-concurrent-${Date.now()}`
 const PRACTICE_RELEASE = `sync-cursor-test-release-${Date.now()}`
 const PRACTICE_REACQUIRE = `sync-cursor-test-reacquire-${Date.now()}`
+const PRACTICE_STALE_LEASE = `sync-cursor-test-stale-lease-${Date.now()}`
 
 async function deleteCursorRow(practiceId: string) {
   await getDb().delete(syncCursors).where(and(eq(syncCursors.entityType, 'appointment'), eq(syncCursors.practiceId, practiceId)))
@@ -23,6 +24,7 @@ afterEach(async () => {
     deleteCursorRow(PRACTICE_CONCURRENT),
     deleteCursorRow(PRACTICE_RELEASE),
     deleteCursorRow(PRACTICE_REACQUIRE),
+    deleteCursorRow(PRACTICE_STALE_LEASE),
   ])
 })
 
@@ -69,6 +71,41 @@ describe('claimCursor', () => {
 
     const reclaimed = await claimCursor('appointment', PRACTICE_REACQUIRE)
     expect(reclaimed).toBe(true)
+  })
+
+  // Fix C1: a run that crashes/gets killed mid-attempt never reaches
+  // releaseCursor, so without a lease the row would stay 'running' forever
+  // with no way to recover except manual DB intervention. Simulate a killed
+  // run by directly updating `updatedAt` to far in the past (the only way a
+  // real stale row would ever get there -- claimCursor itself always bumps
+  // it to `now()`).
+  it('reclaims a stale "running" row whose updatedAt is older than the 30-minute lease window (simulating a killed run)', async () => {
+    const firstClaim = await claimCursor('appointment', PRACTICE_STALE_LEASE)
+    expect(firstClaim).toBe(true) // sanity: really is 'running' now
+
+    const farPast = new Date(Date.now() - 60 * 60 * 1000) // 60 minutes ago -- well past the 30-minute lease
+    await getDb()
+      .update(syncCursors)
+      .set({ updatedAt: farPast })
+      .where(and(eq(syncCursors.entityType, 'appointment'), eq(syncCursors.practiceId, PRACTICE_STALE_LEASE)))
+
+    const reclaimed = await claimCursor('appointment', PRACTICE_STALE_LEASE)
+    expect(reclaimed).toBe(true)
+
+    const [row] = await getDb()
+      .select()
+      .from(syncCursors)
+      .where(and(eq(syncCursors.entityType, 'appointment'), eq(syncCursors.practiceId, PRACTICE_STALE_LEASE)))
+    expect(row.status).toBe('running')
+    expect(row.updatedAt.getTime()).toBeGreaterThan(farPast.getTime()) // bumped by the reclaim
+  })
+
+  it('does NOT reclaim a "running" row whose updatedAt is recent (within the lease window)', async () => {
+    const firstClaim = await claimCursor('appointment', PRACTICE_STALE_LEASE)
+    expect(firstClaim).toBe(true)
+
+    const secondClaim = await claimCursor('appointment', PRACTICE_STALE_LEASE)
+    expect(secondClaim).toBe(false) // freshly claimed moments ago -- well within the lease window
   })
 })
 

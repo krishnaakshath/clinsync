@@ -2,6 +2,8 @@ import { getDb } from '@/db/client'
 import { appointments, patients, providers } from '@/db/schema'
 import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import type { TebraAppointment } from '@/connectors/types'
+import { getAppSettings } from '@/lib/queries/settings'
+import { practiceLocalToUtc } from '@/lib/timezone'
 
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show'
 
@@ -125,6 +127,18 @@ export async function resolvePatientIdFromTebraId(db: ReturnType<typeof getDb>, 
  * identity-matched into Clinsync yet, this cleanly no-ops (no throw, no
  * insert/update) rather than erroring, since that's a routine, expected
  * state, not a data integrity failure.
+ *
+ * `data.startsAt`/`data.endsAt` (Fix I5) are practice-local, offset-less
+ * datetime strings (see `normalizeTebraDateTime`'s doc comment in
+ * tebra.client.ts -- "callers must not assume UTC"). `new Date(...)` on an
+ * offset-less string is interpreted as local to the SERVER's own timezone
+ * (UTC on Vercel), not the practice's -- silently shifting every synced
+ * appointment by the practice's UTC offset (7-8 hours, depending on DST).
+ * `practiceLocalToUtc` (lib/timezone.ts) converts correctly, DST-aware,
+ * using the practice's configured timezone (`app_settings.practiceTimezone`,
+ * read fresh on each call -- same convention as other code that reads
+ * `app_settings` directly where needed; this runs at sync-batch volume, not
+ * hot-path request volume, so a settings read per appointment is cheap).
  */
 export async function upsertAppointmentFromTebra(data: TebraAppointment): Promise<void> {
   const db = getDb()
@@ -136,13 +150,18 @@ export async function upsertAppointmentFromTebra(data: TebraAppointment): Promis
     throw new Error(`upsertAppointmentFromTebra: no provider found for Tebra providerId "${data.providerId}" -- sync providers before appointments`)
   }
 
+  const settings = await getAppSettings()
+  const timeZone = settings.practiceTimezone ?? 'America/Los_Angeles'
+  const startsAt = practiceLocalToUtc(data.startsAt, timeZone)
+  const endsAt = practiceLocalToUtc(data.endsAt, timeZone)
+
   await db
     .insert(appointments)
     .values({
       patientId,
       providerId: provider.id,
-      startsAt: new Date(data.startsAt),
-      endsAt: new Date(data.endsAt),
+      startsAt,
+      endsAt,
       visitReason: data.visitReason,
       status: data.status,
       source: 'tebra',
@@ -154,8 +173,8 @@ export async function upsertAppointmentFromTebra(data: TebraAppointment): Promis
       set: {
         patientId,
         providerId: provider.id,
-        startsAt: new Date(data.startsAt),
-        endsAt: new Date(data.endsAt),
+        startsAt,
+        endsAt,
         visitReason: data.visitReason,
         status: data.status,
       },

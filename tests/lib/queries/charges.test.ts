@@ -143,6 +143,39 @@ describe('upsertChargeFromTebra', () => {
     expect(clinsyncCountAfter).toBe(clinsyncCountBefore)
   })
 
+  // Fix C2b: status strings are mapped via explicit keyword matching, not
+  // cast directly -- real values seen in a live Tebra fixture: "Approved"
+  // (charge), "Insurance Payment" (insurance claim tier).
+  describe('status mapping', () => {
+    it('maps a real-world raw charge status cleanly ("Approved" -> approved), with no notes written', async () => {
+      await upsertChargeFromTebra(baseCharge({ status: 'Approved' }))
+      const [row] = await getDb().select().from(charges).where(eq(charges.tebraId, TEST_CHARGE_TEBRA_ID))
+      expect(row.status).toBe('approved')
+      expect(row.notes).toBeNull()
+    })
+
+    it('falls back to draft for an unrecognized raw charge status, preserving the raw value in notes', async () => {
+      await upsertChargeFromTebra(baseCharge({ status: 'Some Unrecognized Tebra Status' }))
+      const [row] = await getDb().select().from(charges).where(eq(charges.tebraId, TEST_CHARGE_TEBRA_ID))
+      expect(row.status).toBe('draft')
+      expect(row.notes).toBe('(Tebra status: "Some Unrecognized Tebra Status")')
+    })
+
+    it('maps a real-world raw insurance claim status cleanly ("Insurance Payment" -> paid), with no notes written', async () => {
+      await upsertChargeFromTebra(baseCharge({ primaryInsurance: { payerName: 'Blue Cross', billedAmountCents: 15000, paidAmountCents: 15000, status: 'Insurance Payment' } }))
+      const [row] = await getDb().select().from(insuranceClaims).where(eq(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:primary`))
+      expect(row.status).toBe('paid')
+      expect(row.notes).toBeNull()
+    })
+
+    it('falls back to needs_investigation for an unrecognized raw insurance claim status, preserving the raw value in notes', async () => {
+      await upsertChargeFromTebra(baseCharge({ primaryInsurance: { payerName: 'Blue Cross', billedAmountCents: 15000, paidAmountCents: null, status: 'Some Unrecognized Tebra Status' } }))
+      const [row] = await getDb().select().from(insuranceClaims).where(eq(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:primary`))
+      expect(row.status).toBe('needs_investigation')
+      expect(row.notes).toBe('(Tebra status: "Some Unrecognized Tebra Status")')
+    })
+  })
+
   describe('insuranceClaims', () => {
     it('upserts exactly one row per non-null tier when all three are populated', async () => {
       await upsertChargeFromTebra(

@@ -188,7 +188,12 @@ const APPOINTMENT_STATUS_PATTERNS: Array<[RegExp, TebraAppointment['status']]> =
 ]
 // ConfirmationStatus is a free-text xs:string in the WSDL (no enumeration),
 // so this is a best-effort keyword match, not a confirmed value list.
-function mapAppointmentStatus(raw: string): TebraAppointment['status'] {
+// Exported (Fix C2b) so `upsertEncounterFromTebra` (encounters.ts) can reuse
+// it verbatim for `TebraEncounterDetail.status` -- both ultimately write into
+// the same `appointmentStatusEnum` DB column, and this keyword set already
+// correctly handles "completed"-containing raw values (encounters' own real
+// value, e.g. "Completed"), so a near-duplicate mapping isn't warranted.
+export function mapAppointmentStatus(raw: string): TebraAppointment['status'] {
   for (const [re, status] of APPOINTMENT_STATUS_PATTERNS) if (re.test(raw)) return status
   return 'scheduled'
 }

@@ -24,6 +24,60 @@ import type { ChargeStatus } from '@/lib/charge-status'
 // can recognise/replace it once that resolution exists).
 export const TEBRA_CHARGE_PROVIDER_PLACEHOLDER = 'Tebra Sync (provider unresolved)'
 
+// Fix C2b: Tebra's ChargeData.Status / InsuranceClaimDetail.status are
+// free-text strings (real values seen in a live test fixture: "Approved",
+// "Insurance Payment") that were previously cast directly into these
+// Postgres enums with zero runtime validation (`data.status as ChargeStatus`
+// / `detail.status as InsuranceClaimStatus`) -- any value outside the exact
+// enum value list fails the whole upsert with "invalid input value for
+// enum", and (post Fix C1) that failure just re-attempts the SAME unmapped
+// value forever, never succeeding. These are explicit, documented keyword
+// mappings -- same style as tebra.client.ts's `mapAppointmentStatus`:
+// case-insensitive substring match, a safe documented fallback, never a
+// silently invented match.
+
+const CHARGE_STATUS_KEYWORDS: Array<[RegExp, ChargeStatus]> = [
+  [/approved/i, 'approved'],
+  [/submit/i, 'submitted'],
+  [/pending/i, 'pending_approval'],
+]
+
+/** Falls back to 'draft' for anything unrecognized -- a charge stuck in
+ * draft needs human review, which is safer than guessing a wrong terminal
+ * state. */
+function mapChargeStatus(raw: string): ChargeStatus {
+  for (const [re, status] of CHARGE_STATUS_KEYWORDS) if (re.test(raw)) return status
+  return 'draft'
+}
+
+const INSURANCE_CLAIM_STATUS_KEYWORDS: Array<[RegExp, InsuranceClaimStatus]> = [
+  [/denied/i, 'denied'],
+  [/reject/i, 'rejected'],
+  [/paid|payment/i, 'paid'],
+  [/adjudicat/i, 'waiting_adjudication'],
+]
+
+/** Falls back to 'needs_investigation' -- the enum's own existing catch-all/
+ * review-needed value -- for anything unrecognized. */
+function mapInsuranceClaimStatus(raw: string): InsuranceClaimStatus {
+  for (const [re, status] of INSURANCE_CLAIM_STATUS_KEYWORDS) if (re.test(raw)) return status
+  return 'needs_investigation'
+}
+
+/**
+ * Appends `(Tebra status: "<raw>")` to `existingNotes` (or sets it, if
+ * `existingNotes` is empty) -- idempotent, so re-syncing the same
+ * unrecognized raw value doesn't accumulate duplicate tags across repeated
+ * syncs. Only ever called when a mapping function's FALLBACK path was used
+ * (not on every write), so a human reviewer can see what Tebra actually
+ * said whenever the mapping couldn't confidently classify it.
+ */
+function appendUnmappedStatusNote(existingNotes: string | null, rawValue: string): string {
+  const tag = `(Tebra status: "${rawValue}")`
+  if (existingNotes && existingNotes.includes(tag)) return existingNotes
+  return existingNotes ? `${existingNotes} ${tag}` : tag
+}
+
 export interface DiagnosisCodeInput { code: string; description: string }
 export interface ProcedureCodeInput { code: string; description: string; units: number; chargeCents: number }
 
@@ -108,6 +162,14 @@ export async function invalidateChargesList() {
  * `InsuranceClaimDetail` -- Tebra's per-claim payload gives no submission
  * date of its own -- so this uses the parent charge's `dateOfService` as
  * the best available proxy, same reasoning as `TEBRA_CHARGE_PROVIDER_PLACEHOLDER`.
+ *
+ * `status` is mapped (Fix C2b) via `mapInsuranceClaimStatus`, not cast
+ * directly -- see that function's doc comment. On its fallback path (raw
+ * value didn't cleanly match a known keyword), the raw value is appended to
+ * `notes` (`insuranceClaims.notes` is nullable `text`) via
+ * `appendUnmappedStatusNote`, read against this SAME tier row's existing
+ * notes (by its synthetic `tebraId`) so a prior fallback tag isn't
+ * duplicated and any note isn't clobbered on a clean re-sync.
  */
 async function upsertInsuranceClaimTier(
   db: ReturnType<typeof getDb>,
@@ -121,6 +183,14 @@ async function upsertInsuranceClaimTier(
   if (!detail) return // Tebra not reporting this tier isn't the same as it being removed -- never touch a prior sync's row for it.
 
   const tebraId = `${chargeTebraId}:${tier}`
+  const status = mapInsuranceClaimStatus(detail.status)
+  const matchedKeyword = INSURANCE_CLAIM_STATUS_KEYWORDS.some(([re]) => re.test(detail.status))
+  let notes: string | undefined
+  if (!matchedKeyword) {
+    const [existing] = await db.select({ notes: insuranceClaims.notes }).from(insuranceClaims).where(eq(insuranceClaims.tebraId, tebraId))
+    notes = appendUnmappedStatusNote(existing?.notes ?? null, detail.status)
+  }
+
   await db
     .insert(insuranceClaims)
     .values({
@@ -129,10 +199,11 @@ async function upsertInsuranceClaimTier(
       payerName: detail.payerName,
       billedAmountCents: detail.billedAmountCents,
       paidAmountCents: detail.paidAmountCents,
-      status: detail.status as InsuranceClaimStatus,
+      status,
       submittedDate: dateOfService,
       source: 'tebra',
       tebraId,
+      ...(notes !== undefined ? { notes } : {}),
     })
     .onConflictDoUpdate({
       target: [insuranceClaims.tebraId],
@@ -143,7 +214,8 @@ async function upsertInsuranceClaimTier(
         payerName: detail.payerName,
         billedAmountCents: detail.billedAmountCents,
         paidAmountCents: detail.paidAmountCents,
-        status: detail.status as InsuranceClaimStatus,
+        status,
+        ...(notes !== undefined ? { notes } : {}),
       },
     })
 }
@@ -171,6 +243,12 @@ async function upsertInsuranceClaimTier(
  * Also upserts one `insuranceClaims` row per non-null insurance tier on
  * `data` (primary/secondary/tertiary) -- see `upsertInsuranceClaimTier`'s
  * doc comment for the matching strategy.
+ *
+ * `status` is mapped (Fix C2b) via `mapChargeStatus`, not cast directly --
+ * see that function's doc comment. On its fallback path, the raw value is
+ * appended to `notes` via `appendUnmappedStatusNote`, read against this same
+ * charge's existing notes (by `tebraId`) first so a prior fallback tag isn't
+ * duplicated and any note isn't clobbered on a clean re-sync.
  */
 export async function upsertChargeFromTebra(data: TebraCharge): Promise<void> {
   const db = getDb()
@@ -183,6 +261,14 @@ export async function upsertChargeFromTebra(data: TebraCharge): Promise<void> {
     encounterId = encounter?.id ?? null
   }
 
+  const status = mapChargeStatus(data.status)
+  const matchedKeyword = CHARGE_STATUS_KEYWORDS.some(([re]) => re.test(data.status))
+  let notes: string | undefined
+  if (!matchedKeyword) {
+    const [existing] = await db.select({ notes: charges.notes }).from(charges).where(eq(charges.tebraId, data.tebraId))
+    notes = appendUnmappedStatusNote(existing?.notes ?? null, data.status)
+  }
+
   const [chargeRow] = await db
     .insert(charges)
     .values({
@@ -192,10 +278,11 @@ export async function upsertChargeFromTebra(data: TebraCharge): Promise<void> {
       diagnosisCodes: data.diagnosisCodes,
       procedureCodes: data.procedureCodes,
       amountCents: data.amountCents,
-      status: data.status as ChargeStatus,
+      status,
       source: 'tebra',
       tebraId: data.tebraId,
       encounterId,
+      ...(notes !== undefined ? { notes } : {}),
     })
     .onConflictDoUpdate({
       target: [charges.tebraId],
@@ -206,8 +293,9 @@ export async function upsertChargeFromTebra(data: TebraCharge): Promise<void> {
         diagnosisCodes: data.diagnosisCodes,
         procedureCodes: data.procedureCodes,
         amountCents: data.amountCents,
-        status: data.status as ChargeStatus,
+        status,
         encounterId,
+        ...(notes !== undefined ? { notes } : {}),
       },
     })
     .returning({ id: charges.id })

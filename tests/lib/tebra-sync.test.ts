@@ -175,6 +175,13 @@ function registerRunCleanup(entityType: 'appointment' | 'charge' | 'payment' | '
   onCleanup(() => getDb().delete(syncRuns).where(and(eq(syncRuns.entityType, entityType), eq(syncRuns.startedAt, startedAt))))
 }
 
+// Fix I4: on success, syncEntity releases the cursor to (fetchStartedAt -
+// this overlap), NOT the time the attempt finished. When a test's fake
+// now() is a single fixed value (never advances), fetchStartedAt ===
+// finishedAt === fixedNow, so the released cursor is `fixedNow -
+// WATERMARK_OVERLAP_MS`, not `fixedNow` itself.
+const WATERMARK_OVERLAP_MS = 5 * 60 * 1000
+
 describe('runIncrementalSync', () => {
   it('releases every entity cursor to fake now() even when all three fetches return empty (empty pull still advances the cursor)', async () => {
     const practiceId = `tebra-sync-test-empty-${Date.now()}`
@@ -191,7 +198,7 @@ describe('runIncrementalSync', () => {
       const row = await cursorRow(entityType, practiceId)
       expect(row).toBeDefined()
       expect(row!.status).toBe('idle')
-      expect(row!.lastSyncedAt).toEqual(fixedNow)
+      expect(row!.lastSyncedAt).toEqual(new Date(fixedNow.getTime() - WATERMARK_OVERLAP_MS))
 
       const runs = await runRows(entityType, fixedNow)
       expect(runs.length).toBe(1)
@@ -313,7 +320,7 @@ describe('runIncrementalSync', () => {
     expect(chargeRow.encounterId).toBe(encounterRow.id)
   })
 
-  it('resolves a payment patientId via this run’s fetched appointments, and leaves it blank (no-op) when no match exists', async () => {
+  it('resolves a payment patientId via the stored appointments table (including an appointment synced earlier in this SAME run), and leaves it blank (no-op) when no match exists', async () => {
     const practiceId = `tebra-sync-test-payments-${Date.now()}`
     const fixedNow = new Date(Date.now() + 1_000_000)
     const suffix = Date.now()
@@ -352,6 +359,54 @@ describe('runIncrementalSync', () => {
     expect(unresolvedRows.length).toBe(0) // blank patientId -> upsertPaymentFromTebra no-ops cleanly
   })
 
+  it('resolves a payment patientId via an appointment synced in a PRIOR, separate call -- the realistic "payment posted days after the visit" scenario (Fix I2)', async () => {
+    const practiceId = `tebra-sync-test-payments-prior-${Date.now()}`
+    const fixedNow = new Date(Date.now() + 1_000_000)
+    const suffix = Date.now()
+    const patientId = `RD-TEST-SYNC-PMT-PRIOR-${suffix}`
+    const patientTebraId = `tebra-sync-pmt-prior-patient-${suffix}`
+    const providerTebraId = `tebra-sync-pmt-prior-provider-${suffix}`
+    const apptTebraId = `tebra-sync-pmt-prior-appt-${suffix}`
+    const paymentTebraId = `tebra-sync-pmt-prior-payment-${suffix}`
+
+    await insertTestPatient(patientId, patientTebraId)
+    const providerId = await insertTestProvider(providerTebraId)
+    onCleanup(() => getDb().delete(payments).where(eq(payments.tebraId, paymentTebraId)))
+    onCleanup(() => getDb().delete(appointments).where(eq(appointments.tebraId, apptTebraId)))
+    for (const entityType of ['appointment', 'charge', 'payment'] as const) {
+      registerCursorCleanup(entityType, practiceId)
+      registerRunCleanup(entityType, fixedNow)
+    }
+
+    // Simulate the appointment having been synced in an EARLIER, separate
+    // run/seed -- not fetched by this run's connector at all (getAppointments
+    // below returns []). The original in-run-only map design could never
+    // have resolved this payment's patientId, since the appointment never
+    // appears in THIS run's batch -- that was I2's core bug (payments posted
+    // days after the visit, outside the appointment's own sync window).
+    await getDb().insert(appointments).values({
+      patientId,
+      providerId,
+      startsAt: new Date('2026-10-01T10:00:00Z'),
+      endsAt: new Date('2026-10-01T11:00:00Z'),
+      visitReason: 'Prior visit',
+      status: 'completed',
+      source: 'tebra',
+      tebraId: apptTebraId,
+    })
+
+    const connector = makeFakeConnector({
+      getAppointments: async () => [],
+      getPayments: async () => [basePayment({ tebraId: paymentTebraId, appointmentId: apptTebraId })],
+    })
+
+    await runIncrementalSync(connector, practiceId, () => fixedNow)
+
+    const [row] = await getDb().select().from(payments).where(eq(payments.tebraId, paymentTebraId))
+    expect(row).toBeDefined()
+    expect(row.patientId).toBe(patientId)
+  })
+
   it('isolates a getCharges EhrConnectorError to the charge entity: its cursor is released with the OLD value and `failed`, while appointments still advances normally in the same run', async () => {
     const practiceId = `tebra-sync-test-isolation-${Date.now()}`
     const fixedNow = new Date(Date.now() + 1_000_000)
@@ -387,7 +442,7 @@ describe('runIncrementalSync', () => {
 
     const apptCursor = await cursorRow('appointment', practiceId)
     expect(apptCursor!.status).toBe('idle')
-    expect(apptCursor!.lastSyncedAt).toEqual(fixedNow)
+    expect(apptCursor!.lastSyncedAt).toEqual(new Date(fixedNow.getTime() - WATERMARK_OVERLAP_MS))
 
     const apptRuns = await runRows('appointment', fixedNow)
     expect(apptRuns.length).toBe(1)
@@ -413,6 +468,87 @@ describe('runIncrementalSync', () => {
     const chargeCursor = await cursorRow('charge', practiceId)
     expect(chargeCursor!.status).toBe('failed')
     expect(chargeCursor!.lastSyncedAt).toEqual(new Date(0))
+  })
+
+  // Fix C1: syncEntity must catch ANY error, not just EhrConnectorError --
+  // several of this codebase's own upsert functions throw a plain `Error` on
+  // ordinary, expected real-world inputs.
+  it('catches a plain Error (not EhrConnectorError) from an entity attempt: never rejects, releases the cursor to the OLD value, and records outcome `failed` / errorKind `unknown`', async () => {
+    const practiceId = `tebra-sync-test-plain-error-${Date.now()}`
+    const fixedNow = new Date(Date.now() + 1_000_000)
+    const oldCursor = new Date(Date.now() - 5_000_000)
+    for (const entityType of ['appointment', 'charge', 'payment'] as const) {
+      registerCursorCleanup(entityType, practiceId)
+      registerRunCleanup(entityType, fixedNow)
+    }
+
+    // Simulate a prior successful charge sync so previousCursor is a real,
+    // non-null watermark -- proves the OLD value (not an epoch sentinel) is
+    // reused, same as the EhrConnectorError isolation test above.
+    await claimCursor('charge', practiceId)
+    await releaseCursor('charge', practiceId, oldCursor, 'idle')
+
+    const connector = makeFakeConnector({
+      getCharges: async () => {
+        throw new Error('a plain, non-EhrConnectorError bug (e.g. an ordinary upsert throw on real-world data)')
+      },
+    })
+
+    await expect(runIncrementalSync(connector, practiceId, () => fixedNow)).resolves.toBeUndefined()
+
+    const chargeCursor = await cursorRow('charge', practiceId)
+    expect(chargeCursor!.status).toBe('failed')
+    expect(chargeCursor!.lastSyncedAt).toEqual(oldCursor)
+
+    const chargeRuns = await runRows('charge', fixedNow)
+    expect(chargeRuns.length).toBe(1)
+    expect(chargeRuns[0].outcome).toBe('failed')
+    expect(chargeRuns[0].errorKind).toBe('unknown')
+    expect(chargeRuns[0].recordsProcessed).toBe(0)
+  })
+
+  it('isolates a plain Error (not just EhrConnectorError) to its own entity: charges/payments still run and their cursors still advance normally in the same call (Fix C1)', async () => {
+    const practiceId = `tebra-sync-test-plain-error-isolation-${Date.now()}`
+    const fixedNow = new Date(Date.now() + 1_000_000)
+    const suffix = Date.now()
+    const patientId = `RD-TEST-SYNC-PLAINERR-${suffix}`
+    const patientTebraId = `tebra-sync-plainerr-patient-${suffix}`
+    const apptTebraId = `tebra-sync-plainerr-appt-${suffix}`
+
+    await insertTestPatient(patientId, patientTebraId)
+    onCleanup(() => getDb().delete(appointments).where(eq(appointments.tebraId, apptTebraId)))
+    for (const entityType of ['appointment', 'charge', 'payment'] as const) {
+      registerCursorCleanup(entityType, practiceId)
+      registerRunCleanup(entityType, fixedNow)
+    }
+
+    // upsertAppointmentFromTebra throws a plain `Error` (not EhrConnectorError)
+    // when its providerId lookup misses -- a real, ordinary throw from this
+    // codebase's own upsert layer on real-world data, not a contrived mock,
+    // demonstrating exactly the kind of exception the review flagged as
+    // reachable on day one.
+    const connector = makeFakeConnector({
+      getAppointments: async () => [baseAppointment({ tebraId: apptTebraId, patientId: patientTebraId, providerId: 'nonexistent-provider-tebra-id' })],
+    })
+
+    await expect(runIncrementalSync(connector, practiceId, () => fixedNow)).resolves.toBeUndefined()
+
+    const apptCursor = await cursorRow('appointment', practiceId)
+    expect(apptCursor!.status).toBe('failed')
+    expect(apptCursor!.lastSyncedAt).toEqual(new Date(0)) // first-ever attempt for this practiceId -- epoch sentinel
+
+    const apptRuns = await runRows('appointment', fixedNow)
+    expect(apptRuns.length).toBe(1)
+    expect(apptRuns[0].outcome).toBe('failed')
+    expect(apptRuns[0].errorKind).toBe('unknown')
+
+    const chargeCursor = await cursorRow('charge', practiceId)
+    expect(chargeCursor!.status).toBe('idle')
+    expect(chargeCursor!.lastSyncedAt).toEqual(new Date(fixedNow.getTime() - WATERMARK_OVERLAP_MS))
+
+    const paymentCursor = await cursorRow('payment', practiceId)
+    expect(paymentCursor!.status).toBe('idle')
+    expect(paymentCursor!.lastSyncedAt).toEqual(new Date(fixedNow.getTime() - WATERMARK_OVERLAP_MS))
   })
 
   it('skips an entity whose cursor is already claimed by an overlapping run, without throwing and without recording a sync run for it -- other entities still proceed', async () => {
@@ -448,6 +584,81 @@ describe('runIncrementalSync', () => {
     expect(apptCursor!.status).toBe('idle')
     const paymentCursor = await cursorRow('payment', practiceId)
     expect(paymentCursor!.status).toBe('idle')
+  })
+
+  // Fix I4: the released cursor must be based on when the attempt STARTED
+  // (minus the overlap buffer), not when it FINISHED -- a fake now() that
+  // advances between the two syncEntity now() calls on the success path
+  // (startedAt, then finishedAt) simulates a slow attempt and proves this.
+  it('releases the cursor based on when the attempt started (minus overlap), not when it finished', async () => {
+    const practiceId = `tebra-sync-test-watermark-${Date.now()}`
+    const t0 = new Date(Date.now() + 1_000_000)
+    const tFinish = new Date(t0.getTime() + 10 * 60 * 1000) // simulate a slow attempt: 10 minutes elapse
+    let callCount = 0
+    const now = () => (++callCount % 2 === 1 ? t0 : tFinish) // odd calls = startedAt (t0), even calls = finishedAt (tFinish)
+
+    for (const entityType of ['appointment', 'charge', 'payment'] as const) {
+      registerCursorCleanup(entityType, practiceId)
+      registerRunCleanup(entityType, t0)
+    }
+
+    await runIncrementalSync(makeFakeConnector(), practiceId, now)
+
+    for (const entityType of ['appointment', 'charge', 'payment'] as const) {
+      const row = await cursorRow(entityType, practiceId)
+      // Released cursor is t0-based (start), not tFinish-based (finish) --
+      // well before tFinish, specifically t0 - the overlap buffer.
+      expect(row!.lastSyncedAt).toEqual(new Date(t0.getTime() - WATERMARK_OVERLAP_MS))
+      expect(row!.lastSyncedAt.getTime()).toBeLessThan(tFinish.getTime())
+
+      const runs = await runRows(entityType, t0)
+      expect(runs.length).toBe(1)
+      expect(runs[0].finishedAt).toEqual(tFinish) // recordSyncRun's finishedAt is still the real "now" when the attempt finished
+    }
+  })
+
+  // Fix I4 (Task 7 review's missing test): discriminates the actual
+  // `fromLastModifiedDate` filter VALUE passed to the connector by asserting
+  // on what the fake connector's mock was actually called with, not just the
+  // released cursor afterward.
+  it('passes fromLastModifiedDate: undefined to the connector on a first-ever sync, and the real prior cursor\'s ISO value on a subsequent sync', async () => {
+    const practiceId = `tebra-sync-test-filter-value-${Date.now()}`
+    const fixedNow1 = new Date(Date.now() + 1_000_000)
+    for (const entityType of ['appointment', 'charge', 'payment'] as const) {
+      registerCursorCleanup(entityType, practiceId)
+      registerRunCleanup(entityType, fixedNow1)
+    }
+
+    let firstCallFilter: { fromLastModifiedDate?: string } | undefined
+    const connector1 = makeFakeConnector({
+      getAppointments: async (filter) => {
+        firstCallFilter = filter
+        return []
+      },
+    })
+    await runIncrementalSync(connector1, practiceId, () => fixedNow1)
+
+    expect(firstCallFilter).toEqual({ fromLastModifiedDate: undefined })
+
+    // Second sync: previousCursor is now whatever the first run released it
+    // to (fixedNow1 - overlap, per Fix I4) -- that real prior cursor's ISO
+    // value must be what the connector is called with this time.
+    const expectedCursor = new Date(fixedNow1.getTime() - WATERMARK_OVERLAP_MS)
+    const fixedNow2 = new Date(fixedNow1.getTime() + 2_000_000)
+    for (const entityType of ['appointment', 'charge', 'payment'] as const) {
+      registerRunCleanup(entityType, fixedNow2)
+    }
+
+    let secondCallFilter: { fromLastModifiedDate?: string } | undefined
+    const connector2 = makeFakeConnector({
+      getAppointments: async (filter) => {
+        secondCallFilter = filter
+        return []
+      },
+    })
+    await runIncrementalSync(connector2, practiceId, () => fixedNow2)
+
+    expect(secondCallFilter).toEqual({ fromLastModifiedDate: expectedCursor.toISOString() })
   })
 })
 
@@ -495,7 +706,7 @@ describe('runReferenceSync', () => {
     for (const entityType of ['provider', 'serviceLocation', 'procedureCode'] as const) {
       const row = await cursorRow(entityType, practiceId)
       expect(row!.status).toBe('idle')
-      expect(row!.lastSyncedAt).toEqual(fixedNow)
+      expect(row!.lastSyncedAt).toEqual(new Date(fixedNow.getTime() - WATERMARK_OVERLAP_MS))
       const runs = await runRows(entityType, fixedNow)
       expect(runs.length).toBe(1)
       expect(runs[0].outcome).toBe('ok')

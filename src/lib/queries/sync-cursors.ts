@@ -27,6 +27,17 @@ export async function getCursor(entityType: SyncCursorEntity, practiceId: string
  *   - row exists, running     -> UPDATE's WHERE guard excludes the row, so
  *                                 the DO UPDATE affects 0 rows and RETURNING
  *                                 yields nothing -- claim denied.
+ *   - row exists, running,
+ *     but stale (updatedAt
+ *     older than the lease)  -> UPDATE's WHERE guard matches via the OR
+ *                                 clause below, claim granted (self-heal).
+ *
+ * Lease (Fix C1): a run that crashes/gets killed mid-attempt (e.g. a Vercel
+ * function hitting its time budget) never reaches releaseCursor, so without
+ * this the row would stay 'running' forever with no way to recover except
+ * manual DB intervention. `updatedAt` is bumped on every claim AND release,
+ * so a 'running' row older than the lease window can only mean an attempt
+ * that never finished -- safe to reclaim. Lease window: 30 minutes.
  */
 export async function claimCursor(entityType: SyncCursorEntity, practiceId: string): Promise<boolean> {
   const claimed = await getDb()
@@ -50,7 +61,7 @@ export async function claimCursor(entityType: SyncCursorEntity, practiceId: stri
     .onConflictDoUpdate({
       target: [syncCursors.entityType, syncCursors.practiceId],
       set: { status: 'running', updatedAt: new Date() },
-      setWhere: sql`${syncCursors.status} != 'running'`,
+      setWhere: sql`${syncCursors.status} != 'running' OR ${syncCursors.updatedAt} < now() - interval '30 minutes'`,
     })
     .returning({ id: syncCursors.id })
   return claimed.length > 0

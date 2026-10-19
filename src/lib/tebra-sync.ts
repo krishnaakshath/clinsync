@@ -1,9 +1,11 @@
 import { getDb } from '@/db/client'
+import { appointments } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { EhrConnectorError } from '@/connectors/errors'
-import type { TebraConnector, TebraAppointment } from '@/connectors/types'
+import type { TebraConnector } from '@/connectors/types'
 import { getCursor, claimCursor, releaseCursor, type SyncCursorEntity } from '@/lib/queries/sync-cursors'
 import { recordSyncRun } from '@/lib/queries/sync-runs'
-import { upsertAppointmentFromTebra, resolvePatientIdFromTebraId } from '@/lib/queries/appointments'
+import { upsertAppointmentFromTebra } from '@/lib/queries/appointments'
 import { upsertChargeFromTebra } from '@/lib/queries/charges'
 import { upsertEncounterFromTebra, getEncounterByTebraId } from '@/lib/queries/encounters'
 import { upsertPaymentFromTebra } from '@/lib/queries/payments'
@@ -16,6 +18,10 @@ import { upsertProcedureCodeFromTebra } from '@/lib/queries/procedure-codes'
 // the obviously-intended default (a real "current time" producing a `Date`,
 // matching every call site below and the "fake now" tests inject).
 const realNow = (): Date => new Date()
+
+// 5-minute overlap buffer used by syncEntity's success-path watermark (Fix
+// I4) -- see its doc comment.
+const SYNC_WATERMARK_OVERLAP_MS = 5 * 60 * 1000
 
 /**
  * Fixed `practiceId` for both cron endpoints (Task 8). Nothing in this
@@ -55,12 +61,21 @@ export const DEFAULT_PRACTICE_ID = 'default'
  * release, no `recordSyncRun` -- nothing was actually attempted here, so
  * there is nothing for this call to record.
  *
- * A caught `EhrConnectorError` releases the cursor with the OLD cursor value
- * (or an epoch sentinel for a first-ever, now-failed attempt) and outcome
- * `'failed'` -- never `now()` -- so a retry on the next tick re-covers the
- * same window instead of silently skipping data. Any other exception is a
- * genuine bug, not an expected vendor hiccup, and is left to propagate
- * rather than being swallowed as a 'failed' sync outcome.
+ * ANY caught error (Fix C1 -- not just `EhrConnectorError`) releases the
+ * cursor with the OLD cursor value (or an epoch sentinel for a first-ever,
+ * now-failed attempt) and outcome `'failed'` -- never `now()` -- so a retry
+ * on the next tick re-covers the same window instead of silently skipping
+ * data. This file originally only caught `EhrConnectorError`, letting any
+ * other exception propagate out of `runIncrementalSync`/`runReferenceSync`,
+ * aborting every remaining entity in that run too and leaving this entity's
+ * cursor wedged at `'running'` forever (recoverable only by Fix C1's
+ * claimCursor lease, see sync-cursors.ts) -- but several of this codebase's
+ * own upsert functions throw a plain `Error` on ordinary, expected
+ * real-world inputs (e.g. a provider-lookup miss), so that was reachable on
+ * day one, not a theoretical edge case. `syncEntity` must always resolve,
+ * never reject, once a claim was obtained -- the `errorKind` recorded for a
+ * non-`EhrConnectorError` is the literal string `'unknown'` (sync-runs.ts
+ * widens its `errorKind` parameter to accept this).
  */
 async function syncEntity(
   entityType: SyncCursorEntity,
@@ -72,18 +87,35 @@ async function syncEntity(
   const claimed = await claimCursor(entityType, practiceId)
   if (!claimed) return
 
+  // Captured immediately before `attempt` issues its fetch request -- this
+  // (not the time the WHOLE attempt, upserts included, finishes) is what the
+  // next run's cursor should resume from on success (Fix I4). A charge-step
+  // attempt can run many sequential GetEncounterDetails calls paced at ~1/sec
+  // -- minutes to hours for a large backfill -- so using the finish time as
+  // the new watermark would silently skip anything modified in Tebra between
+  // request-sent and whole-attempt-finished.
   const startedAt = now()
   try {
     const recordsProcessed = await attempt(previousCursor)
-    await releaseCursor(entityType, practiceId, now(), 'idle')
-    await recordSyncRun(entityType, startedAt, now(), recordsProcessed, 'ok')
+    const finishedAt = now()
+    // 5-minute overlap buffer (Tebra's own documented polling cadence is
+    // 5-10 minutes) so a record modified exactly at/near the fetch-start
+    // boundary isn't missed. Upserts are idempotent, so a few minutes of
+    // re-processing already-synced records on the next run costs nothing.
+    // This also naturally removes the double independent `now()` call the
+    // Task 7 review flagged (releaseCursor(..., now(), ...) then
+    // recordSyncRun(..., now(), ...) used to call now() twice for what's
+    // conceptually one "finished at" moment) -- a single `finishedAt` is
+    // captured once and reused for recordSyncRun, while releaseCursor's
+    // watermark is derived from `startedAt`, not `now()` at all.
+    const newCursor = new Date(startedAt.getTime() - SYNC_WATERMARK_OVERLAP_MS)
+    await releaseCursor(entityType, practiceId, newCursor, 'idle')
+    await recordSyncRun(entityType, startedAt, finishedAt, recordsProcessed, 'ok')
   } catch (err) {
-    if (err instanceof EhrConnectorError) {
-      await releaseCursor(entityType, practiceId, previousCursor ?? new Date(0), 'failed')
-      await recordSyncRun(entityType, startedAt, now(), 0, 'failed', err.kind)
-      return
-    }
-    throw err
+    const finishedAt = now()
+    const errorKind = err instanceof EhrConnectorError ? err.kind : 'unknown'
+    await releaseCursor(entityType, practiceId, previousCursor ?? new Date(0), 'failed')
+    await recordSyncRun(entityType, startedAt, finishedAt, 0, 'failed', errorKind)
   }
 }
 
@@ -102,15 +134,8 @@ function lastModifiedFilter(previousCursor: Date | null): { fromLastModifiedDate
  * human-gated system (`src/lib/ehr-sync.ts`) this function does not touch.
  */
 export async function runIncrementalSync(client: TebraConnector, practiceId: string, now: () => Date = realNow): Promise<void> {
-  // Kept in scope across the three independent entity attempts below so the
-  // payments step (Correction 3) can resolve a patientId via this run's
-  // fetched appointments, even if the appointments step itself failed or
-  // was skipped this run (in which case this just stays empty).
-  let fetchedAppointments: TebraAppointment[] = []
-
   await syncEntity('appointment', practiceId, now, async (previousCursor) => {
     const raw = await client.getAppointments(lastModifiedFilter(previousCursor))
-    fetchedAppointments = raw
     for (const appointment of raw) {
       await upsertAppointmentFromTebra(appointment)
     }
@@ -144,23 +169,37 @@ export async function runIncrementalSync(client: TebraConnector, practiceId: str
   await syncEntity('payment', practiceId, now, async (previousCursor) => {
     const rawPayments = await client.getPayments(lastModifiedFilter(previousCursor))
 
-    // Correction 3: TebraPayment carries no real patient reference. Resolve
-    // one via this run's fetched appointments (appointment.tebraId ->
-    // appointment.patientId), then through the usual raw-Tebra-id ->
-    // Clinsync patients.id lookup (resolvePatientIdFromTebraId, reused from
-    // appointments.ts -- not reimplemented).
-    const appointmentPatientByTebraId = new Map(fetchedAppointments.map((a) => [a.tebraId, a.patientId]))
+    // Fix I2: TebraPayment carries no real patient reference of its own --
+    // resolve one via its appointmentId against the already-synced
+    // `appointments` TABLE (not just this run's in-memory batch, as this
+    // originally read). Payments are typically posted days after the visit,
+    // well outside the appointment's own incremental sync window, so the
+    // matching appointment was very likely synced in an EARLIER run, not
+    // this one -- the original in-run-only map would silently and
+    // PERMANENTLY drop the patient link for nearly every real payment (the
+    // payment cursor still advances past it, since upsertPaymentFromTebra's
+    // blank-patientId no-op isn't an error). `appointments.patientId` is
+    // already the resolved Clinsync `patients.id` (upsertAppointmentFromTebra
+    // resolves it via resolvePatientIdFromTebraId at write time), so no
+    // second raw-Tebra-id resolution step is needed here -- a single lookup
+    // against the stored table is both simpler and more correct than the
+    // original two-step design (query the committed table directly, read the
+    // already-resolved id straight off it).
     const db = getDb()
 
     for (const payment of rawPayments) {
       let patientId = ''
-      const rawPatientId = payment.appointmentId ? appointmentPatientByTebraId.get(payment.appointmentId) : undefined
-      if (rawPatientId) {
-        patientId = (await resolvePatientIdFromTebraId(db, rawPatientId)) ?? ''
+      if (payment.appointmentId) {
+        const [appt] = await db
+          .select({ patientId: appointments.patientId })
+          .from(appointments)
+          .where(eq(appointments.tebraId, payment.appointmentId))
+        if (appt) patientId = appt.patientId
       }
       // upsertPaymentFromTebra no-ops cleanly on a blank patientId -- covers:
-      // no appointmentId, appointment not in this run's batch, or no
-      // identity-matched patient for that appointment's raw Tebra id.
+      // no appointmentId, or an appointment that genuinely hasn't been synced
+      // yet (a legitimate "try again next run" case, not a defect -- this
+      // should now be much rarer than before, not eliminated).
       await upsertPaymentFromTebra({ ...payment, patientId })
     }
     return rawPayments.length

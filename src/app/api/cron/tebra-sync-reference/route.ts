@@ -8,6 +8,24 @@ import { runReferenceSync, DEFAULT_PRACTICE_ID } from '@/lib/tebra-sync'
 // This must be checked, and must fail closed, BEFORE any credential loading
 // or sync invocation below -- it's the only thing standing between this
 // route and an open HTTP trigger for a real Tebra sync.
+// Fix I6: matches the precedent set by
+// api/settings/ehr-connections/sync/route.ts (real Tebra calls are rate
+// limited, >= 1s apart -- a large pull can take a while).
+//
+// On a large first-ever backfill, 300s may not be enough for a single tick
+// to finish. That's OK and does NOT need a chunking/windowing redesign here:
+// after Fix C1 (syncEntity catches ANY error and never wedges a cursor at
+// 'running' -- paired with claimCursor's stale-lease reclaim), a function
+// killed mid-attempt by Vercel's time budget never reaches releaseCursor at
+// all, so the NEXT cron tick's getCursor() still returns the SAME old
+// previousCursor this tick started from -- it simply resumes from where it
+// left off, not from scratch and not skipping ahead. Repeated 300s ticks
+// therefore make forward progress through a large backfill via many partial
+// attempts. True chunked/windowed backfill (better throughput per tick, vs.
+// re-walking already-seen records within one attempt before the kill point)
+// remains a documented future improvement, not fixed in this round.
+export const maxDuration = 300
+
 function isAuthorizedCronRequest(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) return false

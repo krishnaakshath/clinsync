@@ -79,8 +79,11 @@ describe('upsertAppointmentFromTebra', () => {
         tebraId: testApptTebraId,
         patientId: testUnmatchedPatientTebraId,
         providerId: testProviderTebraId,
-        startsAt: '2026-11-01T10:00:00Z',
-        endsAt: '2026-11-01T11:00:00Z',
+        // Offset-less, practice-local (Fix I5) -- see normalizeTebraDateTime's
+        // doc comment: real TebraAppointment.startsAt/endsAt never carry a
+        // 'Z'/offset suffix.
+        startsAt: '2026-11-15T10:00:00',
+        endsAt: '2026-11-15T11:00:00',
         visitReason: 'Initial consult',
         status: 'scheduled',
       })
@@ -98,8 +101,8 @@ describe('upsertAppointmentFromTebra', () => {
         tebraId: testApptTebraId,
         patientId: testPatientTebraId,
         providerId: 'nonexistent-provider-tebra-id',
-        startsAt: '2026-11-01T10:00:00Z',
-        endsAt: '2026-11-01T11:00:00Z',
+        startsAt: '2026-11-15T10:00:00',
+        endsAt: '2026-11-15T11:00:00',
         visitReason: 'Initial consult',
         status: 'scheduled',
       })
@@ -117,8 +120,8 @@ describe('upsertAppointmentFromTebra', () => {
       tebraId: testApptTebraId,
       patientId: testPatientTebraId,
       providerId: testProviderTebraId,
-      startsAt: '2026-11-01T10:00:00Z',
-      endsAt: '2026-11-01T11:00:00Z',
+      startsAt: '2026-11-15T10:00:00',
+      endsAt: '2026-11-15T11:00:00',
       visitReason: 'Initial consult',
       status: 'scheduled',
     })
@@ -130,13 +133,20 @@ describe('upsertAppointmentFromTebra', () => {
     expect(rowsAfterFirst[0].source).toBe('tebra')
     expect(rowsAfterFirst[0].providerId).toBe(provider.id)
     expect(rowsAfterFirst[0].patientId).toBe(testPatientId)
+    // Fix I5: practice-local 10:00 on a standard-time (PST, UTC-8) date must
+    // convert to 18:00 UTC via the practice's configured timezone (seeded as
+    // 'America/Los_Angeles' in app_settings) -- NOT the bare
+    // `new Date('2026-11-15T10:00:00')` server-local-timezone interpretation
+    // this used to use.
+    expect(rowsAfterFirst[0].startsAt.toISOString()).toBe('2026-11-15T18:00:00.000Z')
+    expect(rowsAfterFirst[0].endsAt.toISOString()).toBe('2026-11-15T19:00:00.000Z')
 
     await upsertAppointmentFromTebra({
       tebraId: testApptTebraId,
       patientId: testPatientTebraId,
       providerId: testProviderTebraId,
-      startsAt: '2026-11-01T13:00:00Z',
-      endsAt: '2026-11-01T14:00:00Z',
+      startsAt: '2026-11-15T13:00:00',
+      endsAt: '2026-11-15T14:00:00',
       visitReason: 'Follow-up (changed)',
       status: 'completed',
     })
@@ -146,7 +156,7 @@ describe('upsertAppointmentFromTebra', () => {
     expect(rowsAfterSecond[0].id).toBe(rowsAfterFirst[0].id)
     expect(rowsAfterSecond[0].visitReason).toBe('Follow-up (changed)')
     expect(rowsAfterSecond[0].status).toBe('completed')
-    expect(rowsAfterSecond[0].startsAt.toISOString()).toBe(new Date('2026-11-01T13:00:00Z').toISOString())
+    expect(rowsAfterSecond[0].startsAt.toISOString()).toBe('2026-11-15T21:00:00.000Z')
   })
 
   it('never touches an existing source: clinsync appointment row (conflict target only matches tebra-origin rows)', async () => {
@@ -162,8 +172,8 @@ describe('upsertAppointmentFromTebra', () => {
       tebraId: testApptTebraId,
       patientId: testPatientTebraId,
       providerId: testProviderTebraId,
-      startsAt: '2026-11-01T10:00:00Z',
-      endsAt: '2026-11-01T11:00:00Z',
+      startsAt: '2026-11-15T10:00:00',
+      endsAt: '2026-11-15T11:00:00',
       visitReason: 'Initial consult',
       status: 'scheduled',
     })
@@ -171,5 +181,26 @@ describe('upsertAppointmentFromTebra', () => {
     const after = await getDb().select().from(appointments)
     const clinsyncCountAfter = after.filter((a) => a.source === 'clinsync').length
     expect(clinsyncCountAfter).toBe(clinsyncCountBefore)
+  })
+
+  it('converts a daylight-saving-time (PDT, UTC-7) practice-local datetime correctly (Fix I5 -- DST-aware, not a fixed offset)', async () => {
+    await insertTestPatient()
+    await getDb()
+      .insert(providers)
+      .values({ name: 'Dr. Test Sync', credentials: 'MD', specialty: 'Psychiatry', colorTag: 'chart-1', source: 'tebra', tebraId: testProviderTebraId })
+
+    await upsertAppointmentFromTebra({
+      tebraId: testApptTebraId,
+      patientId: testPatientTebraId,
+      providerId: testProviderTebraId,
+      startsAt: '2026-07-15T10:00:00',
+      endsAt: '2026-07-15T11:00:00',
+      visitReason: 'Summer visit',
+      status: 'scheduled',
+    })
+
+    const [row] = await getDb().select().from(appointments).where(eq(appointments.tebraId, testApptTebraId))
+    expect(row.startsAt.toISOString()).toBe('2026-07-15T17:00:00.000Z')
+    expect(row.endsAt.toISOString()).toBe('2026-07-15T18:00:00.000Z')
   })
 })

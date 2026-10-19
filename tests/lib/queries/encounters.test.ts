@@ -78,8 +78,29 @@ describe('upsertEncounterFromTebra', () => {
     expect(rows.length).toBe(0)
   })
 
-  it('throws when no provider exists for the given Tebra providerId', async () => {
-    await expect(upsertEncounterFromTebra(baseEncounter({ providerId: 'nonexistent-provider-tebra-id' }))).rejects.toThrow()
+  // Fix C2a: a provider-lookup miss on BOTH the tebraId lookup and the
+  // name-match fallback now no-ops cleanly instead of throwing -- changed
+  // from the original throw-on-miss, since name matching is inherently less
+  // certain than exact-id matching and a miss here is no longer assumed to
+  // indicate a sync-ordering bug.
+  it('no-ops (no throw, no insert) when neither a providerId match nor a providers.name match exists', async () => {
+    await expect(upsertEncounterFromTebra(baseEncounter({ providerId: 'nonexistent-provider-tebra-id' }))).resolves.toBeUndefined()
+
+    const rows = await getDb().select().from(encounters).where(eq(encounters.tebraId, TEST_ENCOUNTER_TEBRA_ID))
+    expect(rows.length).toBe(0)
+  })
+
+  it('resolves providerId via a case/whitespace-insensitive match against providers.name when the tebraId lookup misses (Fix C2a -- RenderingProvider is a free-text display name, not providers.tebraId)', async () => {
+    const [provider] = await getDb().select().from(providers).where(eq(providers.tebraId, TEST_PROVIDER_TEBRA_ID))
+
+    // "Dr. Encounter Test" (the seeded provider's real name) with different
+    // casing and extra/collapsed whitespace -- proves normName's
+    // trim/collapse-whitespace/lowercase convention, not just an exact match.
+    await upsertEncounterFromTebra(baseEncounter({ providerId: '  dr.   encounter TEST  ' }))
+
+    const [row] = await getDb().select().from(encounters).where(eq(encounters.tebraId, TEST_ENCOUNTER_TEBRA_ID))
+    expect(row).toBeDefined()
+    expect(row.providerId).toBe(provider.id)
   })
 
   it('throws when no service location exists for the given Tebra serviceLocationId', async () => {
@@ -108,5 +129,21 @@ describe('upsertEncounterFromTebra', () => {
     expect(rowsAfterSecond[0].serviceStartDate).toBe('2026-10-20')
     expect(rowsAfterSecond[0].serviceEndDate).toBe('2026-10-21')
     expect(rowsAfterSecond[0].status).toBe('cancelled')
+  })
+
+  // Fix C2b: status is mapped via the connector's mapAppointmentStatus
+  // (reused, not duplicated) rather than cast directly into the enum.
+  describe('status mapping', () => {
+    it('maps a real-world raw Tebra status cleanly ("Completed" -> completed)', async () => {
+      await upsertEncounterFromTebra(baseEncounter({ status: 'Completed' }))
+      const [row] = await getDb().select().from(encounters).where(eq(encounters.tebraId, TEST_ENCOUNTER_TEBRA_ID))
+      expect(row.status).toBe('completed')
+    })
+
+    it('falls back to the default status for an unrecognized raw value (encounters has no notes column to preserve it on)', async () => {
+      await upsertEncounterFromTebra(baseEncounter({ status: 'Some Unrecognized Tebra Status' }))
+      const [row] = await getDb().select().from(encounters).where(eq(encounters.tebraId, TEST_ENCOUNTER_TEBRA_ID))
+      expect(row.status).toBe('scheduled') // mapAppointmentStatus's own documented fallback
+    })
   })
 })
