@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
 interface CodeRow { code: string; description: string }
@@ -146,7 +147,14 @@ export function TrialCriteriaEditor({ trialId, initial }: { trialId: string; ini
     </div>
   )
 
-  return (
+  // Rendered via a portal straight onto <body> -- this trigger button lives
+  // inside a card with `backdrop-blur-sm` (TrialDetailPage's shared SECTION
+  // style), and `backdrop-filter` creates a new containing block for
+  // `position: fixed` descendants (same as `transform`/`filter`/`perspective`).
+  // Without the portal, this "fixed" overlay would be positioned relative to
+  // that card instead of the viewport, clipping the dialog near the top of
+  // the page instead of covering the whole screen.
+  return createPortal(
     <div
       className="fixed inset-0 z-30 flex items-center justify-center bg-foreground/20 p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) requestClose() }}
@@ -223,6 +231,7 @@ export function TrialCriteriaEditor({ trialId, initial }: { trialId: string; ini
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

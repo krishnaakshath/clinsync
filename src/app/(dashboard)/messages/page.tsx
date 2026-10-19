@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { MessageSquare } from 'lucide-react'
 import { requireSessionOrRedirect } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { listMessageThreads, listMessagesForPatient, markReadByProvider } from '@/lib/queries/messages'
+import { listMessageThreads, listMessagesForPatient, markReadByProvider, getPatientDisplayName } from '@/lib/queries/messages'
 import { PatientAvatar } from '@/components/PatientAvatar'
 import { MessageThreadView } from '@/components/MessageThreadView'
 import { MessageComposer } from '@/components/MessageComposer'
@@ -28,7 +28,12 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
   }
 
   const selectedThreadMeta = threads.find((t) => t.patientId === selectedPatientId)
-  const selectedPatientName = selectedThreadMeta?.patientName ?? selectedPatientId
+  // A patient with no thread yet (e.g. just arrived via a "Message" link
+  // from the patient list) isn't covered by listMessageThreads' name lookup
+  // -- resolve it directly so the header shows a real name, not a bare id.
+  const selectedPatientName = selectedThreadMeta?.patientName
+    ?? (selectedPatientId ? await getPatientDisplayName(selectedPatientId) : null)
+    ?? selectedPatientId
 
   return (
     <div>
