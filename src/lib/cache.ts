@@ -75,6 +75,10 @@ export function chargeDetailCacheKey(id: number): string {
   return `charges:detail:${id}`
 }
 
+export function paymentsListCacheKey(): string {
+  return 'payments:list'
+}
+
 export function insuranceClaimsListCacheKey(): string {
   return 'insurance-claims:list'
 }

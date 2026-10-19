@@ -1,7 +1,23 @@
 import { getDb } from '@/db/client'
-import { payments, charges } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { payments, charges, patients } from '@/db/schema'
+import { eq, desc } from 'drizzle-orm'
+import { getOrSetCache, paymentsListCacheKey } from '@/lib/cache'
 import type { TebraPayment } from '@/connectors/types'
+
+export async function listPayments() {
+  return getOrSetCache(paymentsListCacheKey(), 30, async () => {
+    const rows = await getDb()
+      .select({ payment: payments, patient: patients })
+      .from(payments)
+      .innerJoin(patients, eq(payments.patientId, patients.id))
+      // Seed/demo data has many payments sharing the same postedDate, and
+      // Postgres doesn't guarantee tie order is stable across statements --
+      // an UPDATE (e.g. a sync) can silently reshuffle which row shows up
+      // where. desc(id) breaks ties deterministically.
+      .orderBy(desc(payments.postedDate), desc(payments.id))
+    return rows.map((r) => ({ ...r.payment, patientName: r.patient.nameTebra ?? r.patient.nameIntakeq ?? r.patient.name }))
+  })
+}
 
 /**
  * Upserts a payment synced from Tebra, matched on `tebraId` -- inserts if

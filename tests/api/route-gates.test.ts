@@ -100,6 +100,7 @@ const ROWS: [string, Method, Access][] = [
   ['messages/[patientId]', 'GET', 'staff-or-patient'],
   ['messages/[patientId]', 'POST', 'staff-or-patient'],
   ['mock-payments', 'POST', OPS],
+  ['payments', 'GET', OPS],
   ['patient-portal/account/mfa/confirm', 'POST', 'patient'],
   ['patient-portal/account/mfa/enroll', 'POST', 'patient'],
   ['patient-portal/account/mfa/reset', 'POST', 'patient'],
