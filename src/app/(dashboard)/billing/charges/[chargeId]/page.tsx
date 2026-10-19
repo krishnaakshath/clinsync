@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { getCharge } from '@/lib/queries/charges'
 import { formatCents } from '@/lib/format'
 import { CHARGE_STATUS_LABELS, type ChargeStatus } from '@/lib/charge-status'
+import { parseIntParam } from '@/lib/http'
 
 // Same status -> dot color mapping as ChargesTable's list view, so a charge's
 // status reads identically whether seen in the list or in this detail view.
@@ -22,7 +23,9 @@ export default async function ChargeCaptureDetailPage({ params }: { params: Prom
   if (!canAccessOperations(session.role)) redirect('/')
 
   const { chargeId } = await params
-  const charge = await getCharge(Number(chargeId))
+  const chargeIdNum = parseIntParam(chargeId)
+  if (chargeIdNum === null) notFound()
+  const charge = await getCharge(chargeIdNum)
   if (!charge) notFound()
   await logAudit(session, `viewed charge capture ${chargeId}`, charge.patientId)
 

@@ -4,12 +4,15 @@ import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getFormTemplate } from '@/lib/queries/form-templates'
 import { FormBuilderEditor } from '@/components/FormBuilderEditor'
+import { parseIntParam } from '@/lib/http'
 
 export default async function FormTemplateDetailPage({ params }: { params: Promise<{ templateId: string }> }) {
   const session = await requireSessionOrRedirect()
   if (!canAccessOperations(session.role)) redirect('/')
   const { templateId } = await params
-  const template = await getFormTemplate(Number(templateId))
+  const templateIdNum = parseIntParam(templateId)
+  if (templateIdNum === null) notFound()
+  const template = await getFormTemplate(templateIdNum)
   if (!template) notFound()
   await logAudit(session, `viewed form template ${templateId}`, null)
 
@@ -20,6 +23,7 @@ export default async function FormTemplateDetailPage({ params }: { params: Promi
       initialCategory={template.category}
       initialDiagnosisTag={template.diagnosisTag}
       initialQuestions={template.questions}
+      initialIsActive={template.isActive}
     />
   )
 }

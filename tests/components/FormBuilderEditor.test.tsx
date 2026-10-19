@@ -2,10 +2,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { FormBuilderEditor } from '@/components/FormBuilderEditor'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+const mockRouterPush = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: mockRouterPush }) }))
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  mockRouterPush.mockClear()
 })
 
 const BASE_PROPS = {
@@ -13,6 +15,7 @@ const BASE_PROPS = {
   initialName: 'Depression Screening',
   initialCategory: 'Screening Questionnaires',
   initialDiagnosisTag: 'Major Depressive Disorder',
+  initialIsActive: true,
 }
 
 describe('FormBuilderEditor', () => {
@@ -76,5 +79,33 @@ describe('FormBuilderEditor save failure', () => {
     fireEvent.click(screen.getByText('Save Form'))
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not/i)
     await waitFor(() => expect(screen.getByText('Save Form')).not.toBeDisabled())
+  })
+})
+
+describe('FormBuilderEditor delete', () => {
+  it('does nothing if the confirm dialog is declined', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => false))
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={[]} />)
+    fireEvent.click(screen.getByText('Delete this form template'))
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('navigates back to the list on a confirmed delete', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })))
+    render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={[]} />)
+    fireEvent.click(screen.getByText('Delete this form template'))
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/forms'))
+  })
+
+  it('shows the conflict message when the template has already been sent to patients', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'This form has already been sent to patients and cannot be deleted. Mark it inactive instead.' }), { status: 409 })))
+    render(<FormBuilderEditor {...BASE_PROPS} initialQuestions={[]} />)
+    fireEvent.click(screen.getByText('Delete this form template'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('already been sent to patients')
+    expect(mockRouterPush).not.toHaveBeenCalled()
   })
 })

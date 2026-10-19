@@ -75,6 +75,10 @@ export function chargeDetailCacheKey(id: number): string {
   return `charges:detail:${id}`
 }
 
+export function paymentsListCacheKey(): string {
+  return 'payments:list'
+}
+
 export function insuranceClaimsListCacheKey(): string {
   return 'insurance-claims:list'
 }
@@ -93,6 +97,19 @@ export function arDashboardCacheKey(): string {
 
 export function billingAnalyticsCacheKey(): string {
   return 'billing:analytics'
+}
+
+/**
+ * Charges and mock payments both feed the AR dashboard, billing analytics,
+ * and patient collections list -- any write to either table must invalidate
+ * all three cached views, not just its own list/detail cache.
+ */
+export async function invalidateBillingCaches(): Promise<void> {
+  await Promise.all([
+    invalidateCache(arDashboardCacheKey()),
+    invalidateCache(billingAnalyticsCacheKey()),
+    invalidateCache(patientCollectionsListCacheKey()),
+  ])
 }
 
 export function providersListCacheKey(): string {

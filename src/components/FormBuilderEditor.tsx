@@ -12,19 +12,22 @@ interface Question {
   required: boolean
 }
 
-export function FormBuilderEditor({ templateId, initialName, initialCategory, initialDiagnosisTag, initialQuestions }: {
+export function FormBuilderEditor({ templateId, initialName, initialCategory, initialDiagnosisTag, initialQuestions, initialIsActive }: {
   templateId: number
   initialName: string
   initialCategory: string
   initialDiagnosisTag: string
   initialQuestions: Question[]
+  initialIsActive: boolean
 }) {
   const router = useRouter()
   const [name, setName] = useState(initialName)
   const [category, setCategory] = useState(initialCategory)
   const [diagnosisTag, setDiagnosisTag] = useState(initialDiagnosisTag)
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
+  const [isActive, setIsActive] = useState(initialIsActive)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function addQuestion() {
@@ -80,7 +83,7 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
       const res = await fetch(`/api/form-templates/${templateId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, category, diagnosisTag, questions: cleaned }),
+        body: JSON.stringify({ name, category, diagnosisTag, questions: cleaned, isActive }),
       })
       if (res.ok) {
         router.refresh()
@@ -92,6 +95,25 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
       setError('Could not reach the server. The form was not saved.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function deleteTemplate() {
+    if (!window.confirm('Delete this form template? This cannot be undone.')) return
+    setDeleting(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/form-templates/${templateId}`, { method: 'DELETE' })
+      if (res.ok) {
+        router.push('/forms')
+        return
+      }
+      const body = await res.json().catch(() => null)
+      setError(body?.error ?? 'Could not delete this form.')
+    } catch {
+      setError('Could not reach the server. The form was not deleted.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -114,6 +136,10 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
               <input value={diagnosisTag} onChange={(e) => setDiagnosisTag(e.target.value)} placeholder="Diagnosis tag" className="w-full rounded-md border border-border px-3 py-2 text-sm" />
             </div>
           </div>
+          <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+            Active (visible when sending forms to patients)
+          </label>
         </div>
       </div>
 
@@ -174,6 +200,9 @@ export function FormBuilderEditor({ templateId, initialName, initialCategory, in
       <div className="mt-4 flex justify-between">
         <button onClick={addQuestion} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">+ Add New Question</button>
         <button onClick={save} disabled={saving} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">Save Form</button>
+      </div>
+      <div className="mt-8 border-t border-border pt-4">
+        <button onClick={deleteTemplate} disabled={deleting} className="text-sm font-medium text-destructive hover:underline disabled:opacity-50">Delete this form template</button>
       </div>
     </div>
   )

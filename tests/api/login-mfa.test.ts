@@ -129,6 +129,10 @@ function mfaReq(body: unknown, cookie?: string) {
   return new NextRequest('http://localhost/api/login/mfa', { method: 'POST', body: JSON.stringify(body), headers })
 }
 
+// Every test here exercises a real scrypt verify (~400ms since the OWASP
+// cost bump in 71a823f) plus several uncached round trips to the live Neon
+// DB and Redis -- relies on vitest.config.ts's testTimeout, not a local
+// override (see that file for why these suites need more than the default).
 describe('two-step staff login', () => {
   let enrollCode: string
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readJsonBody } from '@/lib/http'
+import { readJsonBody, parseIntParam } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { reviews } from '@/db/schema'
@@ -23,7 +23,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (session instanceof NextResponse) return session
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
-  const review = await getReview(Number(id))
+  const reviewId = parseIntParam(id)
+  if (reviewId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+  const review = await getReview(reviewId)
   if (!review) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(review)
 }
@@ -33,18 +35,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (session instanceof NextResponse) return session
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
+  const reviewId = parseIntParam(id)
+  if (reviewId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
   const parsed = recordResponseSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid survey response payload', details: parsed.error.flatten() }, { status: 400 })
 
-  const existing = await getReview(Number(id))
+  const existing = await getReview(reviewId)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (existing.status === 'completed') return NextResponse.json({ error: 'This survey response has already been recorded' }, { status: 409 })
 
   await getDb()
     .update(reviews)
     .set({ ratingOverall: parsed.data.ratingOverall, ratingFormsClarity: parsed.data.ratingFormsClarity, ratingCommunication: parsed.data.ratingCommunication, comments: parsed.data.comments ?? null, status: 'completed', respondedAt: new Date() })
-    .where(eq(reviews.id, Number(id)))
+    .where(eq(reviews.id, reviewId))
 
   await invalidateReviewsList()
   await logAudit(session, 'recorded pre-screening experience survey response', existing.patientId)

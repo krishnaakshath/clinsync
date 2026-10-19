@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { requireSession } from '@/lib/auth'
 import { canAccessOperations } from '@/lib/role-capabilities'
 import { rejectCrossOrigin } from '@/lib/csrf'
+import { parseIntParam } from '@/lib/http'
 
 // The system never auto-selects a candidate — Reject is a first-class action,
 // not an afterthought.
@@ -18,7 +19,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const [updated] = await getDb().update(identityMatches).set({ status: 'rejected' }).where(eq(identityMatches.id, Number(id))).returning()
+  const matchId = parseIntParam(id)
+  if (matchId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+  const [updated] = await getDb().update(identityMatches).set({ status: 'rejected' }).where(eq(identityMatches.id, matchId)).returning()
   if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   await logAudit(session, `rejected identity match candidate ${id}`, null)
 
