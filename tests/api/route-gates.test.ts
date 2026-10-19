@@ -63,8 +63,23 @@ const ROWS: [string, Method, Access][] = [
   ['charges', 'POST', OPS],
   ['charges/[id]', 'GET', OPS],
   ['charges/[id]', 'PATCH', OPS],
+  // Gated by `Authorization: Bearer ${CRON_SECRET}` (Vercel Cron's own
+  // convention), not a staff/patient session -- there's no Access variant
+  // for that here, so 'public' is the closest honest fit (it opts these two
+  // rows out of this harness's session-based 401/403 assertions, which
+  // don't apply). Their real auth behavior -- 401 before any sync/credential
+  // work without the correct bearer token, 200 with it -- is covered by
+  // tests/api/cron-tebra-sync.test.ts instead.
+  ['cron/tebra-sync', 'GET', 'public'],
+  ['cron/tebra-sync-reference', 'GET', 'public'],
   ['discrepancies/[id]/resolve', 'POST', OPS],
   ['documents/[id]', 'PATCH', OPS],
+  // Clinical data (unlike charges/payments) -- session-gated only, no
+  // `canAccessOperations` check, so PI is NOT excluded. Confirmed by
+  // `staffRows` (401-without-session) rather than the `denied`/OPS set.
+  ['encounters', 'GET', 'staff'],
+  ['encounters', 'POST', 'staff'],
+  ['encounters/[id]', 'GET', 'staff'],
   ['form-submissions', 'GET', 'staff'],
   ['form-submissions', 'POST', OPS],
   ['form-submissions/[id]', 'GET', 'staff'],
@@ -73,6 +88,7 @@ const ROWS: [string, Method, Access][] = [
   ['form-templates', 'POST', OPS],
   ['form-templates/[id]', 'GET', OPS],
   ['form-templates/[id]', 'PUT', OPS],
+  ['form-templates/[id]', 'DELETE', OPS],
   ['identity-matches', 'GET', OPS],
   ['identity-matches/[id]/confirm', 'POST', OPS],
   ['identity-matches/[id]/reject', 'POST', OPS],
@@ -84,6 +100,7 @@ const ROWS: [string, Method, Access][] = [
   ['messages/[patientId]', 'GET', 'staff-or-patient'],
   ['messages/[patientId]', 'POST', 'staff-or-patient'],
   ['mock-payments', 'POST', OPS],
+  ['payments', 'GET', OPS],
   ['patient-portal/account/mfa/confirm', 'POST', 'patient'],
   ['patient-portal/account/mfa/enroll', 'POST', 'patient'],
   ['patient-portal/account/mfa/reset', 'POST', 'patient'],
@@ -116,7 +133,7 @@ const ROWS: [string, Method, Access][] = [
   ['users', 'GET', ADMIN],
   ['users', 'POST', ADMIN],
   ['users/[id]/reset-mfa', 'POST', ADMIN],
-  ['workbook/export', 'GET', 'staff'],
+  ['workbook/export', 'GET', OPS],
   ['workbook/full', 'GET', OPS],
 ]
 

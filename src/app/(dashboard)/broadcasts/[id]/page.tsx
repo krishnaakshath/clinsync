@@ -4,12 +4,15 @@ import { requireSessionOrRedirect } from '@/lib/auth'
 import { canAccessOperations } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { getBroadcast } from '@/lib/queries/broadcasts'
+import { parseIntParam } from '@/lib/http'
 
 export default async function BroadcastDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSessionOrRedirect()
   if (!canAccessOperations(session.role)) redirect('/')
   const { id } = await params
-  const broadcast = await getBroadcast(Number(id))
+  const broadcastId = parseIntParam(id)
+  if (broadcastId === null) notFound()
+  const broadcast = await getBroadcast(broadcastId)
   if (!broadcast) notFound()
   await logAudit(session, `viewed broadcast ${id}`, null)
 

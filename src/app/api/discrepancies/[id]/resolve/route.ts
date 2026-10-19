@@ -7,6 +7,7 @@ import { canSendForms } from '@/lib/role-capabilities'
 import { logAudit } from '@/lib/audit'
 import { resolveDiscrepancy } from '@/lib/queries/discrepancies'
 import { invalidateCache, patientDetailCacheKey } from '@/lib/cache'
+import { parseIntParam } from '@/lib/http'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession()
@@ -14,10 +15,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!canSendForms(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const [existing] = await getDb().select().from(formChartDiscrepancies).where(eq(formChartDiscrepancies.id, Number(id)))
+  const discrepancyId = parseIntParam(id)
+  if (discrepancyId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+  const [existing] = await getDb().select().from(formChartDiscrepancies).where(eq(formChartDiscrepancies.id, discrepancyId))
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  await resolveDiscrepancy(Number(id), session.name)
+  await resolveDiscrepancy(discrepancyId, session.name)
   await invalidateCache(patientDetailCacheKey(existing.patientId))
   await logAudit(session, `resolved form-vs-chart discrepancy: ${existing.questionLabel}`, existing.patientId)
 

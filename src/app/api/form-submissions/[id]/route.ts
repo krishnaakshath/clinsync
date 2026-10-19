@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readJsonBody } from '@/lib/http'
+import { readJsonBody, parseIntParam } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { formSubmissions } from '@/db/schema'
@@ -20,7 +20,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const session = await requireSession()
   if (session instanceof NextResponse) return session
   const { id } = await params
-  const submission = await getFormSubmission(Number(id))
+  const submissionId = parseIntParam(id)
+  if (submissionId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+  const submission = await getFormSubmission(submissionId)
   if (!submission) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   await logAudit(session, `viewed client form ${id}`, submission.patientId)
   return NextResponse.json(submission)
@@ -31,20 +33,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (session instanceof NextResponse) return session
   if (!canSendForms(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
+  const submissionId = parseIntParam(id)
+  if (submissionId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
   const parsed = updateSubmissionSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid submission update', details: parsed.error.flatten() }, { status: 400 })
 
-  const existing = await getFormSubmission(Number(id))
+  const existing = await getFormSubmission(submissionId)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const completedDate = parsed.data.status === 'completed' ? new Date() : null
-  await getDb().update(formSubmissions).set({ ...parsed.data, completedDate }).where(eq(formSubmissions.id, Number(id)))
+  await getDb().update(formSubmissions).set({ ...parsed.data, completedDate }).where(eq(formSubmissions.id, submissionId))
 
   if (parsed.data.status === 'completed') {
     await logAudit(session, 'completed intake form', existing.patientId)
     await maybeAutoClassify(existing.patientId, session)
-    const discrepancyCount = await recordFormChartDiscrepancies(Number(id))
+    const discrepancyCount = await recordFormChartDiscrepancies(submissionId)
     if (discrepancyCount > 0) await logAudit(session, `form answers flagged ${discrepancyCount} discrepancy(ies) against chart data`, existing.patientId)
   } else {
     await logAudit(session, `updated intake form status to ${parsed.data.status}`, existing.patientId)

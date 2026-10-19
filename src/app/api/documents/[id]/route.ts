@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readJsonBody } from '@/lib/http'
+import { readJsonBody, parseIntParam } from '@/lib/http'
 import { z } from 'zod'
 import { getDb } from '@/db/client'
 import { documents } from '@/db/schema'
@@ -19,14 +19,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (session instanceof NextResponse) return session
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await params
+  const documentId = parseIntParam(id)
+  if (documentId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
   const parsed = updateDocumentSchema.safeParse(await readJsonBody(request))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid document update', details: parsed.error.flatten() }, { status: 400 })
 
-  const existing = await getDocument(Number(id))
+  const existing = await getDocument(documentId)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  await getDb().update(documents).set({ status: parsed.data.status }).where(eq(documents.id, Number(id)))
+  await getDb().update(documents).set({ status: parsed.data.status }).where(eq(documents.id, documentId))
   await invalidateCache(documentsListCacheKey())
   await logAudit(session, `marked document ${id} as ${parsed.data.status}`, existing.patientId)
   return NextResponse.json({ ok: true })

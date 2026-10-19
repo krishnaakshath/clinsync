@@ -59,6 +59,107 @@ export interface IntakeQConnector {
 }
 
 /**
+ * Appointment data from Tebra
+ */
+export interface TebraAppointment {
+  tebraId: string
+  patientId: string
+  providerId: string
+  startsAt: string // ISO timestamp
+  endsAt: string // ISO timestamp
+  visitReason: string
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show'
+}
+
+/**
+ * Insurance claim detail for a charge
+ */
+export interface InsuranceClaimDetail {
+  payerName: string
+  billedAmountCents: number
+  paidAmountCents: number | null
+  status: string
+}
+
+/**
+ * Charge data from Tebra
+ */
+export interface TebraCharge {
+  tebraId: string
+  patientId: string
+  encounterId: string | null
+  dateOfService: string // ISO date
+  diagnosisCodes: { code: string; description: string }[]
+  procedureCodes: { code: string; description: string; units: number; chargeCents: number }[]
+  amountCents: number
+  status: string
+  primaryInsurance: InsuranceClaimDetail | null
+  secondaryInsurance: InsuranceClaimDetail | null
+  tertiaryInsurance: InsuranceClaimDetail | null
+}
+
+/**
+ * Payment data from Tebra
+ */
+export interface TebraPayment {
+  tebraId: string
+  patientId: string
+  chargeId: string | null
+  // Tebra's own appointment id for this payment (real field: PaymentData.AppointmentID).
+  // PaymentData has no patient reference of its own -- this is the only link back to a
+  // patient, resolved by joining against the same sync run's already-pulled appointments
+  // (appointment.tebraId -> appointment.patientId), then through the usual raw-Tebra-id ->
+  // Clinsync-patients.id lookup. Null when absent or when the payment predates any synced
+  // appointment.
+  appointmentId: string | null
+  payerName: string
+  payerType: string
+  amountCents: number
+  method: string
+  postedDate: string // ISO date
+}
+
+/**
+ * Provider data from Tebra
+ */
+export interface TebraProvider {
+  tebraId: string
+  name: string
+  credentials: string | null
+  specialty: string
+}
+
+/**
+ * Service location data from Tebra
+ */
+export interface TebraServiceLocation {
+  tebraId: string
+  name: string
+}
+
+/**
+ * Procedure code from Tebra
+ */
+export interface TebraProcedureCode {
+  tebraId: string
+  code: string
+  description: string
+}
+
+/**
+ * Encounter detail from Tebra
+ */
+export interface TebraEncounterDetail {
+  tebraId: string
+  patientId: string
+  providerId: string
+  serviceLocationId: string
+  serviceStartDate: string // ISO date
+  serviceEndDate: string // ISO date
+  status: string
+}
+
+/**
  * What the sync engine / routes need from Tebra. Implemented by the real
  * SOAP client (tebra.client.ts) and the demo mock (tebra.mock.ts).
  */
@@ -78,6 +179,13 @@ export interface TebraConnector {
   getActiveMedications(patientId: string): Promise<MedicationRequestResult[]>
   getInactiveMedications(patientId: string): Promise<MedicationRequestResult[]>
   getConditions(patientId: string): Promise<ConditionResult[]>
+  getAppointments(filter: { fromLastModifiedDate?: string }): Promise<TebraAppointment[]>
+  getCharges(filter: { fromLastModifiedDate?: string }): Promise<TebraCharge[]>
+  getPayments(filter: { fromLastModifiedDate?: string }): Promise<TebraPayment[]>
+  getProviders(): Promise<TebraProvider[]>
+  getServiceLocations(): Promise<TebraServiceLocation[]>
+  getProcedureCodes(): Promise<TebraProcedureCode[]>
+  getEncounterDetails(encounterId: string): Promise<TebraEncounterDetail | null>
   /** Cheap authenticated call; throws EhrConnectorError on failure. */
   testConnection(): Promise<void>
 }

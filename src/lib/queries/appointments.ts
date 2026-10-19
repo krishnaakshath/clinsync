@@ -1,6 +1,9 @@
 import { getDb } from '@/db/client'
 import { appointments, patients, providers } from '@/db/schema'
-import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
+import type { TebraAppointment } from '@/connectors/types'
+import { getAppSettings } from '@/lib/queries/settings'
+import { practiceLocalToUtc } from '@/lib/timezone'
 
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show'
 
@@ -79,4 +82,101 @@ export async function getAppointment(id: number): Promise<AppointmentWithDetails
     .innerJoin(providers, eq(appointments.providerId, providers.id))
     .where(eq(appointments.id, id))
   return row ? mapAppointmentRow(row) : null
+}
+
+/**
+ * Resolves Tebra's own raw patient id to Clinsync's internally-generated
+ * `patients.id` (`RD-####`, from `nextAnonId()` in `ehr-sync.ts`) -- the two
+ * are unrelated strings, there is no format-level correspondence. The
+ * mapping lives in `patients.tebraPatientIdRef`, stored wrapped as
+ * `ENC[<tebra id>]` (see `unwrapRef()` in `src/lib/ehr-sync.ts:8` --
+ * despite the name this is a plain deterministic string wrapper, not real
+ * encryption, so an equality lookup on the wrapped form works directly, no
+ * decryption needed).
+ *
+ * That column is only populated once a human confirms an identity match via
+ * the existing, separate `confirmIdentityMatch()` flow (`ehr-sync.ts:190`)
+ * -- a gated, asynchronous process, not something that happens the moment a
+ * patient first appears in a Tebra pull. Returning `null` here (no
+ * `patients` row matched yet) is therefore a routine, expected outcome for
+ * callers to no-op on, not an error -- unlike `providerId` below, where a
+ * miss is a real bug (providers are complete daily reference data).
+ */
+export async function resolvePatientIdFromTebraId(db: ReturnType<typeof getDb>, tebraPatientId: string): Promise<string | null> {
+  const [patient] = await db.select({ id: patients.id }).from(patients).where(eq(patients.tebraPatientIdRef, `ENC[${tebraPatientId}]`))
+  return patient?.id ?? null
+}
+
+/**
+ * Upserts an appointment synced from Tebra, matched on `tebraId` -- inserts
+ * if absent, updates if present. Never touches a `source: 'clinsync'` row:
+ * the unique index on `tebraId` (Task 1) is partial (`WHERE tebra_id IS NOT
+ * NULL`), so `ON CONFLICT` inference needs `targetWhere` to match that
+ * predicate (see `upsertProviderFromTebra`'s comment for the full
+ * reasoning) -- a clinsync-origin appointment always has `tebraId: null`,
+ * so it can never be the row Postgres finds conflicting here.
+ *
+ * `TebraAppointment.providerId` is Tebra's own provider id (a string) --
+ * resolved here to our internal serial `providers.id` via the
+ * `providers.tebraId` column `upsertProviderFromTebra` populates (providers
+ * sync as daily reference data, ahead of this entity's more frequent pull,
+ * so the lookup should normally hit; this throws rather than silently
+ * dropping the appointment if it doesn't, since `providerId` is a NOT NULL
+ * FK). `TebraAppointment.patientId` is resolved via
+ * `resolvePatientIdFromTebraId` -- if that Tebra patient hasn't been
+ * identity-matched into Clinsync yet, this cleanly no-ops (no throw, no
+ * insert/update) rather than erroring, since that's a routine, expected
+ * state, not a data integrity failure.
+ *
+ * `data.startsAt`/`data.endsAt` (Fix I5) are practice-local, offset-less
+ * datetime strings (see `normalizeTebraDateTime`'s doc comment in
+ * tebra.client.ts -- "callers must not assume UTC"). `new Date(...)` on an
+ * offset-less string is interpreted as local to the SERVER's own timezone
+ * (UTC on Vercel), not the practice's -- silently shifting every synced
+ * appointment by the practice's UTC offset (7-8 hours, depending on DST).
+ * `practiceLocalToUtc` (lib/timezone.ts) converts correctly, DST-aware,
+ * using the practice's configured timezone (`app_settings.practiceTimezone`,
+ * read fresh on each call -- same convention as other code that reads
+ * `app_settings` directly where needed; this runs at sync-batch volume, not
+ * hot-path request volume, so a settings read per appointment is cheap).
+ */
+export async function upsertAppointmentFromTebra(data: TebraAppointment): Promise<void> {
+  const db = getDb()
+  const patientId = await resolvePatientIdFromTebraId(db, data.patientId)
+  if (!patientId) return // routine: this Tebra patient hasn't been identity-matched into Clinsync yet
+
+  const [provider] = await db.select({ id: providers.id }).from(providers).where(eq(providers.tebraId, data.providerId))
+  if (!provider) {
+    throw new Error(`upsertAppointmentFromTebra: no provider found for Tebra providerId "${data.providerId}" -- sync providers before appointments`)
+  }
+
+  const settings = await getAppSettings()
+  const timeZone = settings.practiceTimezone ?? 'America/Los_Angeles'
+  const startsAt = practiceLocalToUtc(data.startsAt, timeZone)
+  const endsAt = practiceLocalToUtc(data.endsAt, timeZone)
+
+  await db
+    .insert(appointments)
+    .values({
+      patientId,
+      providerId: provider.id,
+      startsAt,
+      endsAt,
+      visitReason: data.visitReason,
+      status: data.status,
+      source: 'tebra',
+      tebraId: data.tebraId,
+    })
+    .onConflictDoUpdate({
+      target: [appointments.tebraId],
+      targetWhere: sql`${appointments.tebraId} is not null`,
+      set: {
+        patientId,
+        providerId: provider.id,
+        startsAt,
+        endsAt,
+        visitReason: data.visitReason,
+        status: data.status,
+      },
+    })
 }

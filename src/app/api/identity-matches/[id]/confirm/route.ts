@@ -5,6 +5,7 @@ import { canAccessOperations } from '@/lib/role-capabilities'
 import { rejectCrossOrigin } from '@/lib/csrf'
 import { confirmIdentityMatch } from '@/lib/ehr-sync'
 import { EhrConnectorError } from '@/connectors/errors'
+import { parseIntParam } from '@/lib/http'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const csrfRejection = rejectCrossOrigin(request)
@@ -15,12 +16,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!canAccessOperations(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
+  const matchId = parseIntParam(id)
+  if (matchId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
   // Confirming doesn't just flip the queue row's status -- it pulls both
   // systems' data for the matched pair and creates the actual patient chart,
   // which is the entire point of running the match in the first place.
   let result: Awaited<ReturnType<typeof confirmIdentityMatch>>
   try {
-    result = await confirmIdentityMatch(Number(id))
+    result = await confirmIdentityMatch(matchId)
   } catch (err) {
     // A configured IntakeQ/Tebra that fails (auth, network...) -- surface a
     // safe message instead of creating a half-populated chart.
