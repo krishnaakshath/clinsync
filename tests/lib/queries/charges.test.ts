@@ -174,6 +174,39 @@ describe('upsertChargeFromTebra', () => {
       expect(row.status).toBe('needs_investigation')
       expect(row.notes).toBe('(Tebra status: "Some Unrecognized Tebra Status")')
     })
+
+    // Re-review (fix round) found the plain substring match turned a negated
+    // status into its positive opposite -- "Unapproved"/"Not Approved"
+    // matched `approved`, "Not Submitted" matched `submitted`. These must
+    // fall back (to `draft`, with the raw value preserved in notes), never
+    // silently store the wrong terminal state.
+    it.each(['Unapproved', 'Not Approved'])('falls back to draft (not approved) for raw charge status %j', async (raw) => {
+      await upsertChargeFromTebra(baseCharge({ status: raw }))
+      const [row] = await getDb().select().from(charges).where(eq(charges.tebraId, TEST_CHARGE_TEBRA_ID))
+      expect(row.status).toBe('draft')
+      expect(row.notes).toBe(`(Tebra status: "${raw}")`)
+    })
+
+    it('falls back to draft (not submitted) for raw charge status "Not Submitted"', async () => {
+      await upsertChargeFromTebra(baseCharge({ status: 'Not Submitted' }))
+      const [row] = await getDb().select().from(charges).where(eq(charges.tebraId, TEST_CHARGE_TEBRA_ID))
+      expect(row.status).toBe('draft')
+      expect(row.notes).toBe('(Tebra status: "Not Submitted")')
+    })
+
+    // Same bug, insurance claim side: "Unpaid"/"Not Paid"/"Partially Paid"/
+    // "Payment Pending" all matched `/paid|payment/`, storing `paid` for a
+    // claim that is explicitly NOT paid (or only partially, or still
+    // pending) -- a silently wrong terminal billing state.
+    it.each(['Unpaid', 'Not Paid', 'Partially Paid', 'Payment Pending'])(
+      'falls back to needs_investigation (not paid) for raw insurance claim status %j',
+      async (raw) => {
+        await upsertChargeFromTebra(baseCharge({ primaryInsurance: { payerName: 'Blue Cross', billedAmountCents: 15000, paidAmountCents: 0, status: raw } }))
+        const [row] = await getDb().select().from(insuranceClaims).where(eq(insuranceClaims.tebraId, `${TEST_CHARGE_TEBRA_ID}:primary`))
+        expect(row.status).toBe('needs_investigation')
+        expect(row.notes).toBe(`(Tebra status: "${raw}")`)
+      }
+    )
   })
 
   describe('insuranceClaims', () => {

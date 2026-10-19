@@ -35,33 +35,58 @@ export const TEBRA_CHARGE_PROVIDER_PLACEHOLDER = 'Tebra Sync (provider unresolve
 // mappings -- same style as tebra.client.ts's `mapAppointmentStatus`:
 // case-insensitive substring match, a safe documented fallback, never a
 // silently invented match.
+//
+// Re-review (fix round) found the plain substring match turned a negated
+// status into its opposite's terminal state -- "Unapproved"/"Not Approved"
+// matched `/approved/`, "Not Submitted" matched `/submit/`, and "Unpaid"/
+// "Not Paid"/"Partially Paid"/"Payment Pending" all matched `/paid|payment/`
+// -- each silently storing a clean positive status for what was actually an
+// unresolved/negative one, with no `notes` tag since a "match" short-
+// circuited the fallback path. Each keyword now carries an optional
+// `negative` pattern checked first; a negated raw value is treated as no
+// match at all, same as an unrecognized one (falls through to the next
+// keyword, then to the documented safe fallback, with the raw value
+// preserved in `notes` where that column exists).
 
-const CHARGE_STATUS_KEYWORDS: Array<[RegExp, ChargeStatus]> = [
-  [/approved/i, 'approved'],
-  [/submit/i, 'submitted'],
-  [/pending/i, 'pending_approval'],
-]
-
-/** Falls back to 'draft' for anything unrecognized -- a charge stuck in
- * draft needs human review, which is safer than guessing a wrong terminal
- * state. */
-function mapChargeStatus(raw: string): ChargeStatus {
-  for (const [re, status] of CHARGE_STATUS_KEYWORDS) if (re.test(raw)) return status
-  return 'draft'
+interface StatusKeyword<T> {
+  positive: RegExp
+  negative?: RegExp
+  status: T
 }
 
-const INSURANCE_CLAIM_STATUS_KEYWORDS: Array<[RegExp, InsuranceClaimStatus]> = [
-  [/denied/i, 'denied'],
-  [/reject/i, 'rejected'],
-  [/paid|payment/i, 'paid'],
-  [/adjudicat/i, 'waiting_adjudication'],
+function matchStatusKeyword<T>(raw: string, keywords: StatusKeyword<T>[]): T | null {
+  for (const k of keywords) {
+    if (k.positive.test(raw) && !(k.negative && k.negative.test(raw))) return k.status
+  }
+  return null
+}
+
+const CHARGE_STATUS_KEYWORDS: StatusKeyword<ChargeStatus>[] = [
+  { positive: /approved/i, negative: /\b(un|not)\s*approved\b/i, status: 'approved' },
+  { positive: /submit/i, negative: /\bnot\s+submitted\b/i, status: 'submitted' },
+  { positive: /pending/i, status: 'pending_approval' },
+]
+
+/** Falls back to 'draft' for anything unrecognized (including a negated
+ * match) -- a charge stuck in draft needs human review, which is safer than
+ * guessing a wrong terminal state. */
+function mapChargeStatus(raw: string): ChargeStatus {
+  return matchStatusKeyword(raw, CHARGE_STATUS_KEYWORDS) ?? 'draft'
+}
+
+const INSURANCE_CLAIM_STATUS_KEYWORDS: StatusKeyword<InsuranceClaimStatus>[] = [
+  { positive: /denied/i, status: 'denied' },
+  { positive: /reject/i, status: 'rejected' },
+  { positive: /paid|payment/i, negative: /\b(un|not)\s*paid\b|partial(?:ly)?\s+paid|payment\s+pending/i, status: 'paid' },
+  { positive: /adjudicat/i, status: 'waiting_adjudication' },
 ]
 
 /** Falls back to 'needs_investigation' -- the enum's own existing catch-all/
- * review-needed value -- for anything unrecognized. */
+ * review-needed value -- for anything unrecognized (including a negated
+ * match, e.g. "Unpaid"/"Partially Paid"/"Payment Pending", none of which are
+ * actually `paid`). */
 function mapInsuranceClaimStatus(raw: string): InsuranceClaimStatus {
-  for (const [re, status] of INSURANCE_CLAIM_STATUS_KEYWORDS) if (re.test(raw)) return status
-  return 'needs_investigation'
+  return matchStatusKeyword(raw, INSURANCE_CLAIM_STATUS_KEYWORDS) ?? 'needs_investigation'
 }
 
 /**
@@ -184,7 +209,7 @@ async function upsertInsuranceClaimTier(
 
   const tebraId = `${chargeTebraId}:${tier}`
   const status = mapInsuranceClaimStatus(detail.status)
-  const matchedKeyword = INSURANCE_CLAIM_STATUS_KEYWORDS.some(([re]) => re.test(detail.status))
+  const matchedKeyword = matchStatusKeyword(detail.status, INSURANCE_CLAIM_STATUS_KEYWORDS) !== null
   let notes: string | undefined
   if (!matchedKeyword) {
     const [existing] = await db.select({ notes: insuranceClaims.notes }).from(insuranceClaims).where(eq(insuranceClaims.tebraId, tebraId))
@@ -262,7 +287,7 @@ export async function upsertChargeFromTebra(data: TebraCharge): Promise<void> {
   }
 
   const status = mapChargeStatus(data.status)
-  const matchedKeyword = CHARGE_STATUS_KEYWORDS.some(([re]) => re.test(data.status))
+  const matchedKeyword = matchStatusKeyword(data.status, CHARGE_STATUS_KEYWORDS) !== null
   let notes: string | undefined
   if (!matchedKeyword) {
     const [existing] = await db.select({ notes: charges.notes }).from(charges).where(eq(charges.tebraId, data.tebraId))
