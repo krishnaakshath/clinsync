@@ -21,11 +21,29 @@ const INITIAL: TrialCriteria = {
 }
 
 function open() {
-  render(<TrialCriteriaEditor trialId="t1" initial={INITIAL} />)
+  const { container } = render(<TrialCriteriaEditor trialId="t1" initial={INITIAL} />)
   fireEvent.click(screen.getByRole('button', { name: 'Edit criteria' }))
+  return container
 }
 
 describe('TrialCriteriaEditor', () => {
+  it('renders the dialog via a portal onto document.body, not inside its own render container', () => {
+    // Regression test: the trigger button that opens this editor sits inside
+    // a card with `backdrop-blur-sm` on the real Trials page (TrialDetailPage's
+    // shared SECTION style). `backdrop-filter` creates a new containing block
+    // for `position: fixed` descendants, so without a portal, this dialog's
+    // "fixed inset-0" overlay would be positioned relative to that card
+    // instead of the viewport -- clipping it near the top of the page instead
+    // of covering the whole screen. jsdom doesn't compute real layout, so
+    // this can't assert the visual symptom directly, but it can assert the
+    // actual fix: the dialog must not be a DOM descendant of wherever the
+    // trigger button was rendered.
+    const container = open()
+    const dialog = screen.getByRole('dialog')
+    expect(container.contains(dialog)).toBe(false)
+    expect(document.body.contains(dialog)).toBe(true)
+  })
+
   it('renders every field with accessible labels once opened', () => {
     open()
     expect(screen.getByLabelText('Minimum age')).toHaveValue(18)
