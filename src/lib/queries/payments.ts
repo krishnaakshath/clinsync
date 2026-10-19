@@ -1,7 +1,7 @@
 import { getDb } from '@/db/client'
 import { payments, charges, patients } from '@/db/schema'
 import { eq, desc } from 'drizzle-orm'
-import { getOrSetCache, paymentsListCacheKey } from '@/lib/cache'
+import { getOrSetCache, invalidateCache, paymentsListCacheKey } from '@/lib/cache'
 import type { TebraPayment } from '@/connectors/types'
 
 export async function listPayments() {
@@ -89,4 +89,6 @@ export async function upsertPaymentFromTebra(data: TebraPayment): Promise<void> 
         postedDate: data.postedDate,
       },
     })
+
+  await invalidateCache(paymentsListCacheKey())
 }
