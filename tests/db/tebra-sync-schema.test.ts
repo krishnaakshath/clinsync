@@ -51,8 +51,8 @@ describe('Tebra sync schema', () => {
       patientId: patient.patientId,
       providerId: provider.id,
       serviceLocationId: serviceLocation.id,
-      serviceStartDate: new Date('2024-01-01'),
-      serviceEndDate: new Date('2024-01-01'),
+      serviceStartDate: '2024-01-01',
+      serviceEndDate: '2024-01-01',
       status: 'completed',
     }).returning()
 
@@ -78,7 +78,7 @@ describe('Tebra sync schema', () => {
       payerType: 'insurance',
       amountCents: 10000,
       method: 'electronic',
-      postedDate: new Date('2024-01-01'),
+      postedDate: '2024-01-01',
     }).returning()
 
     const inserted = await getDb()

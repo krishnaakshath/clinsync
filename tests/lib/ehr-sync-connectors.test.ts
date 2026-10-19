@@ -38,6 +38,17 @@ function tebraStub(list: FHIRPatient[], supportsClinicalData: boolean): TebraCon
     getActiveMedications: vi.fn(async () => []),
     getInactiveMedications: vi.fn(async () => []),
     getConditions: vi.fn(async () => []),
+    // Tebra sync's own entity pulls -- syncFromEhrs() (this file's subject)
+    // never calls any of these, same reasoning as searchPatient/
+    // getPatientById above, so they just need to satisfy TebraConnector's
+    // shape, not be exercised.
+    getAppointments: vi.fn(async () => { throw new Error('sync must not call getAppointments') }),
+    getCharges: vi.fn(async () => { throw new Error('sync must not call getCharges') }),
+    getPayments: vi.fn(async () => { throw new Error('sync must not call getPayments') }),
+    getProviders: vi.fn(async () => { throw new Error('sync must not call getProviders') }),
+    getServiceLocations: vi.fn(async () => { throw new Error('sync must not call getServiceLocations') }),
+    getProcedureCodes: vi.fn(async () => { throw new Error('sync must not call getProcedureCodes') }),
+    getEncounterDetails: vi.fn(async () => { throw new Error('sync must not call getEncounterDetails') }),
     testConnection: vi.fn(async () => {}),
   }
 }

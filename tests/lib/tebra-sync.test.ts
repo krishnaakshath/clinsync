@@ -29,7 +29,7 @@ import type {
 // see Task 4's review ruling), so every identifier is Date.now()-suffixed
 // and every test registers its own cleanup via `onCleanup`, run in
 // afterEach, matching the established pattern from Tasks 4-6's query tests.
-let cleanupFns: Array<() => Promise<unknown>> = []
+const cleanupFns: Array<() => Promise<unknown>> = []
 function onCleanup(fn: () => Promise<unknown>) {
   cleanupFns.push(fn)
 }
