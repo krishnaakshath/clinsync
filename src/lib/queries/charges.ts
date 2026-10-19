@@ -70,7 +70,7 @@ export async function getCharge(id: number) {
 }
 
 export async function createCharge(input: CreateChargeInput) {
-  const [created] = await getDb().insert(charges).values({ ...input, status: 'draft' }).returning()
+  const [created] = await getDb().insert(charges).values({ ...input, status: 'draft', source: 'clinsync', tebraId: null }).returning()
   await invalidateChargesList()
   await invalidateBillingCaches()
   return created

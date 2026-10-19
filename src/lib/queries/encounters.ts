@@ -1,9 +1,48 @@
 import { getDb } from '@/db/client'
 import { encounters, providers, serviceLocations } from '@/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 import { resolvePatientIdFromTebraId } from '@/lib/queries/appointments'
 import type { AppointmentStatus } from '@/lib/queries/appointments'
 import type { TebraEncounterDetail } from '@/connectors/types'
+
+export interface CreateEncounterInput {
+  patientId: string
+  providerId: number
+  serviceLocationId: number
+  serviceStartDate: string
+  serviceEndDate: string
+  status: AppointmentStatus
+}
+
+/**
+ * Native (clinsync-originated) encounter create -- mirrors
+ * `createCharge`/`POST /api/appointments`'s insert shape. Explicit
+ * `source: 'clinsync', tebraId: null` rather than relying on the schema's
+ * defaults, so the native-create intent is visible in code (same reasoning
+ * as the one-line additions to the appointments/charges insert call sites).
+ */
+export async function createEncounter(input: CreateEncounterInput) {
+  const [created] = await getDb()
+    .insert(encounters)
+    .values({ ...input, source: 'clinsync', tebraId: null })
+    .returning()
+  return created
+}
+
+/**
+ * Fetch one encounter by its internal serial id -- distinct from
+ * `getEncounterByTebraId` above (which looks up by Tebra's id for the sync
+ * engine's "already have this" check). Returns `null` if not found, same
+ * convention as `getCharge`.
+ */
+export async function getEncounter(id: number) {
+  const [row] = await getDb().select().from(encounters).where(eq(encounters.id, id))
+  return row ?? null
+}
+
+export async function listEncounters() {
+  return getDb().select().from(encounters).orderBy(desc(encounters.id))
+}
 
 /**
  * Used by the Task 7 sync engine to check "already have this encounter"

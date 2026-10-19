@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
     endsAt,
     visitReason: parsed.data.visitReason,
     status: parsed.data.status ?? 'scheduled',
+    source: 'clinsync',
+    tebraId: null,
   }).returning()
 
   await logAudit(session, 'scheduled appointment', parsed.data.patientId)

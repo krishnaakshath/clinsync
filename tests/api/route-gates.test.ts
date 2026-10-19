@@ -74,6 +74,12 @@ const ROWS: [string, Method, Access][] = [
   ['cron/tebra-sync-reference', 'GET', 'public'],
   ['discrepancies/[id]/resolve', 'POST', OPS],
   ['documents/[id]', 'PATCH', OPS],
+  // Clinical data (unlike charges/payments) -- session-gated only, no
+  // `canAccessOperations` check, so PI is NOT excluded. Confirmed by
+  // `staffRows` (401-without-session) rather than the `denied`/OPS set.
+  ['encounters', 'GET', 'staff'],
+  ['encounters', 'POST', 'staff'],
+  ['encounters/[id]', 'GET', 'staff'],
   ['form-submissions', 'GET', 'staff'],
   ['form-submissions', 'POST', OPS],
   ['form-submissions/[id]', 'GET', 'staff'],
